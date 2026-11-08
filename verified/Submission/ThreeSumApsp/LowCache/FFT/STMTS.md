@@ -18,11 +18,36 @@ Campaign branch: apsp-l1 @ darkhipo/apsp-bound. Lean 4.33.1, Mathlib 0df444a3.
 |---|---|---|
 | The affine ledger: `Check`, `eval`, `scalarPhase`/`scalarCosts`, `cyclicPhase`/`cyclicCosts` — including the cache-encoding form `1+b-u/2-z-e*E-eta` and the residual-query form `b-z-e*q1-eta` — with `scalarPhaseEval`, `cyclicPhaseEval`, `witnessIdentities` and the constant definitions (c, theta, b, delta=705208/10^8, R, S, eta=b/R, u=S*eta, e=b+u, T/G/q1 interval bounds) | AlignedCertificate.lean | PORTED from the pin (byte-identical, zero drift; imports only Std + Init.Grind.Ordered.Rat — no 129-module chain, no real-log enclosures). Axioms: [propext, Classical.choice, Quot.sound]. The CONSERVATIVE instantiation of these checks (delta = 1/200 + 1e-6 margin) remains the retune-scope item — the ported constants are the FINAL point. |
 
+## Ported (M3d): the conservative instantiation kernel-checked
+
+| Statement | File | Provenance |
+|---|---|---|
+| `conservativeChecks` — the pinned 47-check battery with the 25 delta-targeted cells retargeted to `conservativeDelta + conservativeMargin` (= 1/200 + 1/1000000, 0.005001 total); the 22 geometry cells unchanged (targets 0/1) | FFTConservativeInstance.lean | retargeting of the pinned `checks` (AlignedCertificate); expressions byte-identical to the pin. Battery count `conservativeCheckCount` = 47 (rfl). |
+| `conservativeMargins : conservativeChecks.all (fun check => decide (check.target < lower check.expression)) = true` | FFTConservativeInstance.lean | `decide +kernel` at the pin's exact predicate shape. Ledger cells clear the conservative floor because their pinned lower bounds exceed 705208/10^8 > 0.005001 at the SAME witness constants. Axioms: [propext, Classical.choice, Quot.sound]. |
+| `allCostsOfEnclosures_conservative` (pin's statement shape, enclosure-conditional) | FFTConservativeInstance.lean | from `conservativeMargins` + `lower_le_eval` |
+| `conservative_cache_saving_theorem`, `conservative_residual_query_theorem` — the two LEDGER inequalities at delta = 1/200 + 1e-6, enclosure-conditional over the pinned T/G/q1 boxes (promote `ConservativeLedger.cacheSaving` / `.residualQuery`) | FFTConservativeInstance.lean | the binding inequality ("phase II final: residual queries") is now a THEOREM at the conservative point. Non-vacuity verified: corrected cells 33/40 (boxes, gCoeff = e) and 41/43 evaluate true via `decide +kernel` on the projected battery. |
+
+FORENSICS RECORD (the elaboration-environment discrepancy, resolved): the
+prior session's "maximum recursion depth" + "Unknown identifier kernel" was
+NOT an import-scope/option problem. Three independent defects: (1)
+`decide +kernel` is TACTIC syntax — in term position `+kernel` parses as
+`+ kernel` (identifier error); (2) the pin's `maxRecDepth 100000` /
+`maxHeartbeats 8000000` are file-scoped and do not transfer through imports
+(the WIP had 8000 / default); (3) TWO battery transcription drifts (phase II
+boxes cells lost their `e` gCoeff; the residual-query extraction conflated
+the unexpanded and affine forms) — and, decisively, the original statement
+applied the 0.005001 floor to ALL 47 cells, which is FALSE at the
+candidate-exponent cell (0 < eta with eta = b/R ≈ 4.6e-17). `decide +kernel`
+over a false cell reports a bogus "reduction got stuck" (kernel rejects the
+aux lemma; the diagnose-path whnf cannot re-derive `isFalse` at default
+transparency). Fix: floor rides on the CELL TARGETS (pin shape), predicates
+byte-identical to the pin's.
+
 ## Named hypothesis (conditional-by-construction, NOT ported)
 
 | Statement | File | Status + provenance |
 |---|---|---|
-| `ConservativeLedger` — u, e, E, eta with `1 + u/2 - e*E >= delta + margin` (cache saving) and `u - e*E - eta >= delta + margin` (residual queries, the BINDING inequality) | FFTConservative.lean | **Named hypothesis.** The ledger inequality is numeric-computation evidence in the certificate chain (apsp-claimed/certificate.json: smallest_runtime_gap = 2.24e-14 at delta = 0.0070520812906, binding_condition = "phase II final: residual queries"; derived quantities u = 0.035408..., e = 0.081455..., eta interval ~4.6e-17), not a lemma-shaped statement in the FFT cone. Porting it (from shresh's analysis modules / certificate chain) is the named obstruction for the next milestone. The conservative instance (delta = 1/200 + margin 1e-6) is the retune target; it is not derived from the final certificate. |
+| `ConservativeLedger` — u, e, E, eta with `1 + u/2 - e*E >= delta + margin` (cache saving) and `u - e*E - eta >= delta + margin` (residual queries, the BINDING inequality) | FFTConservative.lean | **PROMOTED AT THE CONSERVATIVE POINT (M3d)**: satisfiability of the ledger at delta = 1/200 + 1e-6 is now kernel-checked via `conservativeMargins` + the two promotion theorems in FFTConservativeInstance.lean. What remains named-hypothesis is the FINAL-point squeeze (gap 2.24e-14 at delta = 0.0070520812906, binding condition "phase II final: residual queries") — the conservative instance is deliberately NOT the final squeeze. |
 | Corollaries `conservative_cache_saving`, `conservative_residual_query`, `squeeze_below_margin` | FFTConservative.lean | restatements of the hypothesis + prior arithmetic |
 
 ## Boundary (standing)
