@@ -12,6 +12,12 @@ Campaign branch: apsp-l1 @ darkhipo/apsp-bound. Lean 4.33.1, Mathlib 0df444a3.
 | `fft_mult_contract_concrete : FftMultContract 2 1` | FFTConservative.lean | NON-VACUOUS concrete instantiation (q=2, A=1 concrete numerals; real cone program). Production (q,A) is a retune output, deliberately not fixed. |
 | `conservative_margin_dominates` (2.24e-14 < 1e-6), `conservative_band` (delta+margin <= 0.006) | FFTCostContract.lean | arithmetic |
 
+## Ported (M3c follow-up): the ledger machinery itself
+
+| Statement | File | Provenance |
+|---|---|---|
+| The affine ledger: `Check`, `eval`, `scalarPhase`/`scalarCosts`, `cyclicPhase`/`cyclicCosts` — including the cache-encoding form `1+b-u/2-z-e*E-eta` and the residual-query form `b-z-e*q1-eta` — with `scalarPhaseEval`, `cyclicPhaseEval`, `witnessIdentities` and the constant definitions (c, theta, b, delta=705208/10^8, R, S, eta=b/R, u=S*eta, e=b+u, T/G/q1 interval bounds) | AlignedCertificate.lean | PORTED from the pin (byte-identical, zero drift; imports only Std + Init.Grind.Ordered.Rat — no 129-module chain, no real-log enclosures). Axioms: [propext, Classical.choice, Quot.sound]. The CONSERVATIVE instantiation of these checks (delta = 1/200 + 1e-6 margin) remains the retune-scope item — the ported constants are the FINAL point. |
+
 ## Named hypothesis (conditional-by-construction, NOT ported)
 
 | Statement | File | Status + provenance |
