@@ -1,0 +1,60 @@
+CallerBody.lean — D7(b) FILL 3, the summit body phase one (the skeleton)
+verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher `trap "" TERM` + exit marker + retry — attempt 1 was host-killed,
+exit 137, attempt 2 green):
+  lake env lean -j1 CallerBody.lean
+    -o .lake/build/lib/lean/CallerBody.olean
+Exit codes: 137 (attempt 1, host kill), 0 (attempt 2); olean 41016 bytes,
+module target named. GREEN AT COMMIT: the skeleton is defs + stated
+targets — no proofs required, none faked.
+Banner:
+  'ThinMatrix.CallerBody.callerProgram_entry' depends on axioms: [propext]
+  'ThinMatrix.CallerBody.callerProgram_behind' does not depend on any axioms
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, summit body phase one: the caller's fixed program (the
+skeleton).
+- callerProgram — the caller's fixed program: the product-round body is
+  the entry procedure and the cache, restore and round programs ride
+  INSIDE, behind it (Program.behind — the sanctioned route; Ends is not
+  prepend-stable, piece 1's keystone). The bodies trail board-side; the
+  skeleton pins the shape.
+- mpProc / cacheProcIn / restoreProcIn / stageProcIn — the entry index
+  arithmetic: procedure 0 is the solver's core; the fills at one plus
+  their own indices; the stage at the L5/L6 pinning's procedure 6 shifted
+  behind the product body and the two fills (stageMeets_behind's
+  arithmetic, layered).
+- callerProgram_entry / callerProgram_behind — the rfl-level shape facts
+  (the entry procedure IS the product body; the behind equation at the
+  entry layer).
+- CallerTarget — the phase target, STATED as a definition (not proved):
+  Light.Solves Light.mpTask (callerProgram …) mpProc Tn need —
+  SummitSlot's hs component at the caller program. The phase's remaining
+  sessions discharge it; each is named in the module docstring with its
+  producer: (a) the mpRounds execution derivation (thread_step_append's
+  chaining form + stageMeats_behind's shifted slot), (b) the Post
+  assembly (mpPost_interior + the oracle functional chain —
+  StoredMinPlusAPSP.apsp_correct / bounded_signed_eq_minPlus, conditioned
+  on DenseOracleCorrect, upstream's own shape), (c) the step count lifted
+  into hdom by costBoundOfEventualDomination with the clock bricks
+  taskTime_le_of_size / instanceSize_le / mpRounds_eq.
+
+When (a)–(c) land, CallerTarget is discharged, SummitSlot is filled, and
+ThinMatrix.Summit.twin_of_summit fires the conservative filing statement
+unconditionally. D7's boundary stands: no (min,+) product is claimed in
+this module; the oracle premise is upstream's own shape.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
