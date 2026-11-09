@@ -1,0 +1,53 @@
+CallerCount.lean — D7(b) FILL 3, the count-derivation session verification
+receipt (the composition's sockets + the transports)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; green on attempt 1 after the
+opens/module-import fixes — CallerReading's import added, the opens
+completed (Light for the DenseScoreTablePass namespace, MinPlusCaller
+for mpRounds, CallerDataflow for oracleAnswerOf), and the transport's
+conclusion stated in the unfolded ∀-form (the def-application's
+implicit-synthesis trap)):
+  lake env lean -j1 CallerCount.lean
+    -o .lake/build/lib/lean/CallerCount.olean
+Exit codes: 0; olean 23280 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerCount.encodingIdentity_transport' does not depend on
+    any axioms
+  'ThinMatrix.CallerCount.ReadingAllRounds_transport' does not depend on
+    any axioms
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, the count-derivation session: the composition's sockets
+and the transports.
+- CountCellOfFft — the count-cell ↔ FFT-cell socket: the incidence
+  count's nonzeroness ↔ the FFT-computed table's cell's nonzeroness,
+  per (p, i). THE COMPOSITION LEMMA (the exponential-encoding identity
+  composed with `fft_view_caller` at one cell) discharges this socket —
+  the premise shapes are DATAFLOW.md's named sub-design; the encoding
+  identity is a premise, never claimed as proved (D7's boundary).
+- encodingIdentity_transport — the transport: the EncodingIdentity is
+  invariant under the rows-table's pointwise equality (axiom-free).
+- ReadingAllRounds_transport — the transport for the all-rounds reading
+  (the conclusion in the unfolded ∀-form; axiom-free).
+
+THE REMAINING SESSIONS: the composition lemma (the exponential encoding
+composed with `fft_view_caller` at one cell — discharging
+`CountCellOfFft`); the Seg-half assembly (the bracket accumulation via
+`refineStep` — the writes' shapes landed); the step count for
+`CallerHdom`. Until they land, `CallerTarget(Layered)` and the twin
+stay conditional — honestly: no solver is postulated, no (min,+)
+product is claimed. D7's boundary stands.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
