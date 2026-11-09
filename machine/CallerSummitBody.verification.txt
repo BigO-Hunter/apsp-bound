@@ -1,0 +1,58 @@
+CallerSummitBody.lean — D7(b) FILL 3, the data-flow session verification
+receipt (the product-round body's caller-level packaging)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (TERM-immune detached finisher finish_summitbody.sh + exit
+marker + olean; attempt 1 host-killed, attempt 2 green — the retry
+loop is the cure for the silent kills):
+  lake env lean -j1 CallerSummitBody.lean
+    -o .lake/build/lib/lean/CallerSummitBody.olean
+Exit code: 0 (attempt 2; attempt 1 was host-killed); olean 97,648
+bytes, module target named.
+Banner (all standard-3 — no sorryAx, no native_decide):
+  'callerProgram_entry' depends on axioms: [propext]
+  'summitEnds_of_premises' depends on axioms: [propext]
+  'summitSlot_of' depends on axioms: [propext, Classical.choice,
+    Quot.sound]
+  'twin_of' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+The session's content (the design is PRODUCT_BODY.md):
+- callerProgram (the CallerBody INSIDE shape, restated) +
+  callerProgram_entry (procedure 0 IS the product core) +
+  mpBodySummit (the per-instance product core: the mpBodyWithWrites
+  fold at the caller's shifted stage index).
+- summitEnds_of_premises — THE PER-INSTANCE POST ASSEMBLY: from the
+  Tier-A premises (hbus — the wire-run's fold delivery, ∀ start state,
+  a theorem of the landed wire session modulo the wire bundle;
+  hident — CallerRun.MinPlusIdentity, the construction's own
+  conversion; hkept — the KeptBut half at the caller program), the
+  segOfBody_of pattern at the fixed start state delivers the mpTask
+  Post at the caller program: Seg (the state-level identity re-run) ∧
+  KeptBut (the kept premise's witness).
+- summitSlot_of — the SummitSlot witness CONSTRUCTED from the caller
+  program, mpProc = 0, callerTn, callerNeed, GIVEN CallerTarget (the
+  universal body's run-derivation), hn (proved in CallerStepCount),
+  hdom (proved in CallerStepCount).
+- twin_of — the twin fires: SolvedInTime (2994999/1000000) from the
+  same three.
+
+THE UNIVERSAL-BODY SEAM (the honest remainder): Light.Solves
+quantifies ONE fixed program over ALL instances while the landed write
+shapes bake the instance into the register indices (v (t·x.n + u));
+the run-derivation here is the PER-INSTANCE Ends. The universal term
+(the fixed index register advanced by .set, the while-loop control)
+is the named remainder — PRODUCT_BODY.md §5 — and it is exactly the
+"MACHINE_OBLIGATIONS: actual caller matching mpTask, including all
+arrays, scans, control flow" row. Until it lands, SummitSlot is
+discharged modulo that one seam, and the filing package does not fire.
+D7's boundary stands: the oracle premise and the construction's
+identity are premises, never claimed.
+Credits: shresh (shreshth-s) — the composite-incidence construction
+and the oracle functional chain; Alman–Vassilevska Williams —
+arXiv:2610.06783; Li Xuanji — the verified ten-term construction and
+word-RAM compiler; Joshua Wharton (QFEX) — the canonical adapter
+arrangement, the checked selection round / restart-loop driver, and
+the machine-obligations record; Hrishik Sai Bojnal — the verified
+frontier being refined. Formalization ours.

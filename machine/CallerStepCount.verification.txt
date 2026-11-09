@@ -1,0 +1,51 @@
+CallerStepCount.lean — D7(b) FILL 3, the step-count session verification
+receipt (the budget structure + the CallerHdom domination)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (TERM-immune detached finisher finish_stepcount.sh + exit
+marker + olean; several host-kills of long builds absorbed by the
+retry loop — truncated logs look green but are kills, hence the
+finisher):
+  lake env lean -j1 CallerStepCount.lean
+    -o .lake/build/lib/lean/CallerStepCount.olean
+Exit code: 0 (attempt 1 after the arithmetic hardening); olean
+2,828,976 bytes, module target named.
+Banner (all standard-3 — no sorryAx, no native_decide):
+  'callerHdom' depends on axioms: [propext, Classical.choice,
+    Quot.sound]
+  'callerB_le' / 'callerNeed_poly' / 'completeCost_ge_log_sq' /
+    'apTime_le_sq_log': [propext, Classical.choice, Quot.sound]
+
+The session's content (PRODUCT_BODY.md §6):
+- callerTt (the tight stage clock: the selection round's cost
+  comparison 25*(n²+7n) at the concretized pinning P = I = n),
+  callerBw = 5 (two vars + op + var + store), callerB = 9+2+Tt+5n+1
+  (callArgs_cost = 9), callerTn n U := mpRounds U * callerB n;
+  the budget sockets hround_budget/hTt_budget/hcost_budget/hT_budget
+  in the exact shapes chain_from/wire_from_slots consume.
+- callerNeed + callerNeed_poly — the summit's hn socket (the scratch
+  n²+4n+8 cells, word 6nU+64, depth 2; polyBound 7 2 [n, U]).
+- completeCost_ge_log_sq — the ledger's own first summand carries
+  (R+1)²·log^(R+10)·n·n² (R = 10⁹; the other terms are natural-number
+  ceilings, so they only add).
+- apTime_le_sq_log — the host's lifted clock
+  Nat.clog 2 n * (Tn n (3nU) + 23n² + 29) + 53n² + 17n + 65 is
+  O(n²·log²n) per fixed κ, uniformly over U ≤ n^κ (the schedule's
+  logarithmic form mpRounds U ≤ 2·log₂U + 6 is what makes the
+  domination work; the clog/pow-bridges: half_lt_log_two from the
+  pinned exp 1 < 2.718… < 4, log2_le_two_log, clog_two_le).
+- callerHdom : CallerHdom callerTn — the summit's hdom socket at
+  k := 0, C := 4·(7000κ + 30000), via Light.timeUpTo_le.
+
+D7's boundary stands: no (min,+) product is claimed; the tight-clock
+slot family (hslots at callerTt) is the assembly module's named
+Tier-B premise (PRODUCT_BODY.md §4).
+Credits: shresh (shreshth-s) — the composite-incidence construction
+and the oracle functional chain; Alman–Vassilevska Williams —
+arXiv:2610.06783; Li Xuanji — the verified ten-term construction and
+word-RAM compiler; Joshua Wharton (QFEX) — the canonical adapter
+arrangement, the checked selection round / restart-loop driver, the
+machine-obligations record, and the tight stage clock; Hrishik Sai
+Bojnal — the verified frontier being refined. Formalization ours.

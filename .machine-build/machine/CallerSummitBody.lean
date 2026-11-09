@@ -63,10 +63,10 @@ construction's identity are premises, never proofs.
 
 namespace ThinMatrix.CallerSummitBody
 
-open Filter Asymptotics ThreeSumApsp ThreeSumApsp.WordRam
+open Filter Asymptotics ThreeSumApsp ThreeSumApsp.Spec ThreeSumApsp.WordRam
   ThinMatrix.MinPlusReduction ThinMatrix.MinPlusCaller
   Light.DenseRestartSelectionLoop Light
-  ThinMatrix.CallerPost ThinMatrix.CallerStepCount
+  ThinMatrix.CallerPost ThinMatrix.CallerStepCount ThinMatrix.Summit
   ThinMatrix.CallerWrites ThinMatrix.CallerRun
 
 /-! ## The caller's fixed layers and the product core's entry -/
@@ -138,7 +138,8 @@ theorem summitEnds_of_premises
         (fun σ' => bracketAccumulate 0 tests (mpRounds W)
           = σ'.mem (bracketCell x 0 0)))
     (hident : @MinPlusIdentity lim d P k I h active remaining rows
-      ab rb sb mb bb fr ([] : Light.Program) x Out W tests)
+      ab rb sb mb bb fr 0 (mpRounds W * callerB x.n) (fun _ => 0) μ₀
+      ([] : Light.Program) x Out W tests)
     (hkept : ∀ (σ'' : State),
       Ends lim (callerProgram (mpBodySummit cacheProg restoreProg Out x W)
         cacheProg restoreProg
@@ -172,13 +173,13 @@ at the `CallerBody` program; this is its restatement at this module's
 program term. -/
 theorem summitSlot_of (htarget : Light.Solves Light.mpTask
     (callerProgram (mpBodySummit cacheProg restoreProg Out x W) cacheProg
-      restoreProg (callSite P k I h active remaining rows ab rb sb mb bb))
+      restoreProg (callSite P kk I h active remaining rows ab rb sb mb bb))
     0 callerTn callerNeed)
     (hn : Light.PolyNeed callerNeed)
     (hdom : CallerHdom callerTn) :
     SummitSlot := by
   refine ⟨callerProgram (mpBodySummit cacheProg restoreProg Out x W) cacheProg
-    restoreProg (callSite P k I h active remaining rows ab rb sb mb bb),
+    restoreProg (callSite P kk I h active remaining rows ab rb sb mb bb),
     0, callerTn, callerNeed, htarget, hn, hdom⟩
 
 /-- THE TWIN'S CONDITIONAL FIRE: the conservative `Race.bound` form
@@ -186,7 +187,7 @@ theorem summitSlot_of (htarget : Light.Solves Light.mpTask
 (PRODUCT_BODY.md §5), this is the filing theorem. -/
 theorem twin_of (htarget : Light.Solves Light.mpTask
     (callerProgram (mpBodySummit cacheProg restoreProg Out x W) cacheProg
-      restoreProg (callSite P k I h active remaining rows ab rb sb mb bb))
+      restoreProg (callSite P kk I h active remaining rows ab rb sb mb bb))
     0 callerTn callerNeed)
     (hn : Light.PolyNeed callerNeed)
     (hdom : CallerHdom callerTn) :
