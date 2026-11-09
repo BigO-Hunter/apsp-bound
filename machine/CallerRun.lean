@@ -65,11 +65,13 @@ open ThreeSumApsp ThreeSumApsp.Spec
 
 /-- The per-round body-slice: the stage call followed by the bracket
 cells' writes (the per-round cell-updates at the product region). The
-stage at the caller's shifted index; the writes at the product region
-(the row-t bracket cells, `CallerWrites`'s shapes). -/
+stage at the caller's shifted index; the call's result lands in `Tmp`
+and the row's stores read the value-base `Tmp` (the delivery register —
+a Light call updates only `Tmp`); the address-base is `Out` (the
+product base, pinned by the wire's pinning). -/
 def roundSlice (stage Out : ℕ) (x : MatInst) (t : ℕ) : Light.Stmt :=
   Light.Stmt.call stage callArgs Tmp ;;
-    mpBodyWritesRow Out Out x t
+    mpBodyWritesRow Out Tmp x t
 
 /-- THE CALLER'S BODY WITH WRITES: the mpRounds schedule of
 (stage-call + bracket-writes) pairs — the body's write-inclusion (the

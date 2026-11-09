@@ -102,25 +102,25 @@ theorem mpBodyWithWrites_eq (stage Out : ℕ) (x : MatInst) (W : ℕ) :
 /-! ## The row's entry-splitting (pure) -/
 
 /-- The row's first-j-entries prefix (the row-t entries of the
-`mpBodyWritesRow Out Out x t` layout: store into `v Out +' v (t * x.n + u)`
-the register `v (Out + u)`). -/
-def rowUpTo (Out : ℕ) (x : MatInst) (t j : ℕ) : Light.Stmt :=
+`mpBodyWritesRow Out Base x t` layout: store into `v Out +' v (t * x.n + u)`
+the register `v (Base + u)` — the delivery register's family). -/
+def rowUpTo (Out Base : ℕ) (x : MatInst) (t j : ℕ) : Light.Stmt :=
   (List.range j).foldl
     (fun s u => Light.Stmt.seq s
-      (mpBodyWritesEntry Out (t * x.n + u) (Out + u))) Light.Stmt.skip
+      (mpBodyWritesEntry Out (t * x.n + u) (Base + u))) Light.Stmt.skip
 
-theorem rowUpTo_zero (Out : ℕ) (x : MatInst) (t : ℕ) :
-    rowUpTo Out x t 0 = Light.Stmt.skip := rfl
+theorem rowUpTo_zero (Out Base : ℕ) (x : MatInst) (t : ℕ) :
+    rowUpTo Out Base x t 0 = Light.Stmt.skip := rfl
 
-theorem rowUpTo_succ (Out : ℕ) (x : MatInst) (t j : ℕ) :
-    rowUpTo Out x t (j + 1) =
-      Light.Stmt.seq (rowUpTo Out x t j)
-        (mpBodyWritesEntry Out (t * x.n + j) (Out + j)) := by
+theorem rowUpTo_succ (Out Base : ℕ) (x : MatInst) (t j : ℕ) :
+    rowUpTo Out Base x t (j + 1) =
+      Light.Stmt.seq (rowUpTo Out Base x t j)
+        (mpBodyWritesEntry Out (t * x.n + j) (Base + j)) := by
   unfold rowUpTo
   rw [List.range_succ, List.foldl_append, List.foldl_cons, List.foldl_nil]
 
-theorem mpBodyWritesRow_eq (Out : ℕ) (x : MatInst) (t : ℕ) :
-    mpBodyWritesRow Out Out x t = rowUpTo Out x t x.n := rfl
+theorem mpBodyWritesRow_eq (Out Base : ℕ) (x : MatInst) (t : ℕ) :
+    mpBodyWritesRow Out Base x t = rowUpTo Out Base x t x.n := rfl
 
 /-! ## The store's memory semantics (axiom-free) -/
 
@@ -171,8 +171,10 @@ theorem WirePins_congr {lim : Limits} {Out : ℕ} {x : MatInst} {N : ℕ}
 
 /-- SOCKET (never claimed): the stage call at round t delivers the row's
 refined value — the fold seeded by the row cell's current value — into
-the source register `Out`, keeps cell (0,0), and keeps the pinning. The
-body's per-round machine-computation contract (DATAFLOW.md's remaining
+the call's result register `Tmp` (a Light call updates only `Tmp`; the
+address-base `Out` is a different register, pinned by the pinning), and
+keeps cell (0,0), the pinning, and the memory frame. The body's
+per-round machine-computation contract (DATAFLOW.md's remaining
 sub-design); the min-plus identity of the delivered values rides the
 oracle premise — D7's boundary: the oracle is a premise, never claimed
 as proved. The socket's proof session is named, not landed. -/
@@ -180,14 +182,14 @@ def StageDelivers (lim : Limits) (P : Light.Program) (d Out Tcall : ℕ)
     (x : MatInst) (tests : ℕ → Bool × Bool) (N : ℕ) : Prop :=
   ∀ (t : ℕ) (l : ℕ → ℤ) (μ : ℕ → ℤ), t < N →
     Ends lim P d (Light.Stmt.call 6 callArgs Tmp) ⟨l, μ⟩ Tcall
-      (fun σ₁ => σ₁.loc Out = bracketAccumulate (μ (x.c + t * x.n)) tests N ∧
+      (fun σ₁ => σ₁.loc Tmp = bracketAccumulate (μ (x.c + t * x.n)) tests N ∧
         σ₁.mem x.c = μ x.c ∧ WirePins lim Out x N σ₁)
 
 /-! ## The row's runs (axiom-free given the store semantics) -/
 
 /-- The row's run keeps a pinned cell when every entry's address misses
 it. -/
-theorem rowUpTo_keep (lim : Limits) (P : Light.Program) (d Out : ℕ)
+theorem rowUpTo_keep (lim : Limits) (P : Light.Program) (d Out Base : ℕ)
     (x : MatInst) (t : ℕ) (A : ℕ) (w : ℤ) (Bw : ℕ) :
     ∀ (j : ℕ) (σ : State),
       σ.mem A = w →
@@ -195,11 +197,11 @@ theorem rowUpTo_keep (lim : Limits) (P : Light.Program) (d Out : ℕ)
       (∀ u : ℕ, u < j →
         lim.Addr (σ.loc Out + σ.loc (t * x.n + u)) ∧
         (v Out +' v (t * x.n + u) : Expr).Safe lim σ ∧
-        (v (Out + u) : Expr).Safe lim σ) →
+        (v (Base + u) : Expr).Safe lim σ) →
       (∀ u : ℕ, u < j → (v Out +' v (t * x.n + u) : Expr).cost +
-        (v (Out + u) : Expr).cost + 1 ≤ Bw) →
+        (v (Base + u) : Expr).cost + 1 ≤ Bw) →
       ∀ T : ℕ, j * Bw ≤ T →
-      Ends lim P d (rowUpTo Out x t j) σ T
+      Ends lim P d (rowUpTo Out Base x t j) σ T
         (fun σ' => σ'.mem A = w ∧ σ'.loc = σ.loc) := by
   intro j
   induction j with
@@ -226,27 +228,28 @@ theorem rowUpTo_keep (lim : Limits) (P : Light.Program) (d Out : ℕ)
       show True ∧ True ∧ |σ'.loc Out + σ'.loc (t * x.n + j)| ≤ lim.word
       rw [hloc]
       exact (hsafe j (by omega)).2.1
-    exact (store_keeps lim P d (v Out +' v (t * x.n + j)) (v (Out + j)) σ' Bw A
+    exact (store_keeps lim P d (v Out +' v (t * x.n + j)) (v (Base + j)) σ' Bw A
       hsaf' trivial haddr' (hcost j (by omega)) hne').mono le_rfl
       (fun σ'' h'' => ⟨h''.1.trans hσ'.1, h''.2.trans hσ'.2⟩)
 
 /-- The row's run writes a pinned cell at the first entry and keeps it
-after (every later entry's address away from it). -/
-theorem rowUpTo_writesA (lim : Limits) (P : Light.Program) (d Out : ℕ)
+after (every later entry's address away from it). The first entry's
+value is the delivery register `Base`'s content. -/
+theorem rowUpTo_writesA (lim : Limits) (P : Light.Program) (d Out Base : ℕ)
     (x : MatInst) (t : ℕ) (A : ℕ) (w : ℤ) (Bw : ℕ) :
     ∀ (j : ℕ), 1 ≤ j → ∀ (σ : State),
       (σ.loc Out + σ.loc (t * x.n) : ℤ).toNat = A →
-      σ.loc (Out + 0) = w →
+      σ.loc Base = w →
       (∀ u : ℕ, 1 ≤ u → u < j →
         A ≠ (σ.loc Out + σ.loc (t * x.n + u) : ℤ).toNat) →
       (∀ u : ℕ, u < j →
         lim.Addr (σ.loc Out + σ.loc (t * x.n + u)) ∧
         (v Out +' v (t * x.n + u) : Expr).Safe lim σ ∧
-        (v (Out + u) : Expr).Safe lim σ) →
+        (v (Base + u) : Expr).Safe lim σ) →
       (∀ u : ℕ, u < j → (v Out +' v (t * x.n + u) : Expr).cost +
-        (v (Out + u) : Expr).cost + 1 ≤ Bw) →
+        (v (Base + u) : Expr).cost + 1 ≤ Bw) →
       ∀ T : ℕ, j * Bw ≤ T →
-      Ends lim P d (rowUpTo Out x t j) σ T
+      Ends lim P d (rowUpTo Out Base x t j) σ T
         (fun σ' => σ'.mem A = w ∧ σ'.loc = σ.loc) := by
   intro j
   induction j with
@@ -264,7 +267,7 @@ theorem rowUpTo_writesA (lim : Limits) (P : Light.Program) (d Out : ℕ)
     · subst h0
       -- the single first entry: it writes A
       refine Ends.skip ?_
-      refine (store_writes lim P d (v Out +' v (t * x.n + 0)) (v (Out + 0)) σ Bw
+      refine (store_writes lim P d (v Out +' v (t * x.n + 0)) (v (Base + 0)) σ Bw
         ((hsafe 0 (by omega)).2.1) ((hsafe 0 (by omega)).2.2)
         ((hsafe 0 (by omega)).1)
         (hcost 0 (by omega))).mono le_rfl (fun σ' hσ' => ?_)
@@ -272,7 +275,9 @@ theorem rowUpTo_writesA (lim : Limits) (P : Light.Program) (d Out : ℕ)
         have hsum : (v Out +' v (t * x.n + 0) : Expr).val σ =
             σ.loc Out + σ.loc (t * x.n) := rfl
         rw [hsum]; exact haddrA
-      have hveq : (v (Out + 0) : Expr).val σ = w := hval
+      have hveq : (v (Base + 0) : Expr).val σ = w := by
+        show σ.loc (Base + 0) = w
+        rw [Nat.add_zero]; exact hval
       rw [hAeq, hveq] at hσ'
       exact ⟨hσ'.1, hσ'.2⟩
     · have hj' : 1 ≤ j := h0
@@ -289,7 +294,7 @@ theorem rowUpTo_writesA (lim : Limits) (P : Light.Program) (d Out : ℕ)
         show True ∧ True ∧ |σ'.loc Out + σ'.loc (t * x.n + j)| ≤ lim.word
         rw [hloc]
         exact (hsafe j (by omega)).2.1
-      exact (store_keeps lim P d (v Out +' v (t * x.n + j)) (v (Out + j)) σ' Bw A
+      exact (store_keeps lim P d (v Out +' v (t * x.n + j)) (v (Base + j)) σ' Bw A
         hsaf' trivial haddr' (hcost j (by omega)) hne').mono le_rfl
         (fun σ'' h'' => ⟨h''.1.trans hσ'.1, h''.2.trans hσ'.2⟩)
 
@@ -304,7 +309,7 @@ theorem roundZero_writes (lim : Limits) (P : Light.Program) (d Out Tcall Bw T : 
     (hdeliv : StageDelivers lim P d Out Tcall x tests N)
     (hpins : WirePins lim Out x N σ)
     (hcost : ∀ u : ℕ, u < x.n → (v Out +' v (0 * x.n + u) : Expr).cost +
-      (v (Out + u) : Expr).cost + 1 ≤ Bw)
+      (v (Tmp + u) : Expr).cost + 1 ≤ Bw)
     (hsplit : Tcall + x.n * Bw ≤ T) :
     Ends lim P d (roundSlice 6 Out x 0) σ T
       (fun σ' => σ'.mem (bracketCell x 0 0) =
@@ -321,8 +326,8 @@ theorem roundZero_writes (lim : Limits) (P : Light.Program) (d Out Tcall Bw T : 
   have hbound : ∀ u : ℕ, u < x.n →
       |σ₁.loc Out + σ₁.loc (0 * x.n + u)| ≤ lim.word :=
     fun u hu => (hpins₁.2.2.2 0 (by omega) u (by omega)).2
-  refine (rowUpTo_writesA lim P d Out x 0 x.c (σ₁.loc (Out + 0)) Bw
-    x.n (by omega) σ₁ hA (by rw [Nat.add_zero])
+  refine (rowUpTo_writesA lim P d Out Tmp x 0 x.c (σ₁.loc Tmp) Bw
+    x.n (by omega) σ₁ hA rfl
     (fun u hu hu' => ?_)
     (fun u hu => ⟨(hpins₁.2.2.2 0 (by omega) u (by omega)).1,
       ⟨trivial, trivial, hbound u (by omega)⟩, trivial⟩)
@@ -346,7 +351,7 @@ theorem roundZero_writes (lim : Limits) (P : Light.Program) (d Out Tcall Bw T : 
     omega
   · -- the value: the written cell holds the delivered fold; the pins
     -- transfer through the row's loc-keeping
-    have hw : σ₁.loc Out = bracketAccumulate (σ.mem x.c) tests N := by
+    have hw : σ₁.loc Tmp = bracketAccumulate (σ.mem x.c) tests N := by
       simpa [bracketCell, Nat.zero_mul, Nat.add_zero] using hdel
     simp only [bracketCell, Nat.zero_mul, Nat.add_zero] at hσ' ⊢
     exact ⟨by rw [hσ'.1, hw], WirePins_congr hσ'.2 hpins₁⟩
@@ -360,7 +365,7 @@ theorem roundKeeps (lim : Limits) (P : Light.Program) (d Out Tcall Bw T : ℕ)
     (hpins : WirePins lim Out x N σ)
     (hval : σ.mem (bracketCell x 0 0) = w0)
     (hcost : ∀ u : ℕ, u < x.n → (v Out +' v (t * x.n + u) : Expr).cost +
-      (v (Out + u) : Expr).cost + 1 ≤ Bw)
+      (v (Tmp + u) : Expr).cost + 1 ≤ Bw)
     (hsplit : Tcall + x.n * Bw ≤ T) :
     Ends lim P d (roundSlice 6 Out x t) σ T
       (fun σ' => σ'.mem (bracketCell x 0 0) = w0 ∧
@@ -376,7 +381,7 @@ theorem roundKeeps (lim : Limits) (P : Light.Program) (d Out Tcall Bw T : ℕ)
   have hbound : ∀ u : ℕ, u < x.n →
       |σ₁.loc Out + σ₁.loc (t * x.n + u)| ≤ lim.word :=
     fun u hu => (hpins₁.2.2.2 t (by omega) u (by omega)).2
-  refine (rowUpTo_keep lim P d Out x t x.c w0 Bw x.n σ₁ hw
+  refine (rowUpTo_keep lim P d Out Tmp x t x.c w0 Bw x.n σ₁ hw
     (fun u hu => ?_)
     (fun u hu => ⟨(hpins₁.2.2.2 t (by omega) u (by omega)).1,
       ⟨trivial, trivial, hbound u (by omega)⟩, trivial⟩)

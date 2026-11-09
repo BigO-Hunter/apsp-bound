@@ -39,6 +39,15 @@ are propext/Quot.sound only — lighter than the standard-3: no
 Classical.choice).
 
 D7(b) FILL 3, the wire-lemma's session: the pure core discharged.
+AMENDED (the socket's shape session): the Tmp-delivery shape-fix —
+the landed socket was UNPROVABLE as stated (a Light call updates only
+the result register Tmp; it cannot set the address-base register Out,
+and the row's stores must therefore read the value-base Tmp).
+Amended shapes: roundSlice's row-call Base := Tmp (CallerRun);
+StageDelivers's delivery register := Tmp; rowUpTo/the row lemmas
+carry the Base parameter; entry (0,0)'s value = v Tmp = the delivered
+fold. All eleven theorems re-verified axiom-light (propext,
+Quot.sound only); olean 668304 bytes.
 
 1. THE PURE CORE (all proved, axiom-light):
 - bracketAccumulate_zero / bracketAccumulate_step — the fold's
