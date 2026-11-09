@@ -1,0 +1,48 @@
+CacheFill.lean — D7(b) FILL 1 verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+wrapper `trap "" TERM; exec …`; oleans emitted into the search path with
+-o .lake/build/lib/lean/):
+  lake env lean -j1 MinPlusCaller.lean
+    -o .lake/build/lib/lean/MinPlusCaller.olean
+  lake env lean -j1 CacheFill.lean
+Exit codes: 0 (both stages)
+
+FILL 1: the cache program's task contract, pinned in the machine workspace.
+- cacheContent — the content contract byte-identical to upstream
+  MinPlusReduction.OracleCorrect (the triangle-oracle correctness
+  bounded_signed_eq_minPlus is conditioned on). The deeper row-level clause
+  (ArrayCompositeAlgorithm.Oracle.Correct, modCount-shaped) trails with the
+  L2/L3 cone port and is named in the module docs.
+- CacheInst / cacheTask — the Light task the cache program solves: write the
+  P*I cached rows into the rows region below the free pointer, keep
+  everything else (Kept). The BODY is the L2/L3 cone's obligation; the
+  contract is what the caller composes with.
+- cacheReads_of_solves — PROVED: the cache program's Light.Solves delivers
+  the reads (hRR-shaped, pointwise) and the Kept frame. [propext] only.
+- reads_persist — PROVED: under Kept with the five-region layout below the
+  free pointer, every stage read premise survives into the cache's final
+  memory. [propext, Quot.sound].
+- The stage slot inside the composed caller program (cache-first layout
+  shifts the driver's indices) = NAMED FILL 3 content via the Lang's
+  Stmt.shift / Program.behind machinery — not proved here, documented in
+  the module.
+
+All declarations standard-3 or lighter (cacheReads_of_solves [propext];
+reads_persist [propext, Quot.sound]; cacheContent axiom-free); no sorry,
+no native_decide.
+
+'ThinMatrix.CacheFill.cacheContent' does not depend on any axioms
+'ThinMatrix.CacheFill.cacheReads_of_solves' depends on axioms: [propext]
+'ThinMatrix.CacheFill.reads_persist' depends on axioms: [propext, Quot.sound]
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+materialized row cache behind the scheduled triangle queries and its
+correctness contract; Josh Alman and Virginia Vassilevska Williams —
+arXiv:2610.06783; Li Xuanji — the verified ten-term construction and
+word-RAM compiler; Joshua Wharton (QFEX) — the canonical adapter arrangement
+and the checked selection round / restart-loop driver; Hrishik Sai Bojnal —
+the verified frontier being refined.
