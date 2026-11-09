@@ -1,0 +1,33 @@
+DenseCompositeCaller.lean — L6(a) verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Commands (detached, exit-receipt files written in the same chain as each
+build):
+  lake env lean -j1 DenseRestartSelectionLoop.lean
+    -o .lake/build/lib/lean/DenseRestartSelectionLoop.olean
+  lake env lean -j1 DenseCompositeCaller.lean
+Exit codes: 0 (both stages)
+
+All twelve theorems standard-3; no sorry, no native_decide.
+
+'Light.DenseCompositeCaller.certTask_pre' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_meets' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_solvedIn' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_post' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_chosen' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_mask' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_scores' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_argmin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeCaller.cert_pool' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence reduction and its greedy stage; Josh Alman and Virginia
+Vassilevska Williams — arXiv:2610.06783; Li Xuanji — the verified ten-term
+construction and word-RAM compiler; Joshua Wharton (QFEX) — the checked
+selection round and restart-loop driver this caller wires; Hrishik Sai
+Bojnal — the verified frontier being refined.
