@@ -1,0 +1,53 @@
+MinPlusCaller.lean — D7(b) verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+wrapper `trap "" TERM; exec …`):
+  lake build CanonicalMachineAdapter           (the upstream chain, green)
+  lake env lean -j1 DenseMinPlusPost.lean
+    -o .lake/build/lib/lean/DenseMinPlusPost.olean
+  lake env lean -j1 MinPlusCaller.lean
+Exit codes: 0 (all stages)
+
+D7(b): the min-plus caller program skeleton — the hs decomposition pinned.
+- mpRounds / mpRounds_eq — the caller's oracle-call schedule
+  2*((2W).log2+1), bridged to upstream scheduledCalls (signedLevels W).
+- stageSlot_any — the stage slot INHABITED at every scheduled round and any
+  (P, k) pinning: the restart-loop driver meets the pinned
+  composite-incidence certification within the pinned clock (the L5/L6(c)
+  wrapper consumed; premises byte-identical to callSite_meets).
+- taskTime_le_of_size / instanceSize_le — the hdom-side bricks: the pinned
+  clock is size-monotone and the instance size is the pinning's polynomial.
+- hsShape — the exact Light.Solves mpTask shape the fills close.
+
+THE NAMED FILLS (the machine port's remainder; none proved here, none
+claimed):
+- FILL 1 — the L2/L3 cache program's Light.Solves contract behind the
+  oracle table's rows (score-table pass + BinaryArrayFFT cyclic path;
+  upstream content contract OracleCorrect — bounded_signed_eq_minPlus is
+  conditioned on exactly this).
+- FILL 2 — the finish/restore pass (upstream restore_correct).
+- FILL 3 — the caller composition: chaining the mpRounds certified stage
+  calls over one fixed program into hsShape.
+
+D7's boundary stands: the (min,+) product is never claimed here; the
+functional chain is upstream's, conditioned on OracleCorrect.
+
+All declarations standard-3 or lighter (mpRounds_eq and instanceSize_le:
+[propext, Quot.sound]; hsShape: [propext]); no sorry, no native_decide.
+
+'ThinMatrix.MinPlusCaller.mpRounds_eq' depends on axioms: [propext, Quot.sound]
+'ThinMatrix.MinPlusCaller.stageSlot_any' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ThinMatrix.MinPlusCaller.taskTime_le_of_size' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ThinMatrix.MinPlusCaller.instanceSize_le' depends on axioms: [propext, Quot.sound]
+'ThinMatrix.MinPlusCaller.hsShape' depends on axioms: [propext]
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh Alman
+and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji — the
+verified ten-term construction and word-RAM compiler; Joshua Wharton (QFEX)
+— the canonical adapter arrangement and the checked selection round /
+restart-loop driver; Hrishik Sai Bojnal — the verified frontier being
+refined.
