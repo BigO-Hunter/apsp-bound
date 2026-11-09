@@ -1,4 +1,4 @@
-> **BigO-Hunter fork notice.** The org's reference copy of [JoshuaQFEX/apsp-bound](https://github.com/JoshuaQFEX/apsp-bound) — the APSP word-RAM bounds and Lean proofs referenced by the org's SSSP/APSP lane. Upstream's README below is unchanged; upstream carries no license file, and this org adds none to upstream content.
+> **BigO-Hunter fork notice.** The org's reference copy of [JoshuaQFEX/apsp-bound](https://github.com/JoshuaQFEX/apsp-bound) — the APSP word-RAM bounds and Lean proofs referenced by the org's SSSP/APSP lane. The org stamps this copy's LICENSE with the Copy-Free/Stays-Free (CFSF) License — see [LICENSE](LICENSE) ([github.com/darkhipo/cfsf](https://github.com/darkhipo/cfsf)); upstream's content remains as published (upstream carries no license file) — see [NOTICE](NOTICE.md). Upstream's README below is unchanged.
 
 # APSP bounds and Lean proofs
 
