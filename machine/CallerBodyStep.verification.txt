@@ -1,0 +1,69 @@
+CallerBodyStep.lean — D7(b) FILL 3, the summit body step session
+verification receipt (the caller layout, the KeptBut bridge, the oracle
+premise)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; one import-fix pass between passes
+— StoredMinPlusAPSP is not a lib root in this workspace and its
+DenseOracle layer is deferred to Fill 1's body landing, so the oracle
+premise is pinned at the TriangleOracle level; final pass green on
+attempt 1):
+  lake env lean -j1 CallerBodyStep.lean
+    -o .lake/build/lib/lean/CallerBodyStep.olean
+Exit codes: 0 (final pass); olean 133968 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerBodyStep.regions_inOrder' does not depend on any axioms
+  'ThinMatrix.CallerBodyStep.keptBut_of_chain' depends on axioms:
+    [propext, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, the summit body step session: the body's first
+construction slice.
+- callerAb/callerRb/callerSb/callerBb/callerMb/callerFr — the caller's
+  scratch layout: the five stage buffers stacked from the caller's free
+  pointer (active bits, rows cache, scores, replacement base, remaining
+  flags — sizes I, P*I, P, I, P at the pinning's (P, I)); the stage's
+  free pointer at the allocation top.
+- regions_inOrder — the layout's InOrder derivation (axiom-free; each
+  buffer starts where the previous ends).
+- keptBut_of_chain — THE KEPTBUT HALF at the caller layout: the chain's
+  certified frame (SameOutside3 over the stage's three written regions)
+  delivers the caller's KeptBut μ μ₁ fr x.c (x.n * x.n) — every cell
+  below the caller's free pointer and outside the product region lies
+  below the scores buffer (the layout), hence outside all three written
+  regions. The layout-abbrev regions are unfolded explicitly before
+  omega (omega treats the abbrev-applied atoms as opaque otherwise).
+- the ORACLE PREMISE at the TriangleOracle level: the Seg half's
+  functional consumption conditions on MinPlusReduction.OracleCorrect O —
+  exactly the premise upstream's own construction lemmas take
+  (bounded_signed_eq_minPlus and the stored-table chapter's
+  bitScale_value/apsp_correct). When Fill 1's cache body lands, its
+  content contract (cacheContent O A = Oracle.Correct O A) meets this
+  premise through the stored chapter's semanticOracle_correct
+  (DenseOracleCorrect O → OracleCorrect (semanticOracle O) — to be
+  imported then; StoredMinPlusAPSP is not a lib root in this workspace,
+  deferred with the Fill 1 body). D7's boundary stands: the oracle
+  premise is a premise, never claimed as proved.
+
+THE BODY'S REMAINING SLICES: the product-round body's Light statement
+itself (the bit-scaled product rounds over the caller layout, the
+stage/cache/restore invocations at their pinned indices — the program
+term); the execution derivation (chain_runs' frame + this KeptBut bridge
++ the Seg half through the oracle chain, discharging CallerTarget); the
+step count for CallerHdom (the budget structure B / Tt / 9+2 over
+mpRounds; costBoundOfEventualDomination the turnstile). Until those
+land, CallerTarget and the twin stay conditional — honestly: no solver
+is postulated, no (min,+) product is claimed.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
