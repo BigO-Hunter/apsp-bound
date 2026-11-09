@@ -1,0 +1,61 @@
+CallerRounds.lean — D7(b) FILL 3, summit body session (a) verification
+receipt (the mpRounds schedule shape + the one-round threading)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; one syntax fix between passes —
+the `;;` notation parses looser than `=`, the block-shape statements
+gained parentheses; no host kill this pass):
+  lake env lean -j1 CallerRounds.lean
+    -o .lake/build/lib/lean/CallerRounds.olean
+Exit codes: 0; olean 94904 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerRounds.roundCalls_succ' does not depend on any axioms
+  'ThinMatrix.CallerRounds.roundCalls_add_two' does not depend on any axioms
+  'ThinMatrix.CallerRounds.mpRounds_even' depends on axioms:
+    [propext, Quot.sound]
+  'ThinMatrix.CallerRounds.thread_one' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, summit body session (a): the mpRounds schedule shape and
+the one-round threading.
+- roundCalls — the schedule's call-sequence shape: n certified stage
+  calls at the round program's procedure 6 (the L5/L6 pinning); the
+  caller-side generalization of the loop file's own loopBody.
+- roundCalls_succ / roundCalls_add_two — the recursion equations
+  (axiom-free): the schedule factors into thread_step's two-call blocks.
+- mpRounds_even — the schedule's round count is even (mpRounds_eq:
+  mpRounds W = 2 * ((2 * W).log2 + 1)): the whole schedule is a whole
+  number of two-round blocks.
+- thread_one — THE KEYSTONE: one certified stage call threaded through
+  the caller's state with the EVOLUTION-EXPOSING post — the continuation
+  state is the Tmp-updated frame with the evolved memory and the pinned
+  post carries the chosen list, the cleared mask and the memory frame
+  exactly as the round-chain induction consumes them (thread_step's
+  frame-only post hides them). Closed by Ends.callLast over Meets.append
+  of the round's certified slot (stageSlot_any's shape at any pinning);
+  the safe/map socket closes definitionally (the nine v-registers,
+  callArgs_cost) — piece 2's calling-convention closes, one round.
+- ChainTarget — the session's remaining target, stated as a definition:
+  the mpRounds schedule's round-chain Ends at the caller program with the
+  frame post. The induction over round-pairs (base: thread_one; step:
+  compose through the evolved mask/flags via the pinned-post extraction)
+  is the next session's core; (b)'s Post assembly consumes its
+  conclusion, (c)'s step count bounds its runtime.
+
+BOUNDARY (unchanged): no (min,+) product is claimed; the oracle premise
+is upstream's own shape (DenseOracleCorrect-conditioned). D7's boundary
+stands.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
