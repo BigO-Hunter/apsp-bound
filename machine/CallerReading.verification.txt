@@ -8,7 +8,7 @@ Build chain (exit receipts in the same chain as each build; TERM-immune
 finisher + exit marker + armed retry; final pass green on attempt 1:
   lake env lean -j1 CallerReading.lean
     -o .lake/build/lib/lean/CallerReading.olean
-Exit codes: 0 (final pass); olean 36712 bytes, module target named.
+Exit codes: 0 (final pass); olean 32272 bytes, module target named.
 Banner:
   'ThinMatrix.CallerReading.reading_at_one_round' depends on axioms:
     [propext, Classical.choice, Quot.sound]
@@ -25,21 +25,25 @@ proof.
   construction lemmas consume the same identity). The certified-score
   premise is L6(a)/`chain_runs`' `cert_scores` clause, consumed not
   re-proved. Proof: the decide-arg's conjunction proven directly
-  (`decide_eq_true ⟨hp, hpos⟩` / `decide_eq_false (fun hc => hc.2 hpos)`)
-  — the decide-instance for the socket-dependent ∧ does not reduce, so
-  the conjunction is proved at the Prop level and the decide is rewritten
-  to it.
-- ReadingAllRounds — the all-rounds target, stated as the named next
-  slice: the same reading at every round boundary of the chain's run
-  (the per-round certified posts feed the one-round lemma through the
-  `chain_from` induction's structure).
+  (`decide_eq_true ⟨hp, hpos⟩` / `decide_eq_false (fun hc => hc.2
+  hpos)`) — the decide-instance for the socket-dependent ∧ does not
+  reduce, so the conjunction is proved at the Prop level and the decide
+  is rewritten to it. THE MASK BINDING IS DROPPED (the reading is
+  flag-independent: the score table is the evidence, the flags gate the
+  argmin).
+- ReadingAllRounds — the all-rounds target, refined: the certified-cells
+  premise added, the flags premise dropped. The all-rounds SOCKET-THEOREM
+  (proving it from the per-round encoding-identity family) is scoped to
+  the next session — the elaboration trap named in-module: state the
+  conclusion in the unfolded ∀-form (the `ReadingAllRounds Op W`
+  def-application's implicit-synthesis does not resolve mid-session).
 
-THE REMAINING SLICES: the all-rounds reading (the chain-induction
-form); the Seg-half assembly (the bracket accumulation via `refineStep`
-over the rounds — discharging `SegTarget`, then `CallerTarget(Layered)`
-via the (b) packaging); the step count for `CallerHdom`. D7's boundary
-stands: the oracle premise and the encoding identity are premises, never
-claimed as proved.
+THE REMAINING SLICES: the all-rounds socket-theorem (the opener, with
+the unfolded-form conclusion); the Seg-half assembly (the bracket
+accumulation via `refineStep` over the rounds — discharging `SegTarget`,
+then `CallerTarget(Layered)` via the (b) packaging); the step count for
+`CallerHdom`. D7's boundary stands: the oracle premise and the encoding
+identity are premises, never claimed as proved.
 
 All declarations standard-3 or lighter; no sorry, no native_decide.
 

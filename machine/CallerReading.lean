@@ -51,7 +51,7 @@ score's nonzeroness ↔ the answer). The certified-score premise is
 L6(a)/`chain_runs`' `cert_scores` clause, consumed not re-proved; the
 socket is DATAFLOW.md's named parameter-concretization deliverable. -/
 theorem reading_at_one_round
-    {P I : ℕ} {μ₁ : ℕ → ℤ} {active mask : ℕ → Bool} {rows : ℕ → ℕ → ℕ}
+    {P I : ℕ} {μ₁ : ℕ → ℤ} {active : ℕ → Bool} {rows : ℕ → ℕ → ℕ}
     {sb : ℕ} (Op : ℕ → Bool)
     (henc : ∀ p < P,
       ((DenseScoreTablePass.scores active rows I p : ℤ) ≠ 0) ↔ Op p = true)
@@ -73,16 +73,27 @@ theorem reading_at_one_round
     rw [hdec]
     simp [hops]
 
-/-- The all-rounds target: the same reading at every round boundary of
-the chain's run — the per-round certified posts feed the one-round lemma
-through the `chain_from` induction's structure. Stated as the named next
-slice; not yet proved. -/
+/-- The all-rounds target: the same reading at every round boundary —
+given the encoding-identity socket per round and the certified score
+cells at the queried state. The reading is flag-independent: the score
+table is the evidence, the flags gate the argmin. The ONE-ROUND lemma
+discharges it per candidate per round — the socket-theorem proving it
+from the per-round encoding-identity family is the next session's
+opener (its conclusion should be stated in the unfolded ∀-form — the
+`ReadingAllRounds Op W` def-application's implicit-synthesis is the
+elaboration trap this round hit). -/
 def ReadingAllRounds
-    {P I : ℕ} {μ₀ : ℕ → ℤ} {active remaining : ℕ → Bool} {rows : ℕ → ℕ → ℕ}
-    {sb mb : ℕ} (Op : ℕ → ℕ → Bool) (W : ℕ) (R : Light.Program) : Prop :=
-  ∀ t : ℕ, t < mpRounds W → ∀ (μ₁ : ℕ → ℤ) (mask : ℕ → Bool),
-    (∀ p < P, μ₁ (mb + p) = DenseArgminPass.bit (mask p)) →
-    (∀ p < P, oracleAnswerOf sb P μ₁ p = Op t p)
+    {P I : ℕ} {active : ℕ → Bool} {rows : ℕ → ℕ → ℕ} {sb : ℕ}
+    (Op : ℕ → ℕ → Bool) (W : ℕ) : Prop :=
+  ∀ t : ℕ, t < mpRounds W → ∀ (μ₁ : ℕ → ℤ),
+    (∀ p < P, μ₁ (sb + p) = DenseScoreTablePass.scores active rows I p) →
+    ∀ p < P, oracleAnswerOf sb P μ₁ p = Op t p
+
+/-! The all-rounds reading — the same reading at every scheduled round —
+is the next session's opener: the socket-theorem's conclusion should be
+stated in the unfolded ∀-form (the `ReadingAllRounds Op W`
+def-application's implicit-synthesis is the elaboration trap this round
+hit), discharged per candidate per round by `reading_at_one_round`. -/
 
 #print axioms reading_at_one_round
 
