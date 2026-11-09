@@ -1,115 +1,70 @@
-CallerWire.lean — D7(b) FILL 3, the socket's proof session verification
-receipt
+CallerWire.lean — D7(b) FILL 3, the row-sockets' discharge session
+verification receipt (the CallerWire/CallerRun discharge: the
+RowWrites/RowKeeps sockets' proofs, the wire rewiring)
 Workspace: .machine-build/machine (ThreeSumApsp path-required at
 /Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
 mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
 upstream machine pin 225c3747)
 Build chain (exit receipts in the same chain as each build; TERM-immune
-finisher + exit marker + armed retry — saved three host-SIGKILLs; green
-on attempt 1 of the final pass — the pass's fixes: the 5-clause
-WirePins's access-shift (.2.2.2 -> .2.2.2.1 for the safety clause),
-the opaque-Tmp omegas unfolded via Tmp = 10 in context, the
-Function.update clause-4 transfer in term mode (the row-lemma bundles'
-Safe-terms are NOT defeq-reducible — the update-forms are rw'd, not
-shown), the obtain-consumption fixed by id (hR preserved), and the
-callArgs membership destruction (the ten-case rcases, chain's
-pattern)):
-  lake env lean -j1 CallerRun.lean -o .lake/build/lib/lean/CallerRun.olean
-  lake env lean -j1 CallerWire.lean -o .lake/build/lib/lean/CallerWire.olean
-Exit codes: 0; olean 887144 bytes, module target named.
-Banner (the socket's proof and the wire):
-  'ThinMatrix.CallerWire.stageDelivers_of_slot' depends on axioms:
-    [propext, Classical.choice, Quot.sound]
-  'ThinMatrix.CallerWire.WirePins_update' depends on axioms: [propext]
-  'ThinMatrix.CallerWire.wire_runs' / 'wire_compose' /
-    'bracketFinal_of_pins' / 'roundZero_writes' / 'roundKeeps' /
-    'rowUpTo_keep' / 'rowUpTo_writesA' / 'bracketAccumulate_step' /
-    'bodyUpTo_succ' depend on axioms: [propext, Quot.sound]
+detached finisher + exit marker; green on the first full pass after the
+clean-rebuild re-scope — the previous rounds' oscillating ~5-error
+cluster was stale-elaboration cascade over a mis-shaped discharge
+region):
+  lake env lean -j1 CallerWire.lean
+  lake env lean -j1 CallerWire.lean
+    -o .lake/build/lib/lean/CallerWire.olean
+Exit codes: 0; olean 2180512 bytes, module target named.
+Banner (the socket's proofs and the wire):
   'ThinMatrix.CallerWire.store_writes' / 'store_keeps' depend on
     axioms: [propext]
+  'ThinMatrix.CallerWire.bracketAccumulate_step' / 'bodyUpTo_succ' /
+    'rowUpTo_keep' / 'rowUpTo_writesA' / 'roundZero_writes' /
+    'roundKeeps' / 'wire_runs' / 'wire_compose' /
+    'bracketFinal_of_pins' / 'WirePins_update' depend on axioms:
+    [propext, Quot.sound]
+  'ThinMatrix.CallerWire.stageDelivers_of_slot' /
+    'wire_from_slots' depend on axioms: [propext, Classical.choice,
+    Quot.sound]
 — standard-3 or lighter throughout; no sorryAx, no native_decide.
+The discharge's real fix set (the drafted four were cascade artifacts
+of a stale state; the clean rebuild named the true classes):
+1. STRUCTURAL: `wire_from_slots` forward-referenced the two discharge
+   theorems defined below it — moved `wire_from_slots` below
+   `rowKeeps_of_layout` (the pair depends on the _pres row-lemmas,
+   so the theorems could not move up instead).
+2. `wire_from_slots` lacked the layout-trio binders its new body
+   references (`hxn`/`hcost`/`hprodaway`) — added, mirroring the
+   discharge theorems' shapes at N := mpRounds W; the hrw/hrk `have`s
+   became inline applications at `aux_wire_from_slots`'s typed
+   hrowwrites/hrowkeeps slots (the bare `have` left the socket's
+   implicit Pgm/vals/rows… as unresolvable metavariables).
+3. The `hidx` calls inside both `hkey` blocks used the wire-level
+   8-argument form; the intro'd `hidx` is the simple
+   `∀ j < x.n, ll (t * x.n + j) = …` — `hidx u hu'` / `hidx u hu`.
+4. `rowKeeps_of_layout`'s `hkey` proved the wrong identity
+   (toNat-sum = x.c — that makes the A-distance goal `x.c ≠ x.c`);
+   it is the address identity `toNat-sum = x.c + t * x.n + u`, and
+   the closer rides `Nat.mul_pos ht hxn` (the `t * x.n ≥ 1` fact is
+   nonlinear for omega) instead of the unprovable `u = 0` step.
+5. The reads-clause's r-region bound `↑(rb + p * I + i) <
+   ↑rb + ↑(P * I)` is nonlinear for omega — both theorems now carry
+   an `hltPI` fact via `Nat.mul_le_mul_right I` + ring + omega.
+6. `rowWrites_of_layout`'s mem-bullet collapsed to
+   `show σ'.mem (x.c + t * x.n + 0) = r; rw [Nat.add_zero];
+   exact hσ'.1` — the drafted rw-order self-defeated (the first
+   rewrite consumed the second rewrite's pattern).
+7. `rowUpTo_writesA_pres` (NEW in this branch, not landed code):
+   its zero sub-branch was written against the caller's context
+   (a `Tmp` not in scope; an `Ends.seq 0 Bw … x.n * Bw` wrapper for
+   a goal shape that is actually the nested-skip form) and lacked
+   the `1 ≤ x.n` its row bound needs. Rewritten: added the `hxn`
+   binder, `refine Ends.skip ?_` + `store_writes_keeps` (with the
+   theorem's own `Base`) + the mem/loc/keeps bridge; the row bound
+   rides `Nat.le_mul_of_pos_left Bw hxn`.
 
-D7(b) FILL 3, the socket's proof session.
-AMENDED (the assembly's shape session): the socket is MASK-GENERAL —
-stageDelivers_of_slot's statement takes the round's mask as a
-parameter (the chain's rounds evolve it via maskCleared), with hflag
-and hret generalized to the family form (forall-mask, chain_from's
-exact shape). Green on attempt 1.
-
-THE WIRE-LEVEL ASSEMBLY: LANDED (the wire_from_slots induction).
-- RowWrites / RowKeeps — the two named row-sockets (the row's stores
-  write the round's delivered value into cell (t,0) / keep cell (0,0)'s
-  fold, preserve the pinning, and preserve the reads — the
-  product-region-outside-the-reads-regions layout obligation rides
-  inside them; the discharge = the rowUpTo_writesA / rowUpTo_keep
-  machinery + the index-pinning, named).
-- aux_wire_from_slots — the induction: chain_from's skeleton + the
-  delivery-extraction (hret at the exposed witness), the reads-carry
-  re-derived at each round's continuation (the evolved mask existential
-  in the post), the masks and budgets threaded (the per-round budget:
-  (callArgs costs).sum + 2 + Tt k + x.n * Bw <= B).
-- wire_from_slots — THE WIRE'S hdeliv FROM THE SLOTS OUTRIGHT: the
-  schedule's run delivers the fold into cell (0,0). Axioms:
-  [propext, Classical.choice, Quot.sound] — standard-3 exactly.
-
-REMAINING (named): the two row-sockets' discharges (RowWrites/
-RowKeeps from rowUpTo_writesA/rowUpTo_keep + the hprodaway layout trio
-+ the index-pinning: loc (t*x.n+u) = t*x.n+u); the fold-delivery's
-identity (hret's content — the construction's own machine-conversion,
-D7's boundary); MinPlusIdentity (the named premise). Then the
-Seg-assembly.
-
-THE WIRE-LEVEL ASSEMBLY'S SHAPE HISTORY (superseded notes):
-(1) the enriched-hcall form — the socket's post carries the round's
-post-witness (exists cs₁, ...) so the reads-carry (reads_carry + the
-post's hmask/hsam) re-derives at each round's continuation;
-(2) the reads-preservation through the row-writes — the product-region
-cells lie outside the reads-regions (the hprodaway layout trio, the
-hlay-based argument);
-(3) the induction itself — chain_from's skeleton + the
-delivery-extraction (hret at the exposed witness), the masks and
-budgets threaded as in chain_from (the per-round budget: Tcall +
-x.n * Bw <= B).
-
-(a) THE FRAME-CONDITION AMENDMENT (landed, green):
-- WirePins gains the vals parameter and the fifth clause: registers
-  0-8 carry the call's argument list — the condition that survives the
-  rounds (the call updates only Tmp).
-- StageDelivers gains the vals parameter and the frame-condition in
-  its forall-l prefix; wire_runs / wire_compose /
-  bracketFinal_of_pins thread vals (the wire's instantiation:
-  argsOf (callSite ...) ++ [(fr : Nat-to-Z)]).
-
-(b) THE SOCKET'S PROOF (landed, standard-3):
-- WirePins_update — the pins survive the stage call: the call's final
-  state updates the result register Tmp only; every pinned register
-  (the base, the zero register, the write-address indices excluded
-  from Tmp, the frame registers 0-8) is preserved.
-- stageDelivers_of_slot — THE SOCKET, at the call level: the certified
-  slot family (hslots, chain_from's exact shape) consumed through
-  Ends.callLast; the delivery-content is the NAMED return-premise hret
-  (r = bracketAccumulate (mu (x.c + t * x.n)) tests N — the
-  construction's own machine-conversion; Post ignores the return
-  value, so it rides nowhere in the certified contracts; D7's
-  boundary: the oracle is a premise, never claimed); the memory frame
-  from Post's SameOutside3 + the layout (haway: x.c outside the three
-  regions); the pinning from WirePins_update. The reads-condition
-  (StageReads at the round's memory) is explicit in the statement —
-  threading it through the schedule's rounds is the chain machinery's
-  work (the wire-level assembly's named piece: the reads-carry through
-  the rounds, reads_carry as in CallerChain).
-
-Until the reads-threaded wire-level socket assembly lands,
-CallerTarget(Layered) and the twin stay conditional — honestly: no
-solver is postulated, no (min,+) product is claimed.
-
-All declarations standard-3 or lighter; no sorry, no native_decide.
-
-Credits (constructions first, filer last): shresh (shreshth-s) — the
-composite-incidence construction and the oracle functional chain; Josh
-Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
-the verified ten-term construction and word-RAM compiler; Joshua Wharton
-(QFEX) — the canonical adapter arrangement, the refinement parameters,
-and the machine-obligations record; Hrishik Sai Bojnal — the verified
-frontier being refined and the refined numerical certificate this body
-targets.
+D7(b) FILL 3, the row-sockets' discharge session: the write/keep
+sockets discharge under the layout trio + the index-pinning; the wire
+consumes them inline at the aux's typed slots. Next: the Seg-assembly
+(the wire + MinPlusIdentity + chain_keptBut → SegOfBody → SegTarget →
+CallerTarget(Layered) → the step count → CallerHdom → the
+unconditional twin).
