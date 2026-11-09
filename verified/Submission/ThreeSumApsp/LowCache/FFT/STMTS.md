@@ -75,3 +75,24 @@ standard-3; no sorry, no native_decide. The two binding promotions remain
 enclosure-conditional (M3d) — the unconditional real-log enclosures at the
 conservative point are the successor item (LogBounds regeneration), not
 needed for the row's notch claim.
+
+## Ported (M3f): the real-log interpretation of the pinned boxes
+
+| Statement | File | Provenance |
+|---|---|---|
+| `cR`/`thetaR` (the pinned constants as reals), `entropyR`, `realT`/`realG`/`realq1` (binary entropy and the tile geometry via Mathlib's actual `Real.log`) | ConservativeEnclosures.lean | definitions at the pinned witness constants; discharges the AlignedCertificate note "the real-log/entropy interpretation of these compact boxes is NOT proved here" |
+| `atanhLogBounds` (generic 40-term positive atanh-series enclosure, from `Real.sum_range_le_log_div` / `Real.log_div_le_sum_range_add`) + seven concrete log bounds at the pinned arguments (log2, log(16p), log(2(1-p)) for p = 1/c, (1-theta)/c, theta) | ConservativeEnclosures.lean | Wharton's `ApspBound.LogBounds` arrangement mirrored at the pinned constants; range-reduction identity from the upstream ThinMatrix.RealCertificate module; Python endpoints NOT in the trust base |
+| `entropyScaledR` + `entropyC`/`entropyD`/`entropyT` (10^-24-scaled entropy enclosures) | ConservativeEnclosures.lean | entropy range reduction + linarith over the log bounds |
+| `realT_enclosed`/`realG_enclosed`/`realq1_enclosed` (10^-21-scaled), `conservative_enclosures` : the pinned boxes `tLo/tHi`, `gLo/gHi`, `qLo/qHi` enclose `realT`, `realG`, `realq1` | ConservativeEnclosures.lean | division monotonicity (`lt_div_iff₀`/`div_lt_iff₀`) assembly, upstream `Certificate.lean` pattern |
+| `conservative_cache_saving_final`, `conservative_residual_query_final` — the two binding ledger inequalities at delta = 1/200 + 1/1000000, UNCONDITIONAL (no hypotheses) | ConservativeEnclosures.lean | M3d's promoted theorems at the box point `(tLo, gHi, qHi)`; the boxes' honesty is now `conservative_enclosures` |
+
+Receipts (exit-code in the same chain as the build): M3f final build
+`lake build Submission.ThreeSumApsp.LowCache.FFT.ConservativeEnclosures` —
+exit 0 (`/private/tmp/apsp_m3f_m7.exit`; earlier detached attempts of the
+corrected file were SIGTERM'd twice — exit 143 at ~20:41 and ~21:09 —
+timestamps recorded for the kill-ledger gap; the successful foreground run
+took ~2 min). Axioms: all ten declarations
+`[propext, Classical.choice, Quot.sound]` — standard-3; no sorry, no
+native_decide. Box honesty verified independently at 70-digit Decimal
+precision before the Lean literals were generated (T, G, q1 all inside the
+pinned boxes; float64 had misjudged G at the 15th digit).
