@@ -1,0 +1,60 @@
+CallerPremises.lean — D7(b) FILL 3, the premise-shapes' production session
+verification receipt (the exponential-encoding premise + the round-trip
+discharge + the composition)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; final pass green on attempt 1
+(after the index-arithmetic alignment: the productViewOf's getD-index is
+the bare ℕ-mod — matching multiplication_correct's Fin-coe value):
+  lake env lean -j1 CallerPremises.lean
+    -o .lake/build/lib/lean/CallerPremises.olean
+Exit codes: 0 (final pass); olean 69536 bytes, module target named.
+(One earlier pass host-killed 137 mid-iteration; several compiler-forced
+fixes: the binder-groups' `active` types, the NeZero instance-binder on
+fftTableOf, the Nat.mod_lt form, and the index-arithmetic alignment.)
+Banner:
+  'ThinMatrix.CallerPremises.roundTrip_of_multiplication' depends on
+    axioms: [propext, Classical.choice, Quot.sound]
+  'ThinMatrix.CallerPremises.countCellOfFft_of_premises' depends on
+    axioms: [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, the premise-shapes' production: the exponential-encoding
+premise and the round-trip discharge.
+- productIndexOf / productViewOf / recovOf / fftTableOf — the data-map's
+  index-arithmetic: the cache-entry (p, i) at the cyclic convolution's
+  index (p * I + i) % N (the padded size q nonzero — the NeZero
+  instance); the machine-product's recovered-entry view; the magnitude
+  (the natAbs); the FFT-computed table's entry (the cyclic convolution
+  of the input views at the product index).
+- ExponentialEncoding — SOCKET 1's premise-def: the count-entry's
+  nonzeroness ↔ the recovered-entry's nonzeroness. THE COMPOSITE-
+  INCIDENCE CONSTRUCTION'S OWN CONTENT — the premise, never claimed
+  (D7's boundary).
+- roundTrip_of_multiplication — SOCKET 2's discharge: the recovered-
+  entry's magnitude = the FFT-computed table's entry — from the wired
+  cone's top contract (`multiplication_correct`: the machine-product's
+  per-entry view = the cyclic convolution of the input views at j).
+- countCellOfFft_of_premises — the composition: socket 1 + socket 2
+  yield the count-cell ↔ FFT-table socket (CountCellOfFft's shape) —
+  the magnitude-glue (the natAbs/≠ transport) composed.
+
+THE REMAINING SESSIONS: the exponential×FFT composition at one cell (the
+premise-shapes' production — DATAFLOW.md's named sub-design); the Seg-
+half assembly (the bracket accumulation via `refineStep` — the writes'
+shapes landed); the step count for `CallerHdom`. D7's boundary stands:
+the encoding identity and the oracle conversion are premises, never
+claimed as proved; no (min,+) product is claimed in this module.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
