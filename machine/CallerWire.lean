@@ -965,8 +965,10 @@ theorem wire_from_slots
     rw [mpRounds_eq W]
     have hpos := Nat.succ_pos (2 * W).log2
     omega
+  have hrw := rowWrites_of_layout tests (mpRounds W) hxn hcost hprodaway rfl
+  have hrk := rowKeeps_of_layout tests (mpRounds W) hxn hcost hprodaway rfl
   have hwire := aux_wire_from_slots tests W hOutNe hTtmp haway hslots hret
-    hflag hok hdim hlay hround h2 l μ₀ hpins₀ hreads₀ hidx hrowwrites hrowkeeps
+    hflag hok hdim hlay hround h2 l μ₀ hpins₀ hreads₀ hidx hrw hrk
     (mpRounds W) (le_refl _) remaining T hT l μ₀ hpins₀ hreads₀
   refine hwire.mono le_rfl (fun σ' hσ' => ?_)
   obtain ⟨-, hmem, hpins, -⟩ := hσ'
@@ -1141,9 +1143,11 @@ theorem rowWrites_of_layout
     (hprodaway : ∀ (t : ℕ) (u : ℕ), t < N → u < x.n →
       (((x.c + t * x.n + u : ℕ) : ℤ) < ab ∨ ab + I ≤ ((x.c + t * x.n + u : ℕ) : ℤ)) ∧
       (((x.c + t * x.n + u : ℕ) : ℤ) < rb ∨ rb + P * I ≤ ((x.c + t * x.n + u : ℕ) : ℤ)) ∧
-      (((x.c + t * x.n + u : ℕ) : ℤ) < mb ∨ mb + P ≤ ((x.c + t * x.n + u : ℕ) : ℤ))) :
+      (((x.c + t * x.n + u : ℕ) : ℤ) < mb ∨ mb + P ≤ ((x.c + t * x.n + u : ℕ) : ℤ)))
+    (hN : N = mpRounds W) :
     RowWrites lim Pgm P I d Out Tmp Bw active rows ab rb mb vals x tests N := by
   intro t mask ll μ r htN hidx hTmpr hpins hreads
+  have htNm : t < mpRounds W := by omega
   have haddr : ∀ u : ℕ, u < x.n →
       (ll Out + ll (t * x.n + u) : ℤ).toNat = x.c + t * x.n + u := by
     intro u hu
@@ -1176,11 +1180,19 @@ theorem rowWrites_of_layout
   · -- the A-distance: the later entries' addresses miss the (t,0) cell
     have haddrpos : 0 ≤ (ll Out + ll (t * x.n + u) : ℤ) :=
       (hpins.2.2.2.1 t (by omega) u (by omega)).1.1
-    have hapos2 : 0 ≤ ((x.c + t * x.n : ℕ) : ℤ) := by omega
+    have hkey : ((ll Out + ll (t * x.n + u) : ℤ).toNat : ℕ) = x.c + t * x.n + u := by
+      have hcast : ((x.c + t * x.n + u : ℕ) : ℤ) =
+          (ll Out + ll (t * x.n + u) : ℤ) := by
+        have h1 : ll Out = (x.c : ℤ) := hpins.1
+        have h2 : ll (t * x.n + u) = ((t * x.n + u : ℕ) : ℤ) :=
+          hidx t htNm ll μ htN (fun k' hk' => hpins.2.2.2.2 k' hk') u hu'
+        rw [h1, h2]
+        push_cast
+        ring
+      omega
     simp only [State.loc, Expr.val, Op.eval]
     show x.c + t * x.n ≠ ((ll Out + ll (t * x.n + u) : ℤ).toNat : ℕ)
-    rw [Int.toNat_of_nonneg haddrpos, Int.toNat_of_nonneg hapos2]
-    rw [haddr u hu', Ne.eq_def]
+    rw [hkey, Ne.eq_def]
     intro hcon
     have hu0 : u = 0 := by omega
     omega
@@ -1201,9 +1213,11 @@ theorem rowWrites_of_layout
     · have h2 : (v (Tmp + 0) : Expr).val ⟨ll, μ⟩ = r := by
         show ll (Tmp + 0) = r; rw [Nat.add_zero]; exact hTmpr
       have haddr0 := haddr 0 (by omega)
+      have h1' : σ'.mem ((v Out +' v (t * x.n + 0) : Expr).val ⟨ll, μ⟩).toNat = r := by
+        show σ'.mem ((ll Out + ll (t * x.n + 0) : ℤ).toNat) = r
+        rw [haddr 0 (by omega), h2]
       show σ'.mem (x.c + t * x.n + 0) = r
-      rw [← haddr0]
-      exact hσ'.1.trans h2
+      exact h1'
 
 /-- THE ROW-KEEP SOCKET'S DISCHARGE: the keep-socket from the landed
 `rowUpTo_keep_pres` under the same layout trio. -/
@@ -1218,9 +1232,11 @@ theorem rowKeeps_of_layout
     (hprodaway : ∀ (t : ℕ) (u : ℕ), t < N → u < x.n →
       (((x.c + t * x.n + u : ℕ) : ℤ) < ab ∨ ab + I ≤ ((x.c + t * x.n + u : ℕ) : ℤ)) ∧
       (((x.c + t * x.n + u : ℕ) : ℤ) < rb ∨ rb + P * I ≤ ((x.c + t * x.n + u : ℕ) : ℤ)) ∧
-      (((x.c + t * x.n + u : ℕ) : ℤ) < mb ∨ mb + P ≤ ((x.c + t * x.n + u : ℕ) : ℤ))) :
+      (((x.c + t * x.n + u : ℕ) : ℤ) < mb ∨ mb + P ≤ ((x.c + t * x.n + u : ℕ) : ℤ)))
+    (hN : N = mpRounds W) :
     RowKeeps lim Pgm P I d Out Tmp Bw active rows ab rb mb vals x tests N := by
   intro t mask ll μ w ht htN hidx hpins hmw hreads
+  have htNm : t < mpRounds W := by omega
   have haddr : ∀ u : ℕ, u < x.n →
       (ll Out + ll (t * x.n + u) : ℤ).toNat = x.c + t * x.n + u := by
     intro u hu
@@ -1251,11 +1267,18 @@ theorem rowKeeps_of_layout
   · -- the A-distance: t ≥ 1 so every product address misses cell x.c
     have haddrpos : 0 ≤ (ll Out + ll (t * x.n + u) : ℤ) :=
       (hpins.2.2.2.1 t (by omega) u (by omega)).1.1
-    have hapos2 : 0 ≤ ((x.c : ℕ) : ℤ) := by omega
+    have hkey : ((ll Out + ll (t * x.n + u) : ℤ).toNat : ℕ) = x.c := by
+      have hcast : ((x.c : ℕ) : ℤ) = (ll Out + ll (t * x.n + u) : ℤ) := by
+        have h1 : ll Out = (x.c : ℤ) := hpins.1
+        have h2 : ll (t * x.n + u) = ((t * x.n + u : ℕ) : ℤ) :=
+          hidx t htNm ll μ htN (fun k' hk' => hpins.2.2.2.2 k' hk') u hu
+        rw [h1, h2]
+        push_cast
+        ring
+      omega
     simp only [State.loc, Expr.val, Op.eval]
     show x.c ≠ ((ll Out + ll (t * x.n + u) : ℤ).toNat : ℕ)
-    rw [Int.toNat_of_nonneg haddrpos, Int.toNat_of_nonneg hapos2]
-    rw [haddr u hu, Ne.eq_def]
+    rw [hkey, Ne.eq_def]
     intro hcon
     have hu0 : u = 0 := by omega
     omega
