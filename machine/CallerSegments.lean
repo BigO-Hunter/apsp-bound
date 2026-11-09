@@ -32,6 +32,14 @@ Credits (constructions first, filer last):
   oracle answers) meet the ten-term product entries. That design is the
   next body session's core task; this module states the target and does
   not fake it.
+- `seg_of_entries` / `segTarget_of` — THE ASSEMBLY (landed): the
+  region-index bridge (the bracket cells' row-major layout meets
+  `minPlusList`'s row-major order) and the frame-start composition
+  (the chain's run + the identity content + `chain_keptBut` →
+  `SegTarget`). The identity content rides as the named premise
+  (D7's boundary: a premise, never claimed); the body-level
+  composition (`MinPlusIdentity` + the KeptBut half → `SegOfBody`)
+  lives one layer up in `CallerRun.segOfBody_of`.
 
 THE ORACLE PREMISE (D7's boundary): the Seg half's functional consumption
 conditions on `MinPlusReduction.OracleCorrect O` — upstream's own shape
@@ -47,6 +55,7 @@ open Filter Asymptotics ThreeSumApsp ThreeSumApsp.WordRam
   ThinMatrix.MinPlusReduction ThinMatrix.MinPlusCaller
   Light.DenseRestartSelectionLoop Light
   ThinMatrix.CallerBodyStep ThinMatrix.CallerRounds
+  ThreeSumApsp.Spec
 
 /-- THE STAGE-TO-MATRIX FRAME DELIVERY: a chain run at the caller's
 scratch layout delivers the matrix instance's `KeptBut` — every cell
@@ -95,5 +104,52 @@ def SegTarget
       KeptBut μ₀ σ'.mem fr x.c (x.n * x.n))
 
 #print axioms chain_keptBut
+
+/-- THE SEG-TARGET'S ASSEMBLY (the frame-start composition): the chain's
+run + the construction's identity content at its final state + the landed
+`chain_keptBut` deliver `SegTarget` — the bracket cells' final state =
+the `minPlusList` entries at the product region + the `KeptBut` frame.
+The Seg half rides the region-index bridge inlined below (the bracket
+cells' row-major layout `bracketCell x i j = x.c + i * x.n + j` meets
+`minPlusList`'s row-major order `q ↦ (q / n, q % n)`; the shared form is
+`CallerRun.seg_of_entries`).
+THE ORACLE PREMISE (D7's boundary): the identity content rides as the
+named premise `hident` — the body-level `MinPlusIdentity` instance that
+feeds it is the caller's data-flow design (the named remainder; consumed
+one layer up in `CallerRun.segOfBody_of`; never claimed here). -/
+theorem segTarget_of
+    {x : MatInst} {lim : Limits} {d : ℕ}
+    {P k I h : ℕ} {active remaining : ℕ → Bool} {rows : ℕ → ℕ → ℕ}
+    {ab rb sb mb bb fr : ℕ} {B T : ℕ} {Tt : ℕ → ℕ} {μ₀ : ℕ → ℤ}
+    {R : Light.Program} (W : ℕ)
+    (xpre : x.Pre μ₀ fr)
+    (hchain : Ends lim (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
+      d (roundCalls (mpRounds W))
+      ⟨frame (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)]),
+        μ₀⟩ T
+      (fun σ' => SameOutside3 μ₀ σ'.mem (callerSb fr P I) P
+        (callerBb fr P I) I (callerMb fr P I) P))
+    (hident : ∀ (σ' : State),
+      SameOutside3 μ₀ σ'.mem (callerSb fr P I) P
+        (callerBb fr P I) I (callerMb fr P I) P →
+      ∀ i j : ℕ, σ'.mem (x.c + i * x.n + j) = minPlusEntry x.n x.A x.B i j) :
+    SegTarget (x := x) (lim := lim) (d := d) (P := P) (k := k) (I := I) (h := h)
+      (active := active) (remaining := remaining) (rows := rows) (ab := ab)
+      (rb := rb) (sb := sb) (mb := mb) (bb := bb) (fr := fr) (B := B) (T := T)
+      (Tt := Tt) (μ₀ := μ₀) W R := by
+  obtain ⟨σ', c, he, hc, hq⟩ := hchain
+  have hseg : Seg σ'.mem x.c (minPlusList x.n x.A x.B) := by
+    intro i hi
+    rw [length_minPlusList] at hi
+    have hget : (minPlusList x.n x.A x.B)[i]
+        = minPlusEntry x.n x.A x.B (i / x.n) (i % x.n) := by
+      simp only [minPlusList, List.getElem_map, List.getElem_range]
+    have hdm : (i / x.n) * x.n + i % x.n = i := by
+      rw [Nat.mul_comm]
+      exact Nat.div_add_mod i x.n
+    rw [hget, ← hident σ' hq (i / x.n) (i % x.n), Nat.add_assoc, hdm]
+  exact ⟨σ', c, he, hc, ⟨hseg, keptBut_of_chain xpre hq⟩⟩
+
+#print axioms segTarget_of
 
 end ThinMatrix.CallerSegments

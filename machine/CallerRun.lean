@@ -3,6 +3,7 @@ import CallerWrites
 import CallerEncoding
 import CallerRounds
 import CallerCount
+import CallerSegments
 
 /-!
 Copyright (c) 2026. APSP port campaign: D7(b) FILL 3 — the summit body,
@@ -55,7 +56,7 @@ identity is a premise, never claimed as proved.
 
 namespace ThinMatrix.CallerRun
 
-open ThreeSumApsp ThreeSumApsp.Spec
+open ThreeSumApsp ThreeSumApsp.Spec ThinMatrix.CallerSegments
   Light.DenseRestartSelectionLoop Light
   ThinMatrix.MinPlusCaller
   ThinMatrix.CallerWrites ThinMatrix.CallerEncoding ThinMatrix.CallerRounds
@@ -130,7 +131,64 @@ def SegOfBody
     (fun σ' => Seg σ'.mem x.c (minPlusList x.n x.A x.B) ∧
       KeptBut μ₀ σ'.mem fr x.c (x.n * x.n))
 
+/-- THE SEG-BRIDGE: the construction's identity at a state delivers the
+Seg half at that state. The region-index arithmetic: the bracket cells'
+row-major layout (`bracketCell x i j = x.c + i * x.n + j`) meets
+`minPlusList`'s row-major order (`q ↦ (q / n, q % n)`) — proved outright,
+no premise beyond the entries themselves. The frame-start instance is
+`CallerSegments.segTarget_of` (the bridge is inlined there — this module
+sits above `CallerSegments`; the cycle would be downward). -/
+theorem seg_of_entries {x : MatInst} {σ : State}
+    (h : ∀ i j : ℕ, σ.mem (bracketCell x i j) = minPlusEntry x.n x.A x.B i j) :
+    Seg σ.mem x.c (minPlusList x.n x.A x.B) := by
+  intro i hi
+  rw [length_minPlusList] at hi
+  have hget : (minPlusList x.n x.A x.B)[i]
+      = minPlusEntry x.n x.A x.B (i / x.n) (i % x.n) := by
+    simp only [minPlusList, List.getElem_map, List.getElem_range]
+  rw [hget, ← h (i / x.n) (i % x.n)]
+  show σ.mem (x.c + i) = σ.mem (x.c + (i / x.n) * x.n + i % x.n)
+  have hdm : (i / x.n) * x.n + i % x.n = i := by
+    rw [Nat.mul_comm]
+    exact Nat.div_add_mod i x.n
+  rw [Nat.add_assoc, hdm]
+
+/-- THE BODY-LEVEL ASSEMBLY: `SegOfBody` = the named identity-premise
+(`MinPlusIdentity` — the 0-seeded wire-target's conversion; D7's
+boundary: a premise, never claimed) fed by the 0-seeded wire-run
+(`hbus` — the identity's own internal premise shape) + the KeptBut half.
+The KeptBut half stays a premise because `SegOfBody` quantifies over
+arbitrary start states while `KeptBut μ₀ σ'.mem …` compares against the
+frame's initial memory — the discharge is frame-relational and rides the
+caller's data-flow design (the named remainder); the frame-start
+instance is `CallerSegments.segTarget_of`. -/
+theorem segOfBody_of
+    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr : ℕ} {Bw B T : ℕ} {Tt : ℕ → ℕ}
+    {μ₀ : ℕ → ℤ} {R : Light.Program} {x : MatInst} {Out : ℕ}
+    (W : ℕ) (tests : ℕ → Bool × Bool)
+    (hident : @MinPlusIdentity lim d P k I h active remaining rows ab rb sb mb bb
+      fr B T Tt μ₀ R x Out W tests)
+    (hbus : ∀ σ'' : State,
+      Ends lim (program (callSite P k I h active remaining rows
+        ab rb sb mb bb) ++ R) d (mpBodyWithWrites 6 Out x W) σ'' T
+      (fun σ' => bracketAccumulate 0 tests (mpRounds W) = σ'.mem (bracketCell x 0 0)))
+    (hkept : ∀ σ'' : State,
+      Ends lim (program (callSite P k I h active remaining rows
+        ab rb sb mb bb) ++ R) d (mpBodyWithWrites 6 Out x W) σ'' T
+      (fun σ' => KeptBut μ₀ σ'.mem fr x.c (x.n * x.n))) :
+    SegOfBody (lim := lim) (d := d) (P := P) (k := k) (I := I) (h := h)
+      (active := active) (remaining := remaining) (rows := rows) (ab := ab)
+      (rb := rb) (sb := sb) (mb := mb) (bb := bb) (fr := fr) (B := B) (T := T)
+      (Tt := Tt) (μ₀ := μ₀) (R := R) (x := x) (Out := Out) W tests := by
+  unfold SegOfBody
+  intro σ''
+  obtain ⟨σ', c, he, hc, hkb⟩ := hkept σ''
+  exact ⟨σ', c, he, hc, ⟨seg_of_entries (hident σ' (hbus σ')), hkb⟩⟩
+
 #print axioms roundSlice
 #print axioms mpBodyWithWrites
+#print axioms seg_of_entries
+#print axioms segOfBody_of
 
 end ThinMatrix.CallerRun
