@@ -1,3 +1,5 @@
+> **BigO-Hunter fork notice.** The org's reference copy of [JoshuaQFEX/apsp-bound](https://github.com/JoshuaQFEX/apsp-bound) — the APSP word-RAM bounds and Lean proofs referenced by the org's SSSP/APSP lane. Upstream's README below is unchanged; upstream carries no license file, and this org adds none to upstream content.
+
 # APSP bounds and Lean proofs
 
 **Joshua Wharton · QFEX · [joshua@qfex.com](mailto:joshua@qfex.com)**
