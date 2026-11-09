@@ -213,10 +213,10 @@ private theorem clog_two_le (n : ℕ) :
     have := Nat.clog_le_of_le_pow (b := 2) (Nat.le_of_lt hlt)
     omega
 
+set_option maxHeartbeats 2000000 in
 /-- The `completeCost` lower bound at `k = 0`: the ledger carries
 `(R+1)² · log^(R+10) n · n²` from its own first summand — the other
 terms are natural-number ceilings, so they only add. -/
-set_option maxHeartbeats 2000000 in
 theorem completeCost_ge_log_sq (n : ℕ) (hn : 8 ≤ n) :
     ((n : ℝ) * (n : ℝ)) * (Real.log (n : ℝ)) ^ 2
       ≤ AsymptoticCosts.completeCost 0 n := by
@@ -303,10 +303,10 @@ theorem completeCost_ge_log_sq (n : ℕ) (hn : 8 ≤ n) :
         refine mul_le_mul_of_nonneg_left ?_ (by positivity)
         linarith [hrest]
 
+set_option maxHeartbeats 2000000 in
 /-- The host's lifted clock at the caller's `Tn` is `O(n² · log² n)`,
 uniformly over `U ≤ n^κ` — per fixed κ. The constant is generous; only
 its κ-linearity matters. -/
-set_option maxHeartbeats 2000000 in
 theorem apTime_le_sq_log (κ : Nat) (n U : ℕ) (hn3 : 3 ≤ n) (hU : U ≤ n ^ κ) :
     ((Light.Sec3.apTime callerTn n U : ℕ) : ℝ)
       ≤ (4 * (7000 * (κ : ℝ) + 30000))
@@ -345,17 +345,25 @@ theorem apTime_le_sq_log (κ : Nat) (n U : ℕ) (hn3 : 3 ≤ n) (hU : U ≤ n ^ 
       _ ≤ n ^ κ * (n * n) := hmul
       _ = n ^ (κ + 2) := hstep.symm
   have hlog3 : Nat.log2 (3 * n * U) ≤ (κ + 2) * (Nat.log2 n + 1) := by
-    have hp : (2 : ℕ) ^ (Nat.log2 n + 1)
-        ≤ (2 : ℕ) ^ ((κ + 2) * (Nat.log2 n + 1) + 1) :=
-      Nat.pow_le_pow_right (b := 2) (by norm_num)
-        (m := (Nat.log2 n + 1)) (n := ((κ + 2) * (Nat.log2 n + 1) + 1))
-        (by omega)
-    have hlt2 : 3 * n * U < (2 : ℕ) ^ ((κ + 2) * (Nat.log2 n + 1) + 1) :=
-      lt_of_lt_of_le hlt hp
-    have h := (Nat.log_lt_iff_lt_pow (b := 2) (y := 3 * n * U)
-      (by norm_num) (by omega)).2 hlt2
-    rw [Nat.log2_eq_log_two.symm] at h
-    omega
+    rcases Nat.eq_zero_or_pos U with hU0 | hU0
+    · subst hU0
+      simp
+    · have hp : (2 : ℕ) ^ (Nat.log2 n + 1)
+        ≤ (2 : ℕ) ^ ((κ + 2) * (Nat.log2 n + 1) + 1) := by
+        refine Nat.pow_le_pow_right (by norm_num) ?_
+        have h1 : (1 : ℕ) ≤ κ + 2 := by omega
+        have h2 := Nat.le_mul_of_pos_right (Nat.log2 n + 1) h1
+        rw [Nat.mul_comm] at h2
+        omega
+      have hlt2 : 3 * n * U < (2 : ℕ) ^ ((κ + 2) * (Nat.log2 n + 1) + 1) :=
+        lt_of_le_of_lt h3le (lt_of_le_of_lt hnle
+          (Nat.pow_lt_pow_right (by norm_num) (by omega)))
+      have hy0 : (3 : ℕ) * n * U ≠ 0 := by
+        exact ne_of_gt (Nat.mul_pos (by omega : (0 : ℕ) < 3 * n) hU0)
+      have h := (Nat.log_lt_iff_lt_pow (b := 2) (y := 3 * n * U)
+        (by norm_num) hy0).2 hlt2
+      rw [Nat.log2_eq_log_two.symm] at h
+      linarith
   -- (b) callerTn n (3nU) ≤ (2(κ+2)(L+1) + 6) · 217 n²
   have hpos1 : (0 : ℝ) ≤ ((mpRounds (3 * n * U) : ℕ) : ℝ) := by positivity
   have hpos2 : (0 : ℝ) ≤ ((callerB n : ℕ) : ℝ) := by positivity
@@ -431,29 +439,59 @@ theorem apTime_le_sq_log (κ : Nat) (n U : ℕ) (hn3 : 3 ≤ n) (hU : U ≤ n ^ 
   have hnn : (0 : ℝ) ≤ ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ) := by positivity
   have hκL1 : (0 : ℝ) ≤ ((κ : ℝ) + 2) * L := mul_nonneg hκp (by linarith)
   -- the fold: 2L·((2(κ+2)(L+1)+6)·217 + 52) + 140 ≤ (7000κ + 30000)·L² for L ≥ 1
-  have hcore : ((2 : ℝ) * L) * (((2 * ((κ + 2) * (L + 1)) + 6) : ℝ)
+  have hcore : ((2 : ℝ) * L) * (((2 : ℝ) * ((κ : ℝ) + 2) * (L + 1) + 6)
         * ((217 : ℝ) * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ))
         + (52 : ℝ) * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ))
       + (140 : ℝ) * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ)
       ≤ ((7000 * (κ : ℝ) + 30000) : ℝ)
         * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ) * (L * L) := by
-    nlinarith [hL1, hL2, hL3, hκp, hnn, hκL1]
+    have hkey : ((κ : ℝ) + 2) * (L + 1) * L
+        ≤ ((κ : ℝ) + 2) * ((2 : ℝ) * L) * L :=
+      mul_le_mul_of_nonneg_right
+        (mul_le_mul_of_nonneg_left hL2 hκp) (by linarith)
+    nlinarith [hL1, hL2, hL3, hκp, hnn, hκL1, hkey]
   -- assemble
-  have hstep1 : ((Nat.clog 2 n : ℕ) : ℝ)
-      * (((callerTn n (3 * n * U) : ℕ) : ℝ) + ((23 * n * n + 29 : ℕ) : ℝ))
-      ≤ ((2 : ℝ) * L) * (((2 * ((κ + 2) * (L + 1)) + 6) : ℝ)
-        * ((217 : ℝ) * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ))
-        + (52 : ℝ) * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ)) := by
-    nlinarith [hclogr, hTX, hL2, hTn, h23, h2L0]
   have hTX : (0 : ℝ) ≤ ((callerTn n (3 * n * U) : ℕ) : ℝ)
       + ((23 * n * n + 29 : ℕ) : ℝ) := by positivity
   have h2L0 : (0 : ℝ) ≤ (2 : ℝ) * L := by positivity
+  have hstep1 : ((Nat.clog 2 n : ℕ) : ℝ)
+      * (((callerTn n (3 * n * U) : ℕ) : ℝ) + ((23 * n * n + 29 : ℕ) : ℝ))
+      ≤ ((2 : ℝ) * L) * (((2 : ℝ) * ((κ : ℝ) + 2) * (L + 1) + 6)
+        * ((217 : ℝ) * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ))
+        + (52 : ℝ) * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ)) := by
+    have hR1 : ((callerTn n (3 * n * U) : ℕ) : ℝ)
+        ≤ ((2 : ℝ) * ((κ : ℝ) + 2) * (L + 1) + 6)
+          * ((217 : ℝ) * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ)) := hTn
+    have hp1 : ((Nat.clog 2 n : ℕ) : ℝ)
+        * (((callerTn n (3 * n * U) : ℕ) : ℝ) + ((23 * n * n + 29 : ℕ) : ℝ))
+        ≤ (L + 1) * (((callerTn n (3 * n * U) : ℕ) : ℝ)
+          + ((23 * n * n + 29 : ℕ) : ℝ)) :=
+      mul_le_mul_of_nonneg_right hclogr hTX
+    have hp2 : (L + 1) * (((callerTn n (3 * n * U) : ℕ) : ℝ)
+        + ((23 * n * n + 29 : ℕ) : ℝ))
+        ≤ ((2 : ℝ) * L) * (((callerTn n (3 * n * U) : ℕ) : ℝ)
+          + ((23 * n * n + 29 : ℕ) : ℝ)) :=
+      mul_le_mul_of_nonneg_right hL2 hTX
+    have hp5 : ((2 : ℝ) * L) * (((callerTn n (3 * n * U) : ℕ) : ℝ)
+        + ((23 * n * n + 29 : ℕ) : ℝ))
+        ≤ ((2 : ℝ) * L) * (((2 : ℝ) * ((κ : ℝ) + 2) * (L + 1) + 6)
+          * ((217 : ℝ) * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ))
+          + (52 : ℝ) * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ)) :=
+      mul_le_mul_of_nonneg_left (by linarith [hR1, h23]) h2L0
+    linarith [hp1, hp2, hp5]
   have hmain : ((Nat.clog 2 n * (callerTn n (3 * n * U) + 23 * n * n + 29)
       + 53 * n * n + 17 * n + 65 : ℕ) : ℝ)
       ≤ ((7000 * (κ : ℝ) + 30000) : ℝ)
         * ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ) * (L * L) := by
-    nlinarith [hstep1, hclogr, hL2, hL1, hL3, hκp, hnn, hκL1, hTX, h2L0,
-      htail, hcore]
+    have hsum : ((Nat.clog 2 n : ℕ) : ℝ)
+        * (((callerTn n (3 * n * U) : ℕ) : ℝ) + ((23 * n * n + 29 : ℕ) : ℝ))
+        + ((53 * n * n + 17 * n + 65 : ℕ) : ℝ)
+        = ((Nat.clog 2 n * (callerTn n (3 * n * U) + 23 * n * n + 29)
+          + 53 * n * n + 17 * n + 65 : ℕ) : ℝ) := by
+      push_cast
+      ring
+    rw [← hsum]
+    linarith [hstep1, htail, hcore]
   have hcast : ((Light.Sec3.apTime callerTn n U : ℕ) : ℝ)
       = ((Nat.clog 2 n * (callerTn n (3 * n * U) + 23 * n * n + 29)
           + 53 * n * n + 17 * n + 65 : ℕ) : ℝ) := by
@@ -473,12 +511,16 @@ theorem apTime_le_sq_log (κ : Nat) (n U : ℕ) (hn3 : 3 ≤ n) (hU : U ≤ n ^ 
             = Real.log (n : ℝ) * Real.log (n : ℝ) := by ring
         have hκn2 : (0 : ℝ) ≤ (κ : ℝ) * (((n : ℕ) : ℝ) * ((n : ℕ) : ℝ)) := by
           positivity
-        nlinarith [hLL, hlog2, hκn2, hnn]
+        have hstep : ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ) * (L * L)
+            ≤ ((n : ℕ) : ℝ) * ((n : ℕ) : ℝ)
+              * ((2 * Real.log (n : ℝ)) * (2 * Real.log (n : ℝ))) :=
+          mul_le_mul_of_nonneg_left hLL (by positivity)
+        nlinarith [hstep, hlog2, hκn2, hnn]
 
+set_option maxHeartbeats 2000000 in
 /-- THE STEP COUNT'S TURNSTILE: the caller's clock is `completeCost`-
 dominated — `CallerHdom callerTn`, the summit's `hdom` socket, at
 `k := 0` and the κ-linear constant. -/
-set_option maxHeartbeats 2000000 in
 theorem callerHdom : CallerHdom callerTn := by
   intro κ
   refine ⟨0, 4 * (7000 * (κ : ℝ) + 30000), ?_⟩
