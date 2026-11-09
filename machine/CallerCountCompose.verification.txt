@@ -1,0 +1,55 @@
+CallerCountCompose.lean — D7(b) FILL 3, the composition session
+verification receipt (the count-cell transport + the FFT-table-socket
+EncodingIdentity)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; green on attempt 1 after two
+compiler-forced fixes — the sum-index's mem→lt conversion (the
+Finset.exists_ne_zero_of_sum_ne_zero's index is a Finset membership,
+the cell-socket's binder needs i < I) and the hans-shadow (the intro's
+answer-true binder shadowed the AnswerOr premise — the .1's argument is
+the answer-true hypothesis) — and the cell-iff's .2 argument is hfft
+alone):
+  lake env lean -j1 CallerCountCompose.lean
+    -o .lake/build/lib/lean/CallerCountCompose.olean
+Exit codes: 0; olean 71376 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerCountCompose.countCell_of_roundtrip' depends on
+    axioms: [propext]
+  'ThinMatrix.CallerCountCompose.encodingIdentity_of_countCell' depends
+    on axioms: [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, the composition session: the count-cell transport and the
+FFT-table-socket EncodingIdentity.
+- countCell_of_roundtrip — THE SOCKET-TRANSPORT: the exponential-
+  encoding socket (`hcell` — DATAFLOW.md's named sub-design, never
+  claimed) composed with the round-trip socket (`hrt`: the recovered
+  entries = the FFT-computed table) yields the count-cell ↔ FFT-table
+  socket (CountCellOfFft's shape).
+- encodingIdentity_of_countCell — the EncodingIdentity at the
+  FFT-table socket: the derivation of encodingIdentity_of_content's
+  proof-shape with the rows-inequality socket swapped for the FFT-table
+  nonzeroness socket — the count-vs-existence bridge at the ℕ level,
+  identical route (the entries' nonnegativity by type; the Finset-route
+  identical; the final contradiction by omega).
+
+THE REMAINING SESSIONS: the exponential×FFT composition at one cell (the
+premise-shapes' production — DATAFLOW.md's named sub-design); the Seg-
+half assembly (the bracket accumulation via `refineStep` — the writes'
+shapes landed); the step count for `CallerHdom`. D7's boundary stands:
+the encoding identity and the oracle premise are premises, never claimed
+as proved; no (min,+) product is claimed in this module.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
