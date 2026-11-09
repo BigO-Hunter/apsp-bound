@@ -1,0 +1,18 @@
+Kernel check of DenseRestartSelectionLoop.lean (L4 milestone a: statements scaffold)
+Lean version: leanprover/lean4:v4.33.1
+
+Source SHA-256: a6f06c0e8b5a08c3b227cb7ee65f39119f55ef402e8ae91b262fd4bf9e1e54ea
+
+Working directory: .machine-build/machine (upstream thin-matrix machine project at pin 225c3747,
+ThreeSumApsp path-required at formal-math e1a4e65/3sum-apsp, mathlib 0df444a3)
+
+Command: lake build +DenseRestartSelectionLoop (detached, bounded poll)
+Exit code: 0
+
+info: DenseRestartSelectionLoop.lean:199:0: 'Light.DenseRestartSelectionLoop.need_polynomial' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: DenseRestartSelectionLoop.lean:200:0: 'Light.DenseRestartSelectionLoop.program_proc' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: DenseRestartSelectionLoop.lean:201:0: 'Light.DenseRestartSelectionLoop.callArgs_cost' depends on axioms: [propext]
+info: DenseRestartSelectionLoop.lean:202:0: 'Light.DenseRestartSelectionLoop.maskCleared_insert' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: DenseRestartSelectionLoop.lean:203:0: 'Light.DenseRestartSelectionLoop.exists_fresh_flagged' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+No sorry, no native_decide. Standard-3 axioms.
