@@ -1,0 +1,32 @@
+DenseCompositeLedger.lean — L6(b) verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Commands (detached, exit-receipt files written in the same chain as each
+build):
+  lake env lean -j1 DenseCompositeCaller.lean
+    -o .lake/build/lib/lean/DenseCompositeCaller.olean
+  lake env lean -j1 DenseCompositeLedger.lean
+Exit codes: 0 (both stages)
+
+D5 remainder at the caller: cert_cache (cache lifetime — the active mask and
+rows cache survive all k rounds; no fresh oracle call), cert_rounds
+(oracle-call accounting — exactly k restart rounds), historyModulus /
+history_cons / history_nil (modulus/history updates — the product of chosen
+primes, upstream greedy_factor_product's out.selected.prod = out.modulus and
+the d * primes.get p step).
+
+All theorems standard-3 or axiom-free; no sorry, no native_decide.
+
+'Light.DenseCompositeLedger.cert_cache' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseCompositeLedger.history_cons' does not depend on any axioms
+'Light.DenseCompositeLedger.history_nil' does not depend on any axioms
+'Light.DenseCompositeLedger.cert_rounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+materialized row cache, running modulus, and greedy history; Josh Alman and
+Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji — the verified
+ten-term construction and word-RAM compiler; Joshua Wharton (QFEX) — the
+checked selection round and restart-loop driver; Hrishik Sai Bojnal — the
+verified frontier being refined.
