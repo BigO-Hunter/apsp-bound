@@ -112,13 +112,15 @@ def enoughFlags (x : Inst) : Prop :=
   x.rounds ≤ (flagged x.candidates x.remaining).card
 
 /-- The driver's precondition: the round's physical layout and reads, with the
-flag memory holding the original mask, and enough flagged candidates. -/
-structure Pre (x : Inst) (μ : ℕ → ℤ) (fr : ℕ) : Prop where
+flag memory holding the mask cleared by `S` so far, and enough flagged
+candidates. -/
+structure Pre (x : Inst) (S : Finset ℕ) (μ : ℕ → ℤ) (fr : ℕ) : Prop where
   active_read : ∀ i < x.length, μ (x.activeBase + i) = DenseScorePass.bit (x.active i)
   rows_read : ∀ p < x.candidates, ∀ i < x.length,
     μ (x.rowsBase + p * x.length + i) = x.rows p i
   rows_bound : ∀ p < x.candidates, ∀ i < x.length, x.rows p i ≤ x.height
-  flags : ∀ p < x.candidates, μ (x.remainingBase + p) = DenseArgminPass.bit (x.remaining p)
+  flags : ∀ p < x.candidates,
+    μ (x.remainingBase + p) = DenseArgminPass.bit (maskCleared S x.remaining p)
   enough : enoughFlags x
   layout : InOrder fr [(x.activeBase, x.length), (x.rowsBase, x.candidates * x.length),
     (x.scoresBase, x.candidates), (x.baseBase, x.length), (x.remainingBase, x.candidates)]
@@ -194,6 +196,324 @@ theorem driverTime_eq (x : Inst) :
   unfold driverTime callTime
   rw [DenseCanonicalSelectionRound.time_eq]
 
+/-! ## The restart loop's execution contract -/
+
+/-- The driver's eight round arguments. -/
+def argsOf (x : Inst) : List ℤ :=
+  [x.candidates, x.length, x.height, x.activeBase, x.rowsBase, x.scoresBase,
+    x.remainingBase, x.baseBase]
+
+/-- A round instance's task arguments are the driver's argument list. -/
+theorem roundInst_args (x : Inst) (S : Finset ℕ) :
+    DenseCanonicalSelectionRound.task.args (roundInst x S) = argsOf x := rfl
+
+/-- The active-array cells lie strictly below the scores region, hence outside
+all three written regions. -/
+private theorem outside_trio {ab rb sb mb rem P I i : ℕ}
+    (hAR : ab + I ≤ rb) (hRS : rb + P * I ≤ sb) (hSM : sb + P ≤ mb)
+    (hMR : mb + I ≤ rem) (hi : i < I) :
+    Outside sb P (ab + i) ∧ Outside mb I (ab + i) ∧ Outside rem P (ab + i) := by
+  refine ⟨Or.inl ?_, Or.inl ?_, Or.inl ?_⟩ <;> omega
+
+/-- The rows cells lie strictly below the scores region, hence outside all
+three written regions. -/
+private theorem outside_trio_rows {rb sb mb rem P I i p : ℕ}
+    (hRS : rb + P * I ≤ sb) (hSM : sb + P ≤ mb) (hMR : mb + I ≤ rem)
+    (hp : p < P) (hi : i < I) :
+    Outside sb P (rb + p * I + i) ∧ Outside mb I (rb + p * I + i) ∧
+      Outside rem P (rb + p * I + i) := by
+  have hbound : p * I + i < P * I := by nlinarith
+  refine ⟨Or.inl ?_, Or.inl ?_, Or.inl ?_⟩ <;> omega
+
+/-- The body running over any round list writes the chosen list, clears
+exactly those flags, writes the scores and the last selected row, preserves
+everything outside the three written regions, and certifies each round's
+argmin over the mask before that round. -/
+theorem loop_ends (x : Inst) (l : List (Fin x.rounds))
+    (S₀ : Finset ℕ) (hcard : S₀.card + l.length = x.rounds)
+    (hsub : S₀ ⊆ flagged x.candidates x.remaining)
+    {fr : ℕ} (arguments : List ℤ)
+    (hloc : ∀ k, k < 9 → arguments.getD k 0 = (argsOf x ++ [(fr : ℤ)]).getD k 0)
+    (μ : ℕ → ℤ) {lim : Limits} {d : ℕ} {T : ℕ} {Prog : Program}
+    (hpre : Pre x S₀ μ fr)
+    (hok : (need (instanceSize x) x.height).Ok lim fr d)
+    (hT : l.length * callTime x.candidates x.length ≤ T) :
+    Ends lim (program x ++ Prog) d (loopBody x.rounds l)
+      ⟨frame arguments, μ⟩ T
+      fun σ => ∃ cs : List ℕ, cs.length = l.length ∧ cs.Nodup ∧
+        (∀ c ∈ cs, c < x.candidates ∧ x.remaining c = true ∧ c ∉ S₀) ∧
+        (∀ p < x.candidates,
+          σ.mem (x.remainingBase + p) =
+            DenseArgminPass.bit (maskCleared (S₀ ∪ cs.toFinset) x.remaining p)) ∧
+        SameOutside3 μ σ.mem x.scoresBase x.candidates x.baseBase x.length
+          x.remainingBase x.candidates ∧
+        (l.length = 0 → σ.mem = μ) ∧
+        (0 < l.length → ∃ c, cs.getLast? = some c ∧
+          (∀ i < x.length, σ.mem (x.baseBase + i) = x.rows c i) ∧
+          (∀ p < x.candidates,
+            σ.mem (x.scoresBase + p) =
+              (DenseScoreTablePass.scores x.active x.rows x.length p : ℤ)) ∧
+          (∀ k, k < cs.length →
+            DenseArgminPass.IsArgmin
+              (maskCleared (S₀ ∪ (cs.take k).toFinset) x.remaining)
+              (DenseScoreTablePass.scores x.active x.rows x.length) x.candidates
+              (cs.getD k 0))) := by
+  induction l generalizing S₀ μ T arguments with
+  | nil =>
+    refine Ends.skip ⟨[], rfl, List.nodup_nil, (fun c hc => nomatch hc), ?_, SameOn.refl,
+      fun _ => rfl, fun h0 => absurd h0 (by simp)⟩
+    · intro p hp
+      show μ (x.remainingBase + p) = _
+      rw [hpre.flags p hp]
+      congr 1
+      simp [maskCleared]
+  | cons j rest ih =>
+    obtain ⟨hAR, hRS, hSM, hMR, hend⟩ := hpre.layout
+    obtain ⟨hqn, harrays, hbound, hfl, henough, hlay⟩ := hpre
+    -- resource facts shared with the round's own contract
+    have hn : x.length ≤ instanceSize x := by unfold instanceSize; omega
+    have hheight : x.height ≤ (instanceSize x + 1) * (x.height + 1) + 1 := by nlinarith
+    have hsum : x.length * x.height + 1 ≤ (instanceSize x + 1) * (x.height + 1) + 1 := by
+      nlinarith
+    have hone : 1 ≤ (instanceSize x + 1) * (x.height + 1) + 1 := by omega
+    have hw' : (((instanceSize x + 1) * (x.height + 1) + 1 : ℕ) : ℤ) ≤ lim.word := hok.word
+    have h1 : 1 ≤ lim.word :=
+      (by exact_mod_cast hone : (1 : ℤ) ≤ _).trans hw'
+    have hh : (x.height : ℤ) ≤ lim.word :=
+      (by exact_mod_cast hheight : (x.height : ℤ) ≤ _).trans hw'
+    have hsent : ((x.length * x.height + 1 : ℕ) : ℤ) ≤ lim.word :=
+      (by exact_mod_cast hsum : ((x.length * x.height + 1 : ℕ) : ℤ) ≤ _).trans hw'
+    have hfr : fr ≤ lim.space := by simpa only [need, add_zero] using hok.cells
+    have hd4 : d + 4 ≤ lim.depth := by
+      have := hok.depth
+      simpa only [need] using this
+    -- a fresh flagged candidate exists for this round
+    have h1c : S₀.card + (rest.length + 1) = x.rounds := by
+      simpa [List.length_cons] using hcard
+    have hcardle : S₀.card = x.rounds - (rest.length + 1) := by omega
+    have hposF : x.rounds - (rest.length + 1) < (flagged x.candidates x.remaining).card := by
+      have h2 := henough
+      simp only [enoughFlags] at h2
+      omega
+    obtain ⟨chosen, hchP, hchrem, hchS₀⟩ :=
+      exists_fresh_flagged hsub hcardle hposF
+    have hmaskchosen : maskCleared S₀ x.remaining chosen = true := by
+      simp [maskCleared, hchrem, hchS₀]
+    -- the round's tight-time contract, in the appended program
+    have hmeets : Meets lim
+        (DenseCanonicalSelectionRound.program ++
+          ([loopBody x.rounds (rounds x.rounds)] ++ Prog)) 5 (d + 1)
+        (argsOf x ++ [(fr : ℤ)]) μ
+        (DenseCanonicalSelectionRound.time x.candidates x.length)
+        (DenseCanonicalSelectionRound.task.Post (roundInst x S₀) μ fr) :=
+      Meets.of_body
+        (getElem?_append_of_eq_some
+          (show DenseCanonicalSelectionRound.program[5]? =
+            some (DenseCanonicalSelectionRound.body 3 4) from rfl) _)
+        (DenseCanonicalSelectionRound.ends
+          (getElem?_append_of_eq_some
+            (show DenseCanonicalSelectionRound.program[3]? =
+              some (DenseScoreTablePass.Selection.body 1 2) from rfl) _)
+          (getElem?_append_of_eq_some
+            (show DenseCanonicalSelectionRound.program[1]? =
+              some (DenseScoreTablePass.body 0) from rfl) _)
+          (getElem?_append_of_eq_some
+            (show DenseCanonicalSelectionRound.program[0]? =
+              some DenseScorePass.body from rfl) _)
+          (getElem?_append_of_eq_some
+            (show DenseCanonicalSelectionRound.program[2]? =
+              some DenseArgminPass.body from rfl) _)
+          (getElem?_append_of_eq_some
+            (show DenseCanonicalSelectionRound.program[4]? =
+              some copyBody from rfl) _)
+          hqn harrays hbound hfl ⟨chosen, hchP, hmaskchosen⟩
+          hok.space h1 hh hsent ⟨hAR, hRS, hSM, hMR, hend.trans hfr⟩ hfr
+          (by omega))
+    -- time accounting
+    have hct : callTime x.candidates x.length =
+        DenseCanonicalSelectionRound.time x.candidates x.length + 11 := rfl
+    have hTexp : rest.length * callTime x.candidates x.length +
+        callTime x.candidates x.length ≤ T := by
+      have h := hT
+      rw [List.length_cons, Nat.succ_mul] at h
+      exact h
+    have hsplit : rest.length * callTime x.candidates x.length +
+        (callArgs.map Expr.cost).sum + 2 +
+        DenseCanonicalSelectionRound.time x.candidates x.length ≤ T := by
+      rw [callArgs_cost]
+      omega
+    have hTrest : rest.length * callTime x.candidates x.length ≤
+        T - ((callArgs.map Expr.cost).sum + 2 +
+          DenseCanonicalSelectionRound.time x.candidates x.length) := by
+      omega
+    -- the nine argument expressions evaluate to the round's frame
+    have e0 : frame arguments Candidates = (x.candidates : ℤ) := by
+      show arguments.getD 0 0 = _
+      simpa [argsOf] using hloc 0 (by omega)
+    have e1 : frame arguments Len = (x.length : ℤ) := by
+      show arguments.getD 1 0 = _
+      simpa [argsOf] using hloc 1 (by omega)
+    have e2 : frame arguments Height = (x.height : ℤ) := by
+      show arguments.getD 2 0 = _
+      simpa [argsOf] using hloc 2 (by omega)
+    have e3 : frame arguments Active = (x.activeBase : ℤ) := by
+      show arguments.getD 3 0 = _
+      simpa [argsOf] using hloc 3 (by omega)
+    have e4 : frame arguments Rows = (x.rowsBase : ℤ) := by
+      show arguments.getD 4 0 = _
+      simpa [argsOf] using hloc 4 (by omega)
+    have e5 : frame arguments Scores = (x.scoresBase : ℤ) := by
+      show arguments.getD 5 0 = _
+      simpa [argsOf] using hloc 5 (by omega)
+    have e6 : frame arguments Remaining = (x.remainingBase : ℤ) := by
+      show arguments.getD 6 0 = _
+      simpa [argsOf] using hloc 6 (by omega)
+    have e7 : frame arguments Base = (x.baseBase : ℤ) := by
+      show arguments.getD 7 0 = _
+      simpa [argsOf] using hloc 7 (by omega)
+    have e8 : frame arguments Free = (fr : ℤ) := by
+      show arguments.getD 8 0 = _
+      simpa [argsOf] using hloc 8 (by omega)
+    unfold program
+    rw [List.append_assoc]
+    simp only [loopBody]
+    refine Ends.callToThen hmeets (fun r μ₁ hpost => ?_)
+      (ha := by
+        refine ⟨fun e he => ?_, ?_⟩
+        · simp only [callArgs, List.mem_cons] at he
+          rcases he with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | h
+          · exact trivial
+          · exact trivial
+          · exact trivial
+          · exact trivial
+          · exact trivial
+          · exact trivial
+          · exact trivial
+          · exact trivial
+          · exact trivial
+          · exact absurd h (by simp)
+        · have hvals : argsOf x ++ [(fr : ℤ)] =
+              [(x.candidates : ℤ), (x.length : ℤ), (x.height : ℤ), (x.activeBase : ℤ),
+                (x.rowsBase : ℤ), (x.scoresBase : ℤ), (x.remainingBase : ℤ),
+                (x.baseBase : ℤ), (fr : ℤ)] := rfl
+          rw [hvals]
+          simp only [callArgs, List.map_cons, List.map_nil, Expr.val]
+          rw [e0, e1, e2, e3, e4, e5, e6, e7, e8])
+      (hd := by omega) (hT := by omega)
+    obtain ⟨hsame₁, hscores₁, chosen', hrch, harg, hcopy, hflags₁⟩ := hpost
+    have hargP : chosen' < x.candidates := harg.1
+    have hargsplit : x.remaining chosen' = true ∧ chosen' ∉ S₀ := by
+      have h : maskCleared S₀ x.remaining chosen' = true := harg.2.1
+      simp only [maskCleared, Bool.and_eq_true, decide_eq_true_eq] at h
+      exact ⟨h.1, by simpa using h.2⟩
+    have hargx : DenseArgminPass.IsArgmin (maskCleared S₀ x.remaining)
+        (DenseScoreTablePass.scores x.active x.rows x.length) x.candidates chosen' := harg
+    -- the round's flag write clears exactly the chosen candidate
+    have hflags₁' : ∀ p < x.candidates,
+        μ₁ (x.remainingBase + p) =
+          DenseArgminPass.bit (maskCleared (insert chosen' S₀) x.remaining p) := by
+      intro p hp
+      rw [show μ₁ (x.remainingBase + p) =
+        μ₁ ((roundInst x S₀).remainingBase + p) from rfl, hflags₁ p hp]
+      simp only [roundInst]
+      by_cases hp' : p = chosen'
+      · subst hp'
+        simp [maskCleared]
+      · have hmem : decide (p ∈ insert chosen' S₀) = decide (p ∈ S₀) := by
+          simp only [Finset.mem_insert, hp', false_or]
+        rw [if_neg hp']
+        simp only [maskCleared, hmem]
+    -- the round preserves the reads
+    have hpre₁ : Pre x (insert chosen' S₀) μ₁ fr := by
+      refine ⟨?_, ?_, hbound, hflags₁', henough, ⟨hAR, hRS, hSM, hMR, hend⟩⟩
+      · intro i hi
+        exact (hsame₁ _ (outside_trio hAR hRS hSM hMR hi)).trans (hqn i hi)
+      · intro p hp i hi
+        exact (hsame₁ _ (outside_trio_rows hRS hSM hMR hp hi)).trans (harrays p hp i hi)
+    -- induction hypotheses
+    have hcard₁ : (insert chosen' S₀).card + rest.length = x.rounds := by
+      have h1i : (insert chosen' S₀).card = S₀.card + 1 :=
+        Finset.card_insert_of_notMem hargsplit.2
+      omega
+    have hsub₁ : insert chosen' S₀ ⊆ flagged x.candidates x.remaining := by
+      intro c hc
+      simp only [Finset.mem_insert] at hc
+      rcases hc with rfl | hc
+      · simp [flagged, Finset.mem_filter, Finset.mem_range, hargP, hargsplit.1]
+      · exact hsub hc
+    have hloc₁ : ∀ k, k < 9 →
+        (setLocal arguments Tmp r).getD k 0 = (argsOf x ++ [(fr : ℤ)]).getD k 0 := by
+      intro k hk
+      rw [show (setLocal arguments Tmp r).getD k 0 =
+        frame (setLocal arguments Tmp r) k from rfl, frame_setLocal]
+      have hne : k ≠ Tmp := by simp only [Tmp]; omega
+      simp only [hne, if_false]
+      exact hloc k hk
+    have hends := ih (insert chosen' S₀) hcard₁ hsub₁ (setLocal arguments Tmp r) hloc₁
+      μ₁ hpre₁ hTrest
+    refine hends.mono (by omega) ?_
+    intro σ hσ
+    obtain ⟨cs, hcslen, hcsnodup, hcselem, hflags₂, hsame₂, hskip, hguard⟩ := hσ
+    have hchcs : chosen' ∉ cs := fun hmem =>
+      (hcselem chosen' hmem).2.2 (Finset.mem_insert_self chosen' S₀)
+    refine ⟨chosen' :: cs, ?_, List.nodup_cons.mpr ⟨hchcs, hcsnodup⟩, ?_, ?_, ?_, ?_, ?_⟩
+    · simp only [List.length_cons, hcslen]
+    · intro c hc
+      simp only [List.mem_cons] at hc
+      rcases hc with rfl | hc
+      · exact ⟨hargP, hargsplit.1, hargsplit.2⟩
+      · exact ⟨(hcselem c hc).1, (hcselem c hc).2.1,
+          fun hmem => (hcselem c hc).2.2 (Finset.mem_insert_of_mem hmem)⟩
+    · intro p hp
+      rw [hflags₂ p hp]
+      congr 1
+      rw [List.toFinset_cons, Finset.union_insert, Finset.insert_union]
+    · exact hsame₁.trans hsame₂
+    · intro h0
+      omega
+    · intro hpos
+      by_cases hrest : rest = []
+      · subst hrest
+        have hcsempty : cs = [] := by
+          have hz : cs.length = 0 := by rw [hcslen]; rfl
+          cases cs
+          · rfl
+          · exact absurd hz (by simp)
+        subst hcsempty
+        have hσμ : σ.mem = μ₁ := hskip rfl
+        refine ⟨chosen', ?_, ?_, ?_, ?_⟩
+        · simp
+        · intro i hi
+          rw [hσμ]
+          exact hcopy i hi
+        · intro p hp
+          rw [hσμ]
+          exact hscores₁ p hp
+        · intro k hk
+          have hk1 : k < 1 := by simpa using hk
+          have hk0 : k = 0 := by omega
+          subst hk0
+          simpa [List.take_zero, Finset.union_empty] using hargx
+      · by_cases hcsempty : cs = []
+        · have hz : (0 : ℕ) = cs.length := by rw [hcsempty]; rfl
+          have h0 : rest.length = 0 := by omega
+          exact absurd (List.length_eq_zero_iff.mp h0) hrest
+        · obtain ⟨c, hcget, hbase, hscoresf, hchain⟩ :=
+            hguard (List.length_pos_of_ne_nil hrest)
+          refine ⟨c, ?_, hbase, hscoresf, ?_⟩
+          · simp [List.getLast?_cons, hcget]
+          · intro k hk
+            rcases Nat.eq_zero_or_pos k with rfl | hk0
+            · simpa [List.take_zero, Finset.union_empty] using hargx
+            · obtain ⟨m, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (Nat.ne_of_gt hk0)
+              have hm : m < cs.length := by simp only [List.length_cons] at hk; omega
+              have hseteq : (S₀ ∪ ((chosen' :: cs).take (m + 1)).toFinset)
+                  = (insert chosen' S₀ ∪ (cs.take m).toFinset) := by
+                simp [List.toFinset_cons, Finset.union_insert, Finset.insert_union]
+              have hchainm := hchain m hm
+              rw [hseteq]
+              simpa [List.getD_cons_succ] using hchainm
+
 end Light.DenseRestartSelectionLoop
 
 #print axioms Light.DenseRestartSelectionLoop.need_polynomial
@@ -201,3 +521,4 @@ end Light.DenseRestartSelectionLoop
 #print axioms Light.DenseRestartSelectionLoop.callArgs_cost
 #print axioms Light.DenseRestartSelectionLoop.maskCleared_insert
 #print axioms Light.DenseRestartSelectionLoop.exists_fresh_flagged
+#print axioms Light.DenseRestartSelectionLoop.loop_ends
