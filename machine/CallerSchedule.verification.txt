@@ -1,0 +1,64 @@
+CallerSchedule.lean — D7(b) FILL 3, piece 2 verification receipt
+(the schedule threading step)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher `trap "" TERM` + exit marker — the first plain detached run was
+host-killed silently, the armed-script rerun is the receipt):
+  lake env lean -j1 CallerSchedule.lean
+    (type-check pass; exit 0; only unusedVariables linter notes on the
+     deliberately-kept caller premises hbound/hfl/hR₁/hok/hloc₁/hloc₂)
+  lake env lean -j1 CallerSchedule.lean
+    -o .lake/build/lib/lean/CallerSchedule.olean
+Exit codes: 0 (both stages; olean 436712 bytes)
+Banner: 'ThinMatrix.CallerSchedule.thread_step' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3 piece 2: the schedule threading step.
+- thread_step — two certified stage calls in the driver's own composed
+  program (procedure 6 twice), threaded through the EVOLVED state: round 1's
+  certified post (pinnedPost) supplies round 2's read premises — the
+  persisted active/rows reads via the post's SameOutside3 frame (layout
+  atoms discharged from hlay) and the evolved mask reads via the post's
+  cleared-mask clause (L5's loop logic at caller scale); the frame
+  transitivity closes by Eq.trans along SameOn's pointwise equalities.
+
+What closed the named gap (transcription deltas vs the WIP docstring's
+plan, all forced by the compiler):
+- The two Ends calling-convention goals are DEFINITIONAL: callArgs reads
+  locals 0–8 of the pinned frame (the loop file's e0–e8 prelude values,
+  DenseRestartSelectionLoop.lean 349–378), so both ha fields close by rfl —
+  the Tmp = 10 update touches no argument register. The hloc-fed simpa
+  shape could not be mirrored verbatim: with a concrete argsOf the goal
+  reduces past the hloc equation.
+- The second stage is a BARE .call (no trailing statement), so it composes
+  by Ends.callLast, not Ends.callThen.
+- h2's Meets program is the driver's OWN composed program
+  (program (callSite P k₁ …) ++ []) — the statement's program — at the
+  evolved pinning's task (k₂ vals, maskCleared post). A k₂-program Meets
+  cannot compose inside a k₁-program statement (programs are
+  rounds-dependent; callSite_meets fixes the Meets program to its pinning).
+- Cost clocks discharge by rw [callArgs_cost]; omega (the loop file's own
+  callArgs_cost : (callArgs.map Expr.cost).sum = 9); the continuation-time
+  goal pins T with an explicit show before the rewrite.
+- The WIP's p * I + i < P * I omega step was never exercised (earlier runs
+  were error-recovery builds): omega cannot see through the products; the
+  loop file's own shape is nlinarith (DenseRestartSelectionLoop.lean:225).
+- Signature additions (caller-supplied, mirroring h2's own contract,
+  quantified over the chosen list): hR₂ (the evolved-mask flag budget) and
+  hok₂ (the evolved-instance Ok fit). hsafe₁/hsafe₂/hloc₁/hloc₂ and
+  hbound/hfl/hR₁/hok stay as byte-identical caller premises (some unused
+  in-body; they pin the caller contract shape).
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the checked selection round
+/ restart-loop driver; Hrishik Sai Bojnal — the verified frontier being
+refined.
