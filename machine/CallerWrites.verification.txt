@@ -1,0 +1,54 @@
+CallerWrites.lean — D7(b) FILL 3, the writes session verification receipt
+(the bracket-cell semantics and the assembly-write shapes)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; green on attempt 1):
+  lake env lean -j1 CallerWrites.lean
+    -o .lake/build/lib/lean/CallerWrites.olean
+Exit codes: 0; olean 57632 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerWrites.refineWrite' does not depend on any axioms
+— no sorryAx, no native_decide; standard-3 or lighter (defs only).
+
+D7(b) FILL 3, the writes session: the bracket-cell semantics and the
+assembly-write shapes.
+- bracketCell — the per-(i, j) bracket-state cell: the memory address
+  x.c + i * x.n + j in the product region, holding the level-t coarse
+  estimate of the (min,+) entry.
+- refineWrite — the per-round cell-update rule: the level-(t+1) cell
+  from the level-t cell and the round's two adaptive tests (the design's
+  refineStep at the cell; upstream MinPlusReduction.refine's
+  if-then-else at the pinning).
+- bracketAccumulate — the mpRounds-fold: the bracket cell after the
+  whole schedule, given the cell before and the per-round adaptive
+  tests. The final state's identity with the (min,+) product entries
+  rides the oracle premise (D7's boundary).
+- mpBodyWritesEntry / mpBodyWritesRow — the Light statements of the
+  write steps at the pinned layout: the per-entry store into
+  c + i * x.n + j (the v Out +' v Idx addressing shape, byte-formed like
+  the landed DenseScoreTablePass.roundBody's store), and the per-row
+  write skeleton. SHAPE ONLY: the execution derivation awaits the
+  parameter concretization (DATAFLOW.md's named sub-design — the
+  mod-p/band encoding premise; the oracle is a premise, never claimed as
+  proved).
+
+THE REMAINING SLICES: the execution derivation of the writes (the Seg
+half of mpBody's run — the bracket cells' final state = the minPlusList
+entries, through the oracle functional chain); the step count for
+CallerHdom (the budget structure B / Tt / 9+2 over mpRounds;
+costBoundOfEventualDomination the turnstile). Until they land,
+CallerTarget(Layered) and the twin stay conditional — honestly: no
+solver is postulated, no (min,+) product is claimed.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
