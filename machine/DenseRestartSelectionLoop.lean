@@ -514,6 +514,22 @@ theorem loop_ends (x : Inst) (l : List (Fin x.rounds))
               rw [hseteq]
               simpa [List.getD_cons_succ] using hchainm
 
+/-- The loop's total step allowance against a polynomial clock: each round
+is at most `time P I + 11`, at most `P <= instanceSize` rounds fit, and
+`time P I <= 100 * instanceSize + 87`.  This is the piece the L5 caller
+instantiates once its call site pins the instance sizes. -/
+theorem driverTime_le (x : Inst) (hrounds : x.rounds <= x.candidates) :
+    driverTime x <= x.rounds * (100 * instanceSize x + 98) := by
+  have hP : x.candidates <= instanceSize x := by unfold instanceSize; omega
+  have hI : x.length <= instanceSize x := by unfold instanceSize; omega
+  have hPI : x.candidates * x.length <= instanceSize x := by unfold instanceSize; omega
+  have htime : DenseCanonicalSelectionRound.time x.candidates x.length
+      <= 100 * instanceSize x + 87 := by
+    rw [DenseCanonicalSelectionRound.time_eq]
+    nlinarith [hP, hI, hPI]
+  have hdriv := driverTime_eq x
+  nlinarith [htime, hP, hI, hPI, hdriv]
+
 end Light.DenseRestartSelectionLoop
 
 #print axioms Light.DenseRestartSelectionLoop.need_polynomial
@@ -522,3 +538,4 @@ end Light.DenseRestartSelectionLoop
 #print axioms Light.DenseRestartSelectionLoop.maskCleared_insert
 #print axioms Light.DenseRestartSelectionLoop.exists_fresh_flagged
 #print axioms Light.DenseRestartSelectionLoop.loop_ends
+#print axioms Light.DenseRestartSelectionLoop.driverTime_le
