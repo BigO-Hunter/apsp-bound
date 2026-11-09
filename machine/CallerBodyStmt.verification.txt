@@ -1,0 +1,69 @@
+CallerBodyStmt.lean — D7(b) FILL 3, the summit body slice 2 verification
+receipt (mpBody's Light statement + the shifted-chain bridge)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; final pass green on attempt 1):
+  lake env lean -j1 CallerBodyStmt.lean
+    -o .lake/build/lib/lean/CallerBodyStmt.olean
+Exit codes: 0 (final pass); olean 105056 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerBodyStmt.exec_append_nil' depends on axioms: [propext]
+  'ThinMatrix.CallerBodyStmt.chain_nil' depends on axioms: [propext]
+  'ThinMatrix.CallerBodyStmt.chain_shifted' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, the summit body slice 2: mpBody's Light statement and the
+shifted-chain bridge.
+- callerProgramLayered — the caller's fixed program in the LAYERED
+  Program.behind shape: [mpBody] innermost (the product core at
+  procedure 0 = mpProc), then the restore layer, then the cache layer,
+  with program cs (the certified stage at its procedure 6)
+  innermost-behind. Each layer's behind shifts the inner call indices by
+  its length. (Refines the skeleton's flat shape — the layered form is
+  what Ends.shift composes through.)
+- stageProcLayered — the layered stage index: cache.length +
+  restore.length + (1 + 6).
+- mpBody — THE PRODUCT CORE'S STATEMENT: the mpRounds schedule of
+  certified stage invocations, as the thrice-shifted schedule term
+  (((roundCalls (mpRounds W)).shift 1).shift restoreProg.length).shift
+  cacheProg.length. THE CONTROL-FLOW SKELETON: the assembly semantics
+  (the stage outcomes into the product entries) ride the oracle chain
+  premise (the Seg half — the remaining body slice).
+- CallerTargetLayered — the phase target at the layered program
+  (SummitSlot's hs component).
+- exec_append_nil / chain_nil — the nil-bridges: a run (and a chain) over
+  P ++ [] is a run (and a chain) over P (the exec-bridge by induction
+  mirroring upstream Exec.append's shape; the call-case's index bound
+  from the get-proof's eq_some-iff).
+- chain_shifted — THE SHIFT-COMPOSITION BRIDGE: chain_runs' round chain
+  (at the empty trailing program) transferred into the layered caller
+  program by three composed Ends.shifts — one per layer — and one append
+  for the caller's trailing program (UNSHIFTED — the shift_append-stacked
+  form wrongly shifts the caller's trailing program three times over;
+  pure shifts + one append is the correct composition). The statement
+  lands exactly on mpBody, the state on the round chain's start frame,
+  the post on the caller's three-region frame. Premises are chain_runs's,
+  unchanged. This is the execution derivation's skeleton step: the frame
+  half of the body's run, at the caller program.
+
+THE REMAINING SLICES: the product core's assembly glue (the stage
+outcomes into the product entries — the Seg half through the oracle
+functional chain, DenseOracleCorrect-conditioned via Fill 1's
+cache-body landing, upstream's own shape), and the step count for
+CallerHdom. Until they land, CallerTarget(Layered) and the twin stay
+conditional — honestly: no solver is postulated, no (min,+) product is
+claimed. D7's boundary stands.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
