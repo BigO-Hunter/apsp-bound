@@ -1,0 +1,54 @@
+ConservativeAdapter.lean — D7(a) verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+wrapper `trap "" TERM; exec …` used after the unattributed SIGTERM killer
+hit three detached/foreground runs — exit 143 at 20:41, 21:09, ~21:33):
+  lake build CanonicalMachineAdapter   (8774 jobs: the upstream functional
+    chain APSPAlgorithm/AsymptoticCosts/MinPlusReduction/RealCertificate +
+    CoreCompatibility + MachineAdapter; the 135 upstream lean/ sources were
+    staged into .machine-build/lean/ from the pinned apsp-shresh-src
+    checkout @ 225c3747 — the workspace had staged machine/ only)
+  lake env lean -j1 ConservativeAdapter.lean
+Exit codes: 0 (both stages)
+
+D7(a): the EndStatement.APSP adapter at the conservative filing bound
+2994999/1000000 (2.994999), mirroring the upstream
+MachineAdapter.rationalStatementOfMinPlusExecution /
+CanonicalMachineAdapter.rationalStatementOfLedger shapes byte-identically
+with arithmetic-only changes:
+- conservativeStatementOfMinPlusExecution (hs hn) (hb) — the upstream hb
+  hypothesis (dominated at the upstream constant 299294792/10^8) weakens to
+  the conservative exponent via n^(2.99294792) <= n^(2.994999) (rpow
+  monotonicity, targetExponent_le) and closes SolvedInTime at
+  2994999/1000000 through SolvedInTime.endStatement +
+  FromClaims.solvedAt_of_realized + MachineAdapter.realizedFromMinPlus
+  (isHost_ap under the hood).
+- conservativeStatementOfLedger (hs hn) (hdom) — hdom byte-identical to the
+  upstream canonical adapter's hb: completeCost-domination, turned into the
+  exponent bound by AsymptoticCosts.costBoundOfDomination, then the same
+  conservative closure.
+
+THE NAMED REMAINDER (unchanged, D7's core): hs awaits the actual min-plus
+Light program with its execution derivation from the ported machine
+components (L1-L6c deliver the interior contracts); hdom awaits that
+program's step-count bound against completeCost. No (min,+) product is
+constructed in this file. The analytic side of the conservative statement
+is WEAKER than the upstream chain's own certificate.
+
+All six declarations standard-3; no sorry, no native_decide.
+
+'ThinMatrix.ConservativeAdapter.conservativeExponent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ThinMatrix.ConservativeAdapter.targetExponent_cast' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ThinMatrix.ConservativeAdapter.targetExponent_le' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ThinMatrix.ConservativeAdapter.conservativeStatementOfMinPlusExecution' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ThinMatrix.ConservativeAdapter.conservativeStatementOfLedger' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+aligned-cache construction; Josh Alman and Virginia Vassilevska Williams —
+arXiv:2610.06783; Li Xuanji — the verified ten-term construction and
+word-RAM compiler (EndStatement.APSP target); Joshua Wharton (QFEX) — the
+canonical adapter arrangement mirrored here; Hrishik Sai Bojnal — the
+verified frontier being refined.
