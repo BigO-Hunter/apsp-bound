@@ -797,12 +797,16 @@ private theorem aux_wire_from_slots
             x (mpRounds W) ⟨Function.update ll Tmp r₁, μ₁⟩ :=
           WirePins_update hOutNe (fun t' ht' j hj => hTtmp t' ht' j hj) hpins
         -- the row-0's write-socket: the delivered value into cell (0,0)
+        have hidx₁ : ∀ j : ℕ, j < x.n →
+            Function.update ll Tmp r₁ (0 * x.n + j) = ((0 * x.n + j : ℕ) : ℤ) := by
+          intro j hj
+          have hu : Function.update ll Tmp r₁ (0 * x.n + j) = ll (0 * x.n + j) :=
+            dif_neg (by have : Tmp = (10 : ℕ) := rfl; exact hTtmp 0 (by omega) j hj)
+          rw [hu]
+          exact hidx 0 ll μ₁ (by omega) hloc j hj
         have hrow := hrowwrites 0 (maskCleared cs₁.toFinset mask)
-          (Function.update ll Tmp r₁) μ₁ r₁ (by omega)
-          (hidx 0 (Function.update ll Tmp r₁) μ₁ (by omega)
-            (fun k' hk' => by rw [show Function.update ll Tmp r₁ k' = ll k' from
-              dif_neg (by have : Tmp = (10 : ℕ) := rfl; omega)]))
-          hpins₁ hreads₁
+          (Function.update ll Tmp r₁) μ₁ r₁ (by omega) hidx₁
+          (show Function.update ll Tmp r₁ Tmp = r₁ from rfl) hpins₁ hreads₁
         refine hrow.mono le_rfl (fun σ' hσrow => ?_)
         -- the post: the mem = the delivered fold; the pins; the reads
         have hw : r₁ = bracketAccumulate (μ x.c) tests (mpRounds W) := by
@@ -861,12 +865,16 @@ private theorem aux_wire_from_slots
             (fun t' ht' j hj => hTtmp t' ht' j hj) hσ₁.2.2.1)
         have hkeep : μ₂ x.c = σ₁.mem x.c := hsam x.c haway
         -- the row-t's keep-socket: cell (0,0)'s fold kept; the reads preserved
+        have hidx₁ : ∀ j : ℕ, j < x.n →
+            Function.update σ₁.loc Tmp r₁ (t * x.n + j) = ((t * x.n + j : ℕ) : ℤ) := by
+          intro j hj
+          have hu : Function.update σ₁.loc Tmp r₁ (t * x.n + j) = σ₁.loc (t * x.n + j) :=
+            dif_neg (by have : Tmp = (10 : ℕ) := rfl; exact hTtmp t (by omega) j hj)
+          rw [hu]
+          exact hidx t σ₁.loc σ₁.mem (by omega) hloc₁ j hj
         have hrow := hrowkeeps t (maskCleared cs₁.toFinset mask₁)
           (Function.update σ₁.loc Tmp r₁) μ₂ (bracketAccumulate (μ x.c) tests (mpRounds W))
-          (by omega) (by omega)
-          (hidx t (Function.update σ₁.loc Tmp r₁) μ₂ (by omega)
-            (fun k' hk' => by rw [show Function.update σ₁.loc Tmp r₁ k' = σ₁.loc k' from
-              dif_neg (by have : Tmp = (10 : ℕ) := rfl; omega)]))
+          (by omega) (by omega) hidx₁
           hpins₁ (by rw [hkeep]; exact hw0) hreads₂
         refine hrow.mono le_rfl (fun σ' hσrow => ?_)
         exact ⟨fun h' => absurd h' (by omega), fun _ => hσrow.1, hσrow.2.1,
@@ -957,7 +965,7 @@ theorem wire_from_slots
     have hpos := Nat.succ_pos (2 * W).log2
     omega
   have hwire := aux_wire_from_slots tests W hOutNe hTtmp haway hslots hret
-    hflag hok hdim hlay hround h2 l μ₀ hpins₀ hreads₀ hrowwrites hrowkeeps
+    hflag hok hdim hlay hround h2 l μ₀ hpins₀ hreads₀ hidx hrowwrites hrowkeeps
     (mpRounds W) (le_refl _) remaining T hT l μ₀ hpins₀ hreads₀
   refine hwire.mono le_rfl (fun σ' hσ' => ?_)
   obtain ⟨-, hmem, hpins, -⟩ := hσ'
@@ -975,7 +983,7 @@ theorem store_writes_keeps (lim : Limits) (P : Light.Program) (d : ℕ)
     Ends lim P d (Light.Stmt.store a e) σ T
       (fun σ' => σ'.mem (a.val σ).toNat = e.val σ ∧
         (∀ a' : ℕ, a' ≠ (a.val σ).toNat → σ'.mem a' = σ.mem a') ∧ σ'.loc = σ.loc) := by
-  refine Ends.store ha he haddr hcost ⟨⟨?_, fun a' ha' => ?_⟩, rfl⟩
+  refine Ends.store ha he haddr hcost ⟨?_, fun a' ha' => ?_, rfl⟩
   · exact Function.update_self _ _ _
   · exact Function.update_of_ne ha' _ _
 
@@ -1164,6 +1172,8 @@ theorem rowWrites_of_layout
     (fun u hu => hcost t (by omega) u hu)
     (x.n * Bw) (by omega)).mono le_rfl (fun σ' hσ' => ?_)
   · -- the A-distance: the later entries' addresses miss the (t,0) cell
+    have haddrpos : 0 ≤ (ll Out + ll (t * x.n + u) : ℤ) :=
+      (hpins.2.2.2.1 t (by omega) u (by omega)).1.1
     rw [haddr u hu']
     omega
   · refine ⟨?_, hσ'.2.1, fun i hi => (hσ'.2.2 (ab + i) (fun u hu => by
@@ -1181,8 +1191,8 @@ theorem rowWrites_of_layout
         show ll (Tmp + 0) = r; rw [Nat.add_zero]; exact hTmpr
       have haddr0 := haddr 0 (by omega)
       show σ'.mem (x.c + t * x.n + 0) = r
-      rw [← haddr0]
-      exact hσ'.1.trans h2
+      rw [← haddr0, h2]
+      exact hσ'.1
 
 /-- THE ROW-KEEP SOCKET'S DISCHARGE: the keep-socket from the landed
 `rowUpTo_keep_pres` under the same layout trio. -/
@@ -1229,23 +1239,22 @@ theorem rowKeeps_of_layout
     (x.n * Bw) (by omega)).mono le_rfl (fun σ' hσ' => ?_)
   · -- the A-distance: t ≥ 1 so every product address misses cell x.c
     intro u hu
+    have haddrpos : 0 ≤ (ll Out + ll (t * x.n + u) : ℤ) :=
+      (hpins.2.2.2.1 t (by omega) u (by omega)).1.1
     rw [haddr u hu]
     omega
-  · refine ⟨?_, ?_, ?_⟩
-    · intro i hi
-      exact (hσ'.2.2 (ab + i) (fun u hu => by
-        rw [haddr u hu]
-        exact hne u (ab + i) hu (Or.inl ⟨by omega, by omega⟩))).trans (hreads.1 i hi)
-    · intro p hp i hi
-      exact (hσ'.2.2 (rb + p * I + i) (fun u hu => by
-        rw [haddr u hu]
-        exact hne u (rb + p * I + i) hu
-          (Or.inr (Or.inl ⟨by omega, by omega⟩)))).trans (hreads.2.1 p hp i hi)
-    · intro p hp
-      exact (hσ'.2.2 (mb + p) (fun u hu => by
-        rw [haddr u hu]
-        exact hne u (mb + p) hu (Or.inr (Or.inr ⟨by omega, by omega⟩)))).trans
-        (hreads.2.2 p hp)
+  · refine ⟨hσ'.1, WirePins_congr hσ'.2.1 hpins,
+      fun i hi => (hσ'.2.2 (ab + i) (fun u hu => by
+      rw [haddr u hu]
+      exact hne u (ab + i) hu (Or.inl ⟨by omega, by omega⟩))).trans (hreads.1 i hi),
+    fun p hp i hi => (hσ'.2.2 (rb + p * I + i) (fun u hu => by
+      rw [haddr u hu]
+      exact hne u (rb + p * I + i) hu
+        (Or.inr (Or.inl ⟨by omega, by omega⟩)))).trans (hreads.2.1 p hp i hi),
+    fun p hp => (hσ'.2.2 (mb + p) (fun u hu => by
+      rw [haddr u hu]
+      exact hne u (mb + p) hu (Or.inr (Or.inr ⟨by omega, by omega⟩)))).trans
+      (hreads.2.2 p hp)⟩
 
 #print axioms bracketAccumulate_step#print axioms bracketAccumulate_step
 
