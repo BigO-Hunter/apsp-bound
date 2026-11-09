@@ -1,0 +1,53 @@
+CallerExpId.lean — D7(b) FILL 3, the exponential-encoding identity's
+composition session verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; green on attempt 1 (after two
+compiler-forced fixes: the hmult premise switched to the raw ∀-family
+(avoiding the MultiplicationNonzero-wrapper's application), and the
+hmult-rebinding removed (the shadow — the have's IFF-typed result broke
+the later ∀-applications))):
+  lake env lean -j1 CallerExpId.lean
+    -o .lake/build/lib/lean/CallerExpId.olean
+Exit codes: 0; olean 34256 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerExpId.exponentialEncoding_of_sockets' depends on
+    axioms: [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, the exponential-encoding identity's composition session:
+- MultiplicationNonzero — THE EXPONENTIAL-ENCODING PREMISE (the
+  DATAFLOW.md named sub-design): the active-gated oracle positivity ↔
+  the machine-product's entry's nonzeroness, per (p, i). THE PREMISE,
+  never claimed — the encoding's correctness is upstream's
+  `DenseOracleCorrect`-conditioned chain (D7's boundary).
+- exponentialEncoding_of_sockets — THE COMPOSITION: `CellContent` (the
+  per-cell contract) + `MultiplicationNonzero` (the exponential-encoding
+  premise) + the round-trip (`recovOf` = the entry's magnitude) yield
+  `ExponentialEncoding` — the count-entry's nonzeroness ↔ the
+  recovered-entry's nonzeroness. The hmult's raw ∀-family form: the
+  sockets applied per candidate per round directly (the
+  MultiplicationNonzero-wrapper's application was the elaboration trap;
+  the raw family is the byte-identical shape).
+
+THE REMAINING SESSIONS: the `MultiplicationNonzero` premise's own
+delivery (the exponential-encoding's parameter concretization's proof —
+DATAFLOW.md's named sub-design); the Seg-half assembly (the bracket
+accumulation via `refineStep` — the writes' shapes landed); the step
+count for `CallerHdom`. Until they land, `CallerTarget(Layered)` and
+the twin stay conditional — honestly: no solver is postulated, no
+(min,+) product is claimed. D7's boundary stands: the encoding identity
+and the oracle premise are premises, never claimed as proved.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
