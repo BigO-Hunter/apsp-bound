@@ -1,91 +1,67 @@
-CallerWire.lean — D7(b) FILL 3, the wire-lemma's session verification
+CallerWire.lean — D7(b) FILL 3, the socket's proof session verification
 receipt
 Workspace: .machine-build/machine (ThreeSumApsp path-required at
 /Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
 mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
 upstream machine pin 225c3747)
 Build chain (exit receipts in the same chain as each build; TERM-immune
-finisher + exit marker + armed retry; green on attempt 1 of the final
-pass — the pass's fixes: the row lemmas' budgets threaded through the
-∀ (the ih runs at T - Bw), the Expr.Safe state-transfer via the
-show-defeq bridge, the Int.toNat_of_nonneg bridge for the address
-distance, and the 0 * x.n non-defeq propositional rewrites):
-  lake env lean -j1 CallerWire.lean
-    -o .lake/build/lib/lean/CallerWire.olean
-Exit codes: 0; olean 680784 bytes, module target named.
-Banner:
-  'ThinMatrix.CallerWire.store_writes' depends on axioms: [propext]
-  'ThinMatrix.CallerWire.store_keeps' depends on axioms: [propext]
-  'ThinMatrix.CallerWire.bracketAccumulate_step' depends on axioms:
-    [propext, Quot.sound]
-  'ThinMatrix.CallerWire.bodyUpTo_succ' depends on axioms:
-    [propext, Quot.sound]
-  'ThinMatrix.CallerWire.rowUpTo_keep' depends on axioms:
-    [propext, Quot.sound]
-  'ThinMatrix.CallerWire.rowUpTo_writesA' depends on axioms:
-    [propext, Quot.sound]
-  'ThinMatrix.CallerWire.roundZero_writes' depends on axioms:
-    [propext, Quot.sound]
-  'ThinMatrix.CallerWire.roundKeeps' depends on axioms:
-    [propext, Quot.sound]
-  'ThinMatrix.CallerWire.wire_runs' depends on axioms:
-    [propext, Quot.sound]
-  'ThinMatrix.CallerWire.wire_compose' depends on axioms:
-    [propext, Quot.sound]
-  'ThinMatrix.CallerWire.bracketFinal_of_pins' depends on axioms:
-    [propext, Quot.sound]
-— no sorryAx, no native_decide; standard-3 or lighter (ALL eleven theorems
-are propext/Quot.sound only — lighter than the standard-3: no
-Classical.choice).
+finisher + exit marker + armed retry — saved three host-SIGKILLs; green
+on attempt 1 of the final pass — the pass's fixes: the 5-clause
+WirePins's access-shift (.2.2.2 -> .2.2.2.1 for the safety clause),
+the opaque-Tmp omegas unfolded via Tmp = 10 in context, the
+Function.update clause-4 transfer in term mode (the row-lemma bundles'
+Safe-terms are NOT defeq-reducible — the update-forms are rw'd, not
+shown), the obtain-consumption fixed by id (hR preserved), and the
+callArgs membership destruction (the ten-case rcases, chain's
+pattern)):
+  lake env lean -j1 CallerRun.lean -o .lake/build/lib/lean/CallerRun.olean
+  lake env lean -j1 CallerWire.lean -o .lake/build/lib/lean/CallerWire.olean
+Exit codes: 0; olean 887144 bytes, module target named.
+Banner (the socket's proof and the wire):
+  'ThinMatrix.CallerWire.stageDelivers_of_slot' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+  'ThinMatrix.CallerWire.WirePins_update' depends on axioms: [propext]
+  'ThinMatrix.CallerWire.wire_runs' / 'wire_compose' /
+    'bracketFinal_of_pins' / 'roundZero_writes' / 'roundKeeps' /
+    'rowUpTo_keep' / 'rowUpTo_writesA' / 'bracketAccumulate_step' /
+    'bodyUpTo_succ' depend on axioms: [propext, Quot.sound]
+  'ThinMatrix.CallerWire.store_writes' / 'store_keeps' depend on
+    axioms: [propext]
+— standard-3 or lighter throughout; no sorryAx, no native_decide.
 
-D7(b) FILL 3, the wire-lemma's session: the pure core discharged.
-AMENDED (the socket's shape session): the Tmp-delivery shape-fix —
-the landed socket was UNPROVABLE as stated (a Light call updates only
-the result register Tmp; it cannot set the address-base register Out,
-and the row's stores must therefore read the value-base Tmp).
-Amended shapes: roundSlice's row-call Base := Tmp (CallerRun);
-StageDelivers's delivery register := Tmp; rowUpTo/the row lemmas
-carry the Base parameter; entry (0,0)'s value = v Tmp = the delivered
-fold. All eleven theorems re-verified axiom-light (propext,
-Quot.sound only); olean 668304 bytes.
+D7(b) FILL 3, the socket's proof session:
 
-1. THE PURE CORE (all proved, axiom-light):
-- bracketAccumulate_zero / bracketAccumulate_step — the fold's
-  recursion equations.
-- bodyUpTo / bodyUpTo_succ — the schedule's round-splitting;
-  mpBodyWithWrites = the full-length prefix.
-- rowUpTo / rowUpTo_succ — the row's entry-splitting.
-- store_writes / store_keeps — the store's memory semantics (the
-  Exec.store rule read off the state): one store writes its own cell
-  and keeps every other cell and every register.
-- rowUpTo_keep / rowUpTo_writesA — the row's run keeps a pinned cell
-  (every entry's address away from it), or writes it once at the first
-  entry and keeps it after.
-- roundZero_writes / roundKeeps — the per-round slice: round 0 writes
-  the delivered fold into cell (0,0); every later round keeps it.
-- wire_runs / wire_compose — THE WIRE: the schedule's run threads the
-  state and delivers the fold into cell (0,0).
-- bracketFinal_of_pins — CallerRun.BracketFinal at the pinned states:
-  under the delivery socket, the pinning, the budgets, and the start
-  value (the cells at 0), the body's run's bracket cell (0,0) = the
-  bracketAccumulate fold. AXIOM-LIGHT.
+(a) THE FRAME-CONDITION AMENDMENT (landed, green):
+- WirePins gains the vals parameter and the fifth clause: registers
+  0-8 carry the call's argument list — the condition that survives the
+  rounds (the call updates only Tmp).
+- StageDelivers gains the vals parameter and the frame-condition in
+  its forall-l prefix; wire_runs / wire_compose /
+  bracketFinal_of_pins thread vals (the wire's instantiation:
+  argsOf (callSite ...) ++ [(fr : Nat-to-Z)]).
 
-2. THE DELIVERY SOCKET (named, never claimed):
-- StageDelivers — the stage call at round t delivers the row's refined
-  value (the fold seeded by the row cell's current value) into the
-  source register, keeps cell (0,0), and keeps the pinning. The body's
-  per-round machine-computation contract (DATAFLOW.md's remaining
-  sub-design). The min-plus identity of the delivered values rides the
-  oracle premise — D7's boundary: the oracle is a premise, never
-  claimed as proved. The socket's proof session is named, not landed.
-- The pinning (WirePins) and the budgets (Bw, B) are the layout's
-  obligations — their discharge is the layout session (named). The
-  start value (the cells at 0) is the initialization's obligation
-  (named).
+(b) THE SOCKET'S PROOF (landed, standard-3):
+- WirePins_update — the pins survive the stage call: the call's final
+  state updates the result register Tmp only; every pinned register
+  (the base, the zero register, the write-address indices excluded
+  from Tmp, the frame registers 0-8) is preserved.
+- stageDelivers_of_slot — THE SOCKET, at the call level: the certified
+  slot family (hslots, chain_from's exact shape) consumed through
+  Ends.callLast; the delivery-content is the NAMED return-premise hret
+  (r = bracketAccumulate (mu (x.c + t * x.n)) tests N — the
+  construction's own machine-conversion; Post ignores the return
+  value, so it rides nowhere in the certified contracts; D7's
+  boundary: the oracle is a premise, never claimed); the memory frame
+  from Post's SameOutside3 + the layout (haway: x.c outside the three
+  regions); the pinning from WirePins_update. The reads-condition
+  (StageReads at the round's memory) is explicit in the statement —
+  threading it through the schedule's rounds is the chain machinery's
+  work (the wire-level assembly's named piece: the reads-carry through
+  the rounds, reads_carry as in CallerChain).
 
-Until the socket and the pinning discharge, CallerTarget(Layered) and
-the twin stay conditional — honestly: no solver is postulated, no
-(min,+) product is claimed.
+Until the reads-threaded wire-level socket assembly lands,
+CallerTarget(Layered) and the twin stay conditional — honestly: no
+solver is postulated, no (min,+) product is claimed.
 
 All declarations standard-3 or lighter; no sorry, no native_decide.
 
