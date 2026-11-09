@@ -1,0 +1,52 @@
+CallerEncoding.lean — D7(b) FILL 3, the parameter-concretization session
+verification receipt (the encoding shapes + the encoding-identity premise)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; green on attempt 1 after one
+binder-group fix — `active` needs its own ℕ → Bool type):
+  lake env lean -j1 CallerEncoding.lean
+    -o .lake/build/lib/lean/CallerEncoding.olean
+Exit codes: 0; olean 38568 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerEncoding.henc_of_identity' depends on axioms:
+    [propext]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, the parameter-concretization session: the encoding shapes
+and the encoding-identity premise.
+- lowerTestEntry / upperTestEntry — the two adaptive tests' threshold
+  encodings: the third-table entries -(2·C) and -(2·C + 1) — byte-shaped
+  to upstream MinPlusReduction.refine's test matrices.
+- residTabShape / smallTabShape — the mod-p table shapes (upstream Batch
+  procedures 77/78): dst[q] := sgn·src[q] mod p and dst[h] := (h·mul +
+  add) mod p — byte-formed to OProg.lean's procedure map.
+- EncodingIdentity — THE ENCODING-IDENTITY PREMISE: the score's
+  nonzeroness ↔ the round's answer, per candidate. The DELIVERY (the
+  proof) is the composite-incidence construction's own content,
+  conditioned on DenseOracleCorrect — consumed as a premise, never
+  claimed as proved (D7's boundary).
+- henc_of_identity — the derivation: the identity premise (at the ℕ
+  score level) yields the reading lemma's ℤ-cast socket — the cast is
+  the only glue (Nat.cast_ne_zero).
+
+THE REMAINING SLICES: the identity-premise's DELIVERY (the
+composite-incidence construction's count-semantics proof — Fill 1's
+cache-body landing + the upstream DenseOracleCorrect-conditioned chain);
+the execution derivation of the writes (the Seg half of mpBody's run);
+the step count for CallerHdom. Until they land, CallerTarget(Layered)
+and the twin stay conditional — honestly: no solver is postulated, no
+(min,+) product is claimed.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement, the refinement parameters,
+and the machine-obligations record; Hrishik Sai Bojnal — the verified
+frontier being refined and the refined numerical certificate this body
+targets.
