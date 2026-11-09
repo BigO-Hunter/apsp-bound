@@ -1174,7 +1174,9 @@ theorem rowWrites_of_layout
     (x.n * Bw) (by omega)).mono le_rfl (fun σ' hσ' => ?_)
   · -- the A-distance: the later entries' addresses miss the (t,0) cell
     simp only [State.loc]
-    rw [haddr u hu']
+    rw [haddr u hu', Ne.eq_def]
+    intro hcon
+    have hu0 : u = 0 := by omega
     omega
   · refine ⟨?_, WirePins_congr hσ'.2.1 hpins, fun i hi => (hσ'.2.2 (ab + i) (fun u hu => by
       simp only [State.loc]
@@ -1241,9 +1243,10 @@ theorem rowKeeps_of_layout
     (fun u hu => hcost t (by omega) u hu)
     (x.n * Bw) (by omega)).mono le_rfl (fun σ' hσ' => ?_)
   · -- the A-distance: t ≥ 1 so every product address misses cell x.c
-    intro u hu
     simp only [State.loc]
-    rw [haddr u hu]
+    rw [haddr u hu, Ne.eq_def]
+    intro hcon
+    have hu0 : u = 0 := by omega
     omega
   · refine ⟨hσ'.1, WirePins_congr hσ'.2.1 hpins,
       fun i hi => (hσ'.2.2 (ab + i) (fun u hu => by
