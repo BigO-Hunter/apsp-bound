@@ -54,3 +54,24 @@ byte-identical to the pin's.
 
 Bit-cost -> Light-step translation is D7, assigned to L5. The FFT contract is
 stated over the cone's own counters (`bitSteps + arrayActions`).
+
+## Ported (M3e): the conservative row takes the notch
+
+| Statement | File | Provenance |
+|---|---|---|
+| `verifiedFrontier` = 29955607647814/10^13 (2.9955607647814) | FFTConservativeRow.lean | the LV frontier row (Li Xuanji construction; Bojnal's verified frontier), stated as the comparison constant |
+| `conservative_exponent_eq` : 3 − (1/200 + 1/1000000) = 2994999/10^6 | FFTConservativeRow.lean | norm_num; the row's exponent identity |
+| `conservative_row_below_frontier` : 3 − (δ_c + margin) < verifiedFrontier | FFTConservativeRow.lean | norm_num — THE NOTCH: 2.994999 < 2.9955607647814 |
+| `conservative_row_gap` : frontier − row exponent = 5617647814/10^13 | FFTConservativeRow.lean | norm_num; notch size ≈ 5.62×10⁻⁴ |
+| `conservative_row_ledger` : all 47 battery cells guard 0, 1, or the conservative floor | FFTConservativeRow.lean | decide +kernel on the flat literal |
+| `conservative_row` (packaged: battery target-shape ∧ below-frontier) | FFTConservativeRow.lean | from conservative_row_ledger + conservative_row_below_frontier |
+
+Receipts (exit-code in the same chain as each build): M3e build
+`lake build Submission.ThreeSumApsp.LowCache.FFT.FFTConservativeRow` —
+exit 0 (`/private/tmp/apsp_m3e_m2.exit`; first attempt failed on
+`List.all_eq_true` decide-coercion, fixed with `of_decide_eq_true`).
+Axioms: all six declarations `[propext, Classical.choice, Quot.sound]` —
+standard-3; no sorry, no native_decide. The two binding promotions remain
+enclosure-conditional (M3d) — the unconditional real-log enclosures at the
+conservative point are the successor item (LogBounds regeneration), not
+needed for the row's notch claim.
