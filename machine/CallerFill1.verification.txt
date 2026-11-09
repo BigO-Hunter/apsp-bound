@@ -1,0 +1,53 @@
+CallerFill1.lean — D7(b) FILL 1's content consumption verification receipt
+(the EncodingIdentity derivation)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry — attempt 1 host-killed (137),
+attempt 2 green):
+  lake env lean -j1 CallerFill1.lean
+    -o .lake/build/lib/lean/CallerFill1.olean
+Exit codes: 0 (final pass); olean 67968 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerFill1.encodingIdentity_of_content' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 1's content consumption: the EncodingIdentity derivation.
+- CellContent — the per-cell content contract: the cached row-entry's
+  nonzeroness is the active-gated oracle positivity at (p, i). THE
+  DELIVERY is the composite-incidence construction's own content (the
+  DenseOracleCorrect-conditioned chain — consumed as the premise, never
+  claimed; the L2/L3 cone's cache-body port rides board-side per
+  CacheFill's recorded deferral).
+- AnswerOr — the per-candidate answer contract: the answer's trueness is
+  the active OR of the oracle positivities.
+- encodingIdentity_of_content — THE DERIVATION: `CellContent + AnswerOr`
+  yield `EncodingIdentity` (the reading lemma's socket) — the
+  count-vs-existence bridge at the ℕ level: the score's nonzeroness ↔
+  some active entry nonzero (the entries are counts, nonnegative by
+  type — the Finset.exists_ne_zero_of_sum_ne_zero /
+  Finset.single_le_sum route) ↔ the active OR of the positivities ↔ the
+  answer. THE READING LEMMA'S SOCKET IS NOW DERIVED, not postulated —
+  its remaining premise is the per-cell content contract (Fill 1's
+  board-side delivery).
+
+THE CACHE BODY'S LIGHT STATEMENT: the per-(p, i) count-writes ride the
+landed `CallerWrites.mpBodyWritesRow` store-pattern at the cache's own
+register map; the L2/L3 cone (the score-table pass + the BinaryArrayFFT
+cyclic path) is the board-side port's content — CacheFill's recorded
+deferral, unchanged. D7's boundary stands: the oracle premise and the
+content contracts are premises, never claimed as proved; no (min,+)
+product is claimed in this module.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
