@@ -290,7 +290,7 @@ def univRowBw : ℕ := 13
 
 /-- The row pass's fixed overhead: the two `.set`s (4 + 4) and the
 pass's tail (6). -/
-def univRowFix : ℕ := 14
+def univRowFix : ℕ := 16
 
 /-- The row pass's budget. -/
 def univRowB (n : ℕ) : ℕ := univRowBw * n + univRowFix
@@ -417,5 +417,201 @@ theorem univTn_le (n U : ℕ) (hn : 1 ≤ n) :
 #print axioms univLevelB_le
 #print axioms univUnitB_le
 #print axioms univTn_le
+
+/-! ## The row pass's run (the computed-index write semantics) -/
+
+/-- The pins read only the frame registers 0–8 and the three pinned
+computed registers — they transfer along any register map agreeing
+outside the three scratch registers. -/
+theorem UnivPins_loc {lim : Limits} {vals : List ℤ} {x : MatInst} {W : ℕ}
+    {σ σ' : State}
+    (hloc : ∀ i : ℕ, i ≠ IdxR → i ≠ DstR → i ≠ J → σ'.loc i = σ.loc i)
+    (hp : UnivPins lim vals x W σ) : UnivPins lim vals x W σ' := by
+  have hO : Out = (11 : ℕ) := rfl
+  have hN : Nreg = (12 : ℕ) := rfl
+  have hU : U2 = (13 : ℕ) := rfl
+  have hl : IdxR = (16 : ℕ) := rfl
+  have hld : DstR = (17 : ℕ) := rfl
+  have hlj : J = (18 : ℕ) := rfl
+  obtain ⟨h1, h2, h3, h4, h5⟩ := hp
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  · intro k' hk'
+    rw [hloc k' (by rw [hl]; omega) (by rw [hld]; omega) (by rw [hlj]; omega)]
+    exact h1 k' hk'
+  · rw [hloc Out (by rw [hO, hl]; norm_num) (by rw [hO, hld]; norm_num)
+      (by rw [hO, hlj]; norm_num)]
+    exact h2
+  · rw [hloc Nreg (by rw [hN, hl]; norm_num) (by rw [hN, hld]; norm_num)
+      (by rw [hN, hlj]; norm_num)]
+    exact h3
+  · rw [hloc U2 (by rw [hU, hl]; norm_num) (by rw [hU, hld]; norm_num)
+      (by rw [hU, hlj]; norm_num)]
+    exact h4
+  · intro t ht
+    exact h5 t ht
+
+/-- THE ROW PASS'S RUN: from a pinned state whose round counter reads `t`
+and whose `Tmp` holds the delivered value `r`, the pass writes `r` into
+every cell of row `t` (the first entry's write is the cell fact the wire
+consumes), keeps every cell outside the row, and preserves the pins. The
+inner while's induction is owned by the library's proved `Ends.pass` rule
+— the per-entry bookkeeping (counter, addressing, safety) is upstream's. -/
+theorem univRowPass_runs
+    {lim : Limits} {P : Light.Program} {d : ℕ} {x : MatInst} {W : ℕ}
+    {vals : List ℤ} {ll : ℕ → ℤ} {μ : ℕ → ℤ} {r : ℤ} {t : ℕ} {T : ℕ}
+    (hxn : 1 ≤ x.n)
+    (hpins : UnivPins lim vals x W ⟨ll, μ⟩)
+    (hspace : (lim.space : ℤ) ≤ lim.word)
+    (hRt : ll Rt = (t : ℤ)) (hTmp : ll Tmp = r)
+    (htW : t < mpRounds W)
+    (hT : univRowB x.n ≤ T) :
+    Ends lim P d univRowPass ⟨ll, μ⟩ T
+      (fun σ' => σ'.mem (x.c + t * x.n) = r ∧
+        UnivPins lim vals x W σ' ∧
+        (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
+          σ'.mem b' = μ b')) := by
+  obtain ⟨hframe, hOut, hNreg, hU2, haddr⟩ := hpins
+  obtain ⟨harea, hidx⟩ := haddr t htW
+  have h10 : Tmp = (10 : ℕ) := rfl
+  have h11 : Out = (11 : ℕ) := rfl
+  have h12 : Nreg = (12 : ℕ) := rfl
+  have h13 : U2 = (13 : ℕ) := rfl
+  have h16 : IdxR = (16 : ℕ) := rfl
+  have h17 : DstR = (17 : ℕ) := rfl
+  have h18 : J = (18 : ℕ) := rfl
+  simp only [State.loc, State.mem] at hframe hOut hNreg hU2
+  have hposB : (0 : ℤ) ≤ ((x.c + t * x.n : ℕ) : ℤ) := by omega
+  have hwordB : ((x.c + t * x.n : ℕ) : ℤ) + (x.n : ℤ) ≤ lim.space := by
+    have hcast : (((x.c + t * x.n : ℕ) + x.n : ℕ) : ℤ)
+        = ((x.c + t * x.n : ℕ) : ℤ) + (x.n : ℤ) := by push_cast; ring
+    have := harea
+    omega
+  have hwordC : ((x.c : ℤ)) + ((t * x.n : ℕ) : ℤ) ≤ lim.word := by
+    have hcast : ((x.c + t * x.n : ℕ) : ℤ) = (x.c : ℤ) + ((t * x.n : ℕ) : ℤ) := by
+      push_cast; ring
+    have := hspace
+    have := hwordB
+    have hpos : (0 : ℤ) ≤ ((x.c + t * x.n : ℕ) : ℤ) := by omega
+    have hxn' : (0 : ℤ) ≤ (x.n : ℤ) := by omega
+    omega
+  have hwordCA : |(x.c : ℤ) + ((t * x.n : ℕ) : ℤ)| ≤ lim.word := by
+    rw [abs_of_nonneg (by have := hwordC; omega : (0 : ℤ) ≤ (x.c : ℤ) + ((t * x.n : ℕ) : ℤ))]
+    exact hwordC
+  -- the registers after the two sets
+  set ll₂ : ℕ → ℤ := fun i =>
+    if i = DstR then ((x.c + t * x.n : ℕ) : ℤ) else
+    if i = IdxR then ((t * x.n : ℕ) : ℤ) else ll i with hll₂def
+  have hll₂ : ∀ i : ℕ, i ≠ IdxR → i ≠ DstR → ll₂ i = ll i := by
+    intro i h1 h2
+    rw [hll₂def]
+    simp only [h2, h1, if_false]
+  have hll₂Idx : ll₂ IdxR = ((t * x.n : ℕ) : ℤ) := by rw [hll₂def]; simp
+  have hll₂Dst : ll₂ DstR = ((x.c + t * x.n : ℕ) : ℤ) := by rw [hll₂def]; simp
+  have hll₂Nreg : ll₂ Nreg = (x.n : ℤ) := by
+    rw [hll₂ Nreg (by norm_num [Nreg, IdxR]) (by norm_num [Nreg, DstR])]
+    exact hNreg
+  have hll₂Tmp : ll₂ Tmp = r := by
+    rw [hll₂ Tmp (by norm_num [Tmp, IdxR]) (by norm_num [Tmp, DstR])]
+    exact hTmp
+  -- the pass's own run at the sets' post
+  have hpass : Ends lim P d (pass J (v Nreg) (v DstR) (v Tmp)) ⟨ll₂, μ⟩
+      (13 * x.n + 6)
+      (fun σ' => σ'.mem (x.c + t * x.n) = r ∧
+        UnivPins lim vals x W σ' ∧
+        (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
+          σ'.mem b' = μ b')) := by
+    refine Ends.pass (fun _ => r) ?_ ?_ hspace harea hll₂Nreg
+      (show ll₂ DstR = ((x.c + t * x.n : ℕ) : ℕ) from by
+        rw [hll₂def]; simp)
+      (by norm_num [Nreg, J]) (by norm_num [DstR, J]) ?_
+    · -- round j: the value expression is the delivery register
+      intro j hj
+      refine ⟨trivial, ?_⟩
+      show Function.update ll₂ J j Tmp = (fun _ => r) j
+      have hu : Function.update ll₂ J j Tmp = ll₂ Tmp :=
+        dif_neg (by rw [h18, h10]; norm_num)
+      rw [hu]
+      exact hll₂Tmp
+    · -- done: the write conclusion at the pass's post
+      refine ⟨?_, ?_, ?_⟩
+      · have hw := wrote_done (μ := μ) (dst := (x.c + t * x.n : ℕ))
+          (f := fun _ => r) (i := 0) (j := x.n) (by omega)
+        simpa using hw
+      · refine UnivPins_loc (σ := ⟨ll, μ⟩) ?_ ⟨hframe, hOut, hNreg, hU2, haddr⟩
+        intro i hi1 hi2 hi3
+        show Function.update ll₂ J (x.n : ℤ) i = ll i
+        have hu2 : Function.update ll₂ J (x.n : ℤ) i = ll₂ i :=
+          dif_neg (by rw [h18]; omega)
+        rw [hu2]
+        exact hll₂ i hi1 hi2
+      · intro b' hb'
+        show wrote μ (x.c + t * x.n) (fun _ => r) x.n b' = μ b'
+        exact wrote_rest hb'
+    · -- the pass's cost
+      simp only [Expr.cost]
+      have huniv : univRowB x.n = 13 * x.n + 16 := by
+        simp only [univRowB, univRowBw, univRowFix]
+      omega
+  -- the second set + the pass, at any register map holding the computed values
+  have key : ∀ ll' : ℕ → ℤ,
+      ll' IdxR = ((t * x.n : ℕ) : ℤ) →
+      (∀ i : ℕ, i ≠ IdxR → ll' i = ll i) →
+      Ends lim P d (.set DstR (v Out +' v IdxR) ;;
+        pass J (v Nreg) (v DstR) (v Tmp)) ⟨ll', μ⟩
+        (Expr.cost (v Out +' v IdxR) + 1 + (13 * x.n + 6))
+        (fun σ' => σ'.mem (x.c + t * x.n) = r ∧
+          UnivPins lim vals x W σ' ∧
+          (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
+            σ'.mem b' = μ b')) := by
+    intro ll' hI hne
+    refine Ends.seq (Expr.cost (v Out +' v IdxR) + 1) (13 * x.n + 6) ?_
+      (by simp only [Expr.cost]; omega)
+    refine Ends.set ?_ (by simp only [Expr.cost]; omega) ?_
+    · show True ∧ True ∧ |ll' Out + ll' IdxR| ≤ lim.word
+      rw [hne Out (by rw [h11, h16]; norm_num), hOut, hI]
+      exact ⟨trivial, trivial, hwordCA⟩
+    · show (fun σ'' => Ends lim P d (pass J (v Nreg) (v DstR) (v Tmp)) σ''
+          (13 * x.n + 6)
+          (fun σ' => σ'.mem (x.c + t * x.n) = r ∧
+            UnivPins lim vals x W σ' ∧
+            (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
+              σ'.mem b' = μ b')))
+        ⟨Function.update ll' DstR (ll' Out + ll' IdxR), μ⟩
+      have hu : Function.update ll' DstR (ll' Out + ll' IdxR) = ll₂ := by
+        funext i
+        by_cases hi : i = IdxR
+        · subst hi
+          have hu1 : Function.update ll' DstR (ll' Out + ll' IdxR) IdxR
+              = ll' IdxR := dif_neg (by rw [h17, h16]; norm_num)
+          rw [hu1, hI, hll₂Idx]
+        · by_cases hi2 : i = DstR
+          · subst hi2
+            simp only [Function.update_self]
+            rw [hne Out (by rw [h11, h16]; norm_num), hOut, hI, ← Nat.cast_add,
+              hll₂Dst]
+          · have hu3 : Function.update ll' DstR (ll' Out + ll' IdxR) i = ll' i :=
+              dif_neg hi2
+            rw [hu3]
+            have hu4 : ll' i = ll i := hne i hi
+            rw [hu4]
+            exact (hll₂ i hi hi2).symm
+      rw [hu]
+      exact hpass
+  -- the first set, then key
+  refine Ends.seq (Expr.cost (v Rt *' v Nreg) + 1)
+    (Expr.cost (v Out +' v IdxR) + 1 + (13 * x.n + 6)) ?_ ?_
+  · refine Ends.set ?_ (by simp only [Expr.cost]; omega) ?_
+    · show True ∧ True ∧ |ll Rt * ll Nreg| ≤ lim.word
+      rw [hRt, hNreg]
+      exact ⟨trivial, trivial, hidx⟩
+    · exact key (Function.update ll IdxR (ll Rt * ll Nreg))
+        (by simp only [Function.update_self, hRt, hNreg, Nat.cast_mul])
+        (fun i hi => dif_neg hi)
+  · simp only [Expr.cost]
+    have huniv : univRowB x.n = 13 * x.n + 16 := by
+      simp only [univRowB, univRowBw, univRowFix]
+    omega
+
+#print axioms univRowPass_runs
 
 end ThinMatrix.CallerUniversalBody
