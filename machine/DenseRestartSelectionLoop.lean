@@ -607,6 +607,11 @@ def pinnedTask (x : Inst) : Task where
 — the shape the L5 caller's task-clock carries. -/
 def taskTime (n _U : ℕ) : ℕ := 100 * n * n + 98 * n
 
+/-- The pinned post with the pinned instance supplied — the form the `Meets`
+contract carries at the call site (the round's `Result`-shape). -/
+def pinnedPost (x : Inst) (μ : ℕ → ℤ) (_fr : ℕ) : ℤ → (ℕ → ℤ) → Prop :=
+  fun _r μ' => Post x μ μ'
+
 /-- The pinned call site of the greedy controller: `P` candidates, `R`
 restarts, incidence length `I`, row bound `h`, the fixed active mask, the
 plain remaining mask, the row table, and the five ordered regions.  Upstream
@@ -661,6 +666,100 @@ theorem taskTime_ge (x : Inst) (hrounds : x.rounds ≤ x.candidates) :
   unfold taskTime
   nlinarith
 
+/-! ## The pinned wrapper: Solves, SolvedIn, and the call-site contract
+
+The wrapper refines; nothing is re-proved.  `post_of_loop_ends` instantiates
+the landed `loop_ends` at `S₀ = ∅` over the full round list; `pinnedTask_solved`
+bridges it into the `Solves` shape at the fixed `program x`; `callSite_meets`
+hands the min-plus caller its contract at the pinned `(P, R)`. -/
+
+/-- `loop_ends` at the empty cleared set over the full round list is exactly
+the pinned `Post` — the wrapper refines, never re-proves. -/
+theorem post_of_loop_ends (x : Inst) {μ μ' : ℕ → ℤ}
+    (h : ∃ cs : List ℕ, cs.length = (rounds x.rounds).length ∧ cs.Nodup ∧
+      (∀ c ∈ cs, c < x.candidates ∧ x.remaining c = true ∧ c ∉ (∅ : Finset ℕ)) ∧
+      (∀ p < x.candidates,
+        μ' (x.remainingBase + p) =
+          DenseArgminPass.bit (maskCleared ((∅ : Finset ℕ) ∪ cs.toFinset) x.remaining p)) ∧
+      SameOutside3 μ μ' x.scoresBase x.candidates x.baseBase x.length
+        x.remainingBase x.candidates ∧
+      ((rounds x.rounds).length = 0 → μ' = μ) ∧
+      (0 < (rounds x.rounds).length → ∃ c, cs.getLast? = some c ∧
+        (∀ i < x.length, μ' (x.baseBase + i) = x.rows c i) ∧
+        (∀ p < x.candidates,
+          μ' (x.scoresBase + p) =
+            (DenseScoreTablePass.scores x.active x.rows x.length p : ℤ)) ∧
+        (∀ k, k < cs.length →
+          DenseArgminPass.IsArgmin
+            (maskCleared ((∅ : Finset ℕ) ∪ (cs.take k).toFinset) x.remaining)
+            (DenseScoreTablePass.scores x.active x.rows x.length) x.candidates
+            (cs.getD k 0)))) :
+    Post x μ μ' := by
+  obtain ⟨cs, hlen, hnd, helem, hflags, hsame, hskip, hguard⟩ := h
+  refine ⟨cs, by simpa [rounds] using hlen, hnd,
+    fun c hc => ⟨(helem c hc).1, (helem c hc).2.1⟩,
+    fun p hp => by simpa only [Finset.empty_union] using hflags p hp, hsame,
+    fun h0 => hskip (by simpa [rounds] using h0), ?_⟩
+  intro hpos
+  obtain ⟨c, hcget, hbase, hsc, hchain⟩ := hguard (by simpa [rounds] using hpos)
+  exact ⟨c, hcget, hbase, hsc,
+    fun k hk => by simpa only [Finset.empty_union] using hchain k hk⟩
+
+/-- The pinned `Solves` wrapper: procedure `6` of the fixed driver program at
+the pinned instance solves the pinned task within the pinned clock.  The
+premise `enoughFlags` rides in the task's `Pre`; `flagged_card_le` turns it
+into the `R ≤ P` the clock needs. -/
+theorem pinnedTask_solved (x : Inst) :
+    Solves (pinnedTask x) (program x) 6 taskTime need := by
+  refine ⟨loopBody x.rounds (rounds x.rounds), program_proc x, ?_⟩
+  intro R' lim d y μ fr hpre hok
+  obtain ⟨x', hx'⟩ := y
+  subst hx'
+  have hpre' : Pre x' ∅ μ fr := hpre
+  have hrounds : x'.rounds ≤ x'.candidates :=
+    le_trans hpre'.enough (flagged_card_le x'.candidates x'.remaining)
+  have hTl : (rounds x'.rounds).length * callTime x'.candidates x'.length ≤
+      driverTime x' := by
+    simp only [rounds, List.length_finRange, driverTime]
+    exact le_refl _
+  exact (loop_ends x' (rounds x'.rounds) ∅ (by simp [rounds]) (Finset.empty_subset _)
+    (argsOf x' ++ [(fr : ℤ)]) (fun _ _ => rfl) μ hpre' hok hTl).mono
+    (taskTime_ge x' hrounds) (fun σ hσ => post_of_loop_ends x' hσ)
+
+/-- The pinned `SolvedIn`: the restart loop is solved in time
+`fun n _ => 100*n*n + 98*n` at the pinned instance — the polynomial clock
+the min-plus caller's `hb` bounds against. -/
+theorem pinnedTask_solvedIn (x : Inst) :
+    SolvedIn (pinnedTask x) (fun n _ => ((100 * n * n + 98 * n : ℕ) : ℝ)) := by
+  refine ⟨program x, 6, taskTime, need, need_polynomial, pinnedTask_solved x, ?_⟩
+  intros
+  simp only [taskTime, Nat.cast_add, Nat.cast_mul, Nat.cast_ofNat, le_refl]
+
+/-- The pinned call-site contract the min-plus caller consumes: with the
+caller's physical premises and the greedy pool premise, procedure `6` of the
+driver program meets the pinned task from the pinned instance, within the
+pinned clock, in every appended program. -/
+theorem callSite_meets {P R I h : ℕ} {active remaining : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr : ℕ} {lim : Limits} {d : ℕ}
+    {μ : ℕ → ℤ} {Prog : Program}
+    (hAR : ∀ i < I, μ (ab + i) = DenseScorePass.bit (active i))
+    (hRR : ∀ p < P, ∀ i < I, μ (rb + p * I + i) = rows p i)
+    (hbound : ∀ p < P, ∀ i < I, rows p i ≤ h)
+    (hfl : ∀ p < P, μ (mb + p) = DenseArgminPass.bit (remaining p))
+    (hR : R ≤ (flagged P remaining).card)
+    (hlay : InOrder fr [(ab, I), (rb, P * I), (sb, P), (bb, I), (mb, P)])
+    (hok : (need (instanceSize (callSite P R I h active remaining rows ab rb sb mb bb))
+      (callSite P R I h active remaining rows ab rb sb mb bb).height).Ok lim fr d) :
+    Meets lim (program (callSite P R I h active remaining rows ab rb sb mb bb) ++ Prog) 6 d
+      (argsOf (callSite P R I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)]) μ
+      (taskTime (instanceSize (callSite P R I h active remaining rows ab rb sb mb bb))
+        (callSite P R I h active remaining rows ab rb sb mb bb).height)
+      (pinnedPost (callSite P R I h active remaining rows ab rb sb mb bb) μ fr) := by
+  have hpre : (pinnedTask (callSite P R I h active remaining rows ab rb sb mb bb)).Pre
+      ⟨callSite P R I h active remaining rows ab rb sb mb bb, rfl⟩ μ fr :=
+    pre_of_reads hAR hRR hbound hfl hR hlay
+  exact Solves.meets (pinnedTask_solved _) Prog _ fr hpre hok
+
 end Light.DenseRestartSelectionLoop
 
 #print axioms Light.DenseRestartSelectionLoop.need_polynomial
@@ -675,3 +774,7 @@ end Light.DenseRestartSelectionLoop
 #print axioms Light.DenseRestartSelectionLoop.pre_of_reads
 #print axioms Light.DenseRestartSelectionLoop.taskTime_ge
 #print axioms Light.DenseRestartSelectionLoop.callSite_enough
+#print axioms Light.DenseRestartSelectionLoop.post_of_loop_ends
+#print axioms Light.DenseRestartSelectionLoop.pinnedTask_solved
+#print axioms Light.DenseRestartSelectionLoop.pinnedTask_solvedIn
+#print axioms Light.DenseRestartSelectionLoop.callSite_meets

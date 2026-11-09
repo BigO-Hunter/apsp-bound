@@ -1,13 +1,11 @@
-DenseRestartSelectionLoop.lean — L5(a) verification receipt
+DenseRestartSelectionLoop.lean — L5(b) verification receipt
 Workspace: .machine-build/machine (ThreeSumApsp path-required at
 /Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
 mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
 upstream machine pin 225c3747)
-Command: lake env lean -j1 DenseRestartSelectionLoop.lean -o l5_m1.olean
-(bounded 110s; two detached `lake build +DenseRestartSelectionLoop` attempts
-were SIGTERM'd ~40s in by an unattributed external killer — no kill-ledger
-entry, not the lean_build_governor SIGSTOP path — so this receipt uses the
-REPRODUCE.md canonical leaf check; imports replayed from warm cache)
+Command: lake env lean -j1 DenseRestartSelectionLoop.lean -o l5_m2.olean
+(detached, bounded poll, exit-receipt file; the detached runner writes the
+exit code in the same chain as the build)
 Exit code: 0
 
 'Light.DenseRestartSelectionLoop.need_polynomial' depends on axioms: [propext, Classical.choice, Quot.sound]
@@ -22,5 +20,9 @@ Exit code: 0
 'Light.DenseRestartSelectionLoop.pre_of_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Light.DenseRestartSelectionLoop.taskTime_ge' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Light.DenseRestartSelectionLoop.callSite_enough' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseRestartSelectionLoop.post_of_loop_ends' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseRestartSelectionLoop.pinnedTask_solved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseRestartSelectionLoop.pinnedTask_solvedIn' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseRestartSelectionLoop.callSite_meets' depends on axioms: [propext, Classical.choice, Quot.sound]
 
 No sorry, no native_decide. Standard-3 axioms.
