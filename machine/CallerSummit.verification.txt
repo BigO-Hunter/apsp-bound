@@ -1,0 +1,50 @@
+CallerSummit.lean — D7(b) FILL 3, the summit packaging verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher `trap "" TERM` + exit marker + retry — attempt 1 was host-killed,
+exit 137, attempt 2 green):
+  lake env lean -j1 CallerSummit.lean
+    -o .lake/build/lib/lean/CallerSummit.olean
+Exit codes: 137 (attempt 1, host kill), 0 (attempt 2); olean 30576 bytes,
+module target named.
+Banner:
+  'ThinMatrix.Summit.twin_of_summit' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+  'ThinMatrix.Summit.realized_of_summit' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3: the summit packaging — the caller's remaining slots as ONE
+existence claim.
+- SummitSlot — the fixed-program existence slot: some P, p, Tn, need with
+  the canonical adapter's three hypotheses (hs : Solves mpTask, hn :
+  PolyNeed, hdom : the completeCost eventual domination of the host's
+  lifted runtime). The caller's product-round body and its step-count
+  bound are the slot's content — the campaign's named remainder
+  (MACHINE_OBLIGATIONS: "actual caller matching mpTask"); neither
+  upstream nor the port closes it on this route (upstream's own
+  apsp_2995560766_of_oracle takes its oracle solver as a premise).
+- twin_of_summit — the twin filing statement (the conservative Race.bound
+  form, 2994999/1000000 = 2.994999) from the summit's mere existence: the
+  twin's three named premises collapse into one slot; when the body lands,
+  this is the filing theorem, no further composition.
+- realized_of_summit — the canonical target's existence form: the summit's
+  hs + hn realize EndStatement.APSP on the upstream host's lifted clock
+  (MachineAdapter.realizedFromMinPlus).
+
+BOUNDARY (unchanged): no (min,+) product is constructed or claimed here;
+the product-round body is not discharged by this module. D7's boundary
+stands.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this summit targets.
