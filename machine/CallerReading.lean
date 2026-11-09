@@ -89,12 +89,29 @@ def ReadingAllRounds
     (∀ p < P, μ₁ (sb + p) = DenseScoreTablePass.scores active rows I p) →
     ∀ p < P, oracleAnswerOf sb P μ₁ p = Op t p
 
-/-! The all-rounds reading — the same reading at every scheduled round —
-is the next session's opener: the socket-theorem's conclusion should be
-stated in the unfolded ∀-form (the `ReadingAllRounds Op W`
-def-application's implicit-synthesis is the elaboration trap this round
-hit), discharged per candidate per round by `reading_at_one_round`. -/
+/-! ## The all-rounds socket-theorem -/
+
+/-- THE ALL-ROUNDS READING: at every scheduled round, the certified score
+cells read as the round's answers through `oracleAnswerOf` — given the
+encoding-identity socket per round (`henc`, the parameter
+concretization's per-round deliverable) and the certified score cells at
+the queried state (the reading is flag-independent: the score table is
+the evidence, the flags gate the argmin). The conclusion is stated in
+the UNFOLDED ∀-form — the def-application's implicit-synthesis is the
+elaboration trap this round hit. -/
+theorem readingAllRounds_of_socket
+    {P I : ℕ} {active : ℕ → Bool} {rows : ℕ → ℕ → ℕ} {sb : ℕ} (W : ℕ)
+    (Op : ℕ → ℕ → Bool)
+    (henc : ∀ t < mpRounds W, ∀ p < P,
+      ((DenseScoreTablePass.scores active rows I p : ℤ) ≠ 0) ↔ Op t p = true) :
+    ∀ (t : ℕ), t < mpRounds W → ∀ (μ₁ : ℕ → ℤ),
+      (∀ p < P, μ₁ (sb + p) = DenseScoreTablePass.scores active rows I p) →
+      ∀ p < P, oracleAnswerOf sb P μ₁ p = Op t p := by
+  intro t ht μ₁ hcells p hp
+  exact reading_at_one_round (Op t) (fun q hq => henc t ht q hq)
+    (fun q hq => hcells q hq) p hp
 
 #print axioms reading_at_one_round
+#print axioms readingAllRounds_of_socket
 
 end ThinMatrix.CallerReading

@@ -12,6 +12,8 @@ Exit codes: 0 (final pass); olean 32272 bytes, module target named.
 Banner:
   'ThinMatrix.CallerReading.reading_at_one_round' depends on axioms:
     [propext, Classical.choice, Quot.sound]
+  'ThinMatrix.CallerReading.readingAllRounds_of_socket' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
 — no sorryAx, no native_decide; standard-3 or lighter.
 
 D7(b) FILL 3, the reading-lemma session: the design's first consumed
@@ -32,16 +34,22 @@ proof.
   flag-independent: the score table is the evidence, the flags gate the
   argmin).
 - ReadingAllRounds — the all-rounds target, refined: the certified-cells
-  premise added, the flags premise dropped. The all-rounds SOCKET-THEOREM
+  premise added, the flags premise dropped.
+- readingAllRounds_of_socket — THE ALL-ROUNDS SOCKET-THEOREM, GREEN:
+  `ReadingAllRounds`'s conclusion stated in the UNFOLDED ∀-form (the
+  def-application's implicit-synthesis is the elaboration trap), all
+  binders spelled explicitly, discharged per candidate per round by
+  `reading_at_one_round` (the certified-cells premise per round; one
+  λ-body fix — the `hq` application — was the last delta). The all-rounds SOCKET-THEOREM
   (proving it from the per-round encoding-identity family) is scoped to
   the next session — the elaboration trap named in-module: state the
   conclusion in the unfolded ∀-form (the `ReadingAllRounds Op W`
   def-application's implicit-synthesis does not resolve mid-session).
 
-THE REMAINING SLICES: the all-rounds socket-theorem (the opener, with
-the unfolded-form conclusion); the Seg-half assembly (the bracket
-accumulation via `refineStep` over the rounds — discharging `SegTarget`,
-then `CallerTarget(Layered)` via the (b) packaging); the step count for
+THE REMAINING SLICES: the Seg-half assembly (the bracket accumulation
+via `refineStep` over the rounds — discharging `SegTarget`, then
+`CallerTarget(Layered)` via the (b) packaging) — BLOCKED on the product
+core's assembly writes (the mpBody data-flow); the step count for
 `CallerHdom`. D7's boundary stands: the oracle premise and the encoding
 identity are premises, never claimed as proved.
 
