@@ -1,0 +1,57 @@
+CallerRun.lean — D7(b) FILL 3, the run-derivation session verification
+receipt (the body's write-inclusion, the wire-target, the construction's
+identity-premise, and the Seg-assembly target)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; green on attempt 1 (after the
+MinPlusCaller-open fix — mpRounds is ThinMatrix.MinPlusCaller's, the
+module's open was missing from the earlier passes; the sorryAx from the
+earlier pass was the caller-count-in-module state — now fixed)):
+  lake env lean -j1 CallerRun.lean
+    -o .lake/build/lib/lean/CallerRun.olean
+Exit codes: 0; olean 48264 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerRun.roundSlice' does not depend on any axioms
+  'ThinMatrix.CallerRun.mpBodyWithWrites' does not depend on any axioms
+— no sorryAx, no native_decide; standard-3 or lighter (defs only).
+
+D7(b) FILL 3, the run-derivation session: the body's write-inclusion,
+the wire-target, the construction's identity-premise, and the
+Seg-assembly target.
+- roundSlice — the per-round body-slice: the stage call followed by the
+  bracket cells' writes (the per-round cell-updates at the product
+  region). The stage at the caller's shifted index; the writes at the
+  product region (the row-t bracket cells, CallerWrites's shapes).
+- mpBodyWithWrites — the caller's body with writes: the mpRounds
+  schedule of (stage-call + bracket-writes) pairs — the body's
+  write-inclusion (the skeleton's refinement). Axiom-free.
+- BracketFinal — the wire-target: the body's run's bracket cells' final
+  state = the bracketAccumulate's fold — the wire-lemma's statement (the
+  next session's core).
+- MinPlusIdentity — the construction's own identity-premise: the
+  bracket cells' final state = the min-plus entries (the per-cell
+  minPlusEntry identity). The premise, never claimed (D7's boundary).
+- SegOfBody — the Seg-assembly's target: the body's run's Seg half (the
+  minPlusList at the product region + the KeptBut frame).
+
+THE REMAINING SESSIONS: the wire-lemma's proof (the body's
+write-inclusion's run-derivation — the chain's induction + the readings
++ the cell-updates); then the Seg-assembly (the wire + the identity +
+the keptBut) discharging SegOfBody → CallerTarget(Layered); then the
+step count for CallerHdom. Until they land, CallerTarget(Layered) and
+the twin stay conditional — honestly: no solver is postulated, no
+(min,+) product is claimed. D7's boundary stands: the construction's
+identity is a premise, never claimed as proved.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
