@@ -530,6 +530,137 @@ theorem driverTime_le (x : Inst) (hrounds : x.rounds <= x.candidates) :
   have hdriv := driverTime_eq x
   nlinarith [htime, hP, hI, hPI, hdriv]
 
+/-! ## L5: the pinned call site and its statements
+
+A `Solves` contract carries ONE fixed program, but the restart unrolling is
+instance-sized (`loopBody x.rounds` over the finRange round list).  The
+min-plus caller (`mpTask`-matching) therefore pins the instance sizes
+`(P, R)` at its call site: upstream this is `stage`'s
+`greedy O active primes k 1 remaining blockSizes []` — `R := k` restarts
+over the `P`-sized candidate pool, with the greedy premise
+`k ≤ (pool primes remaining).card` supplying `enoughFlags`.
+`pinnedTask` fixes the pinned instance, so `program x` is one fixed
+program and the Task/Solves/SolvedIn triple closes at the pinned `(P, R)`.
+
+The deferred `Post`/take-vs-erase refinement: `Post` packages the
+`loop_ends` conclusion at `S₀ = ∅` over the full round list, keeping the
+**take** form — the mask before round `k` is `maskCleared (cs.take k)
+.toFinset`, exactly the shape `loop_ends` exposes.  The erase form
+(suffix-erased masks) carries the same information and adds nothing; it is
+not used. -/
+
+/-- The flagged-pool cardinality never exceeds the pool size: the greedy
+caller's `k ≤ (pool primes remaining).card` premise bounds the restart count
+by `P`. -/
+theorem flagged_card_le (P : ℕ) (remaining : ℕ → Bool) :
+    (flagged P remaining).card ≤ P := by
+  have hsub : flagged P remaining ⊆ Finset.range P := by
+    intro a ha
+    simp only [flagged, Finset.mem_filter, Finset.mem_range] at ha
+    exact Finset.mem_range.mpr ha.1
+  calc (flagged P remaining).card ≤ (Finset.range P).card := Finset.card_le_card hsub
+    _ = P := Finset.card_range P
+
+/-- With nothing cleared yet, `maskCleared` is the plain remaining mask: the
+flag memory the caller starts from. -/
+theorem maskCleared_empty (remaining : ℕ → Bool) (p : ℕ) :
+    maskCleared ∅ remaining p = remaining p := by
+  simp [maskCleared]
+
+/-- The restart-loop driver's result at the pinned call site: the chosen list
+of all `x.rounds` restarts, packaged from the `loop_ends` conclusion at
+`S₀ = ∅` (the take form is kept; see the section note). -/
+def Post (x : Inst) (μ : ℕ → ℤ) (μ' : ℕ → ℤ) : Prop :=
+  ∃ cs : List ℕ, cs.length = x.rounds ∧ cs.Nodup ∧
+    (∀ c ∈ cs, c < x.candidates ∧ x.remaining c = true) ∧
+    (∀ p < x.candidates,
+      μ' (x.remainingBase + p) =
+        DenseArgminPass.bit (maskCleared cs.toFinset x.remaining p)) ∧
+    SameOutside3 μ μ' x.scoresBase x.candidates x.baseBase x.length
+      x.remainingBase x.candidates ∧
+    (x.rounds = 0 → μ' = μ) ∧
+    (0 < x.rounds → ∃ c, cs.getLast? = some c ∧
+      (∀ i < x.length, μ' (x.baseBase + i) = x.rows c i) ∧
+      (∀ p < x.candidates,
+        μ' (x.scoresBase + p) =
+          (DenseScoreTablePass.scores x.active x.rows x.length p : ℤ)) ∧
+      (∀ k, k < cs.length →
+        DenseArgminPass.IsArgmin
+          (maskCleared (cs.take k).toFinset x.remaining)
+          (DenseScoreTablePass.scores x.active x.rows x.length) x.candidates
+          (cs.getD k 0)))
+
+/-- The pinned call-site task: the instance is pinned to `x`, so the driver
+program `program x` is one fixed program.  `Pre` carries the plain flag
+memory (nothing cleared yet), the round's physical layout and reads, and
+`enoughFlags` — the greedy premise `k ≤ pool.card`. -/
+def pinnedTask (x : Inst) : Task where
+  Inst := { y : Inst // y = x }
+  size y := instanceSize y.1
+  bound y := y.1.height
+  args y := argsOf y.1
+  Pre y μ fr := Pre y.1 ∅ μ fr
+  Post y μ _fr _r μ' := Post y.1 μ μ'
+
+/-- The pinned clock: at the call site the restart count is pinned, and
+`driverTime_le` unfolds the allowance into a polynomial of the instance size
+— the shape the L5 caller's task-clock carries. -/
+def taskTime (n _U : ℕ) : ℕ := 100 * n * n + 98 * n
+
+/-- The pinned call site of the greedy controller: `P` candidates, `R`
+restarts, incidence length `I`, row bound `h`, the fixed active mask, the
+plain remaining mask, the row table, and the five ordered regions.  Upstream
+this is `stage`'s `greedy O active primes k 1 remaining blockSizes []`. -/
+def callSite (P R I h : ℕ) (active remaining : ℕ → Bool) (rows : ℕ → ℕ → ℕ)
+    (ab rb sb mb bb : ℕ) : Inst where
+  rounds := R
+  candidates := P
+  length := I
+  height := h
+  activeBase := ab
+  rowsBase := rb
+  scoresBase := sb
+  remainingBase := mb
+  baseBase := bb
+  active := active
+  rows := rows
+  remaining := remaining
+
+/-- The greedy premise pins `enoughFlags` at the call site:
+`R ≤ (flagged P remaining).card`. -/
+theorem callSite_enough (P R I h : ℕ) (active remaining : ℕ → Bool)
+    (rows : ℕ → ℕ → ℕ) (ab rb sb mb bb : ℕ)
+    (hR : R ≤ (flagged P remaining).card) :
+    enoughFlags (callSite P R I h active remaining rows ab rb sb mb bb) := hR
+
+/-- The caller's physical premises — the plain flag memory included —
+assemble into the pinned task premise at the call site. -/
+theorem pre_of_reads {x : Inst} {μ : ℕ → ℤ} {fr : ℕ}
+    (hAR : ∀ i < x.length, μ (x.activeBase + i) = DenseScorePass.bit (x.active i))
+    (hRR : ∀ p < x.candidates, ∀ i < x.length,
+      μ (x.rowsBase + p * x.length + i) = x.rows p i)
+    (hbound : ∀ p < x.candidates, ∀ i < x.length, x.rows p i ≤ x.height)
+    (hfl : ∀ p < x.candidates,
+      μ (x.remainingBase + p) = DenseArgminPass.bit (x.remaining p))
+    (hR : x.rounds ≤ (flagged x.candidates x.remaining).card)
+    (hlay : InOrder fr [(x.activeBase, x.length), (x.rowsBase, x.candidates * x.length),
+      (x.scoresBase, x.candidates), (x.baseBase, x.length),
+      (x.remainingBase, x.candidates)]) :
+    Pre x ∅ μ fr := by
+  refine ⟨hAR, hRR, hbound, ?_, hR, hlay⟩
+  intro p hp
+  rw [maskCleared_empty]
+  exact hfl p hp
+
+/-- The pinned clock dominates the driver's step allowance at every call
+site: `R ≤ P` restarts, each within the round's instance-sized bound. -/
+theorem taskTime_ge (x : Inst) (hrounds : x.rounds ≤ x.candidates) :
+    driverTime x ≤ taskTime (instanceSize x) x.height := by
+  have h1 := driverTime_le x hrounds
+  have hP : x.candidates ≤ instanceSize x := by unfold instanceSize; omega
+  unfold taskTime
+  nlinarith
+
 end Light.DenseRestartSelectionLoop
 
 #print axioms Light.DenseRestartSelectionLoop.need_polynomial
@@ -539,3 +670,8 @@ end Light.DenseRestartSelectionLoop
 #print axioms Light.DenseRestartSelectionLoop.exists_fresh_flagged
 #print axioms Light.DenseRestartSelectionLoop.loop_ends
 #print axioms Light.DenseRestartSelectionLoop.driverTime_le
+#print axioms Light.DenseRestartSelectionLoop.flagged_card_le
+#print axioms Light.DenseRestartSelectionLoop.maskCleared_empty
+#print axioms Light.DenseRestartSelectionLoop.pre_of_reads
+#print axioms Light.DenseRestartSelectionLoop.taskTime_ge
+#print axioms Light.DenseRestartSelectionLoop.callSite_enough
