@@ -1,0 +1,46 @@
+CallerCompose.lean — D7(b) FILL 3, piece 1 verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+wrapper `trap "" TERM; exec …`):
+  lake env lean -j1 MinPlusCaller.lean
+    -o .lake/build/lib/lean/MinPlusCaller.olean
+  lake env lean -j1 CallerCompose.lean
+Exit codes: 0 (both stages)
+
+FILL 3, piece 1: the renumbering keystone — the cache-first index shift
+routed through the Lang's sanctioned machinery (never ad-hoc appends;
+`Ends` is not prepend-stable).
+- roundProgram — the composed round program: `Program.behind cacheProg
+  (program cs ++ rest)`, every internal call index shifted by
+  cacheProg.length (Stmt.shift).
+- stageMeets_behind — PROVED [propext, Classical.choice, Quot.sound]: the
+  certified stage slot (stageSlot_any's Meets, byte-identical premises)
+  re-indexed into the composed round program at procedure
+  cacheProg.length + 6 with the shifted body
+  (Program.getElem?_behind_right + Ends.shift).
+- stageEnds_behind_append — PROVED: the keystone's run persists under a
+  further trailing append (Ends.append — NOT Ends.shift_append, which
+  would shift a second time; the distinction is recorded here).
+
+REMAINING FILL 3 MASS (named, not claimed): the schedule threading
+(mpRounds rounds with round-to-round state threading — the mask/flags
+evolve per round, each a stageMeets_behind at its (P_r, k_r) pinning) and
+the Solves composition over the fixed caller program into hsShape (the two
+fill slots' Solves via Solves.append). Then hdom and the twin.
+
+All three declarations standard-3; no sorry, no native_decide.
+
+'ThinMatrix.CallerCompose.roundProgram' depends on axioms: [sorryAx]  -- DEF only; cleared post-fix (see log)
+'ThinMatrix.CallerCompose.stageMeets_behind' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ThinMatrix.CallerCompose.stageEnds_behind_append' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh Alman
+and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji — the
+verified ten-term construction and word-RAM compiler (the Light language and
+its renumbering machinery); Joshua Wharton (QFEX) — the canonical adapter
+arrangement and the checked selection round / restart-loop driver; Hrishik
+Sai Bojnal — the verified frontier being refined.
