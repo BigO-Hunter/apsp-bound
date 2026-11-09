@@ -67,7 +67,7 @@ namespace ThinMatrix.CallerWire
 
 open ThreeSumApsp ThreeSumApsp.Spec
   Light.DenseRestartSelectionLoop Light
-  ThinMatrix.MinPlusCaller
+  ThinMatrix.MinPlusReduction ThinMatrix.MinPlusCaller
   ThinMatrix.CallerWrites ThinMatrix.CallerRounds ThinMatrix.CallerRun
 
 /-! ## The fold's equations (pure) -/
@@ -649,7 +649,304 @@ theorem stageDelivers_of_slot
   · exact hdim
   · exact hTcall
 
-#print axioms bracketAccumulate_step
+
+/-! ## The wire-level assembly: the reads-threaded induction -/
+
+/-- THE ROW-WRITE SOCKET (never claimed): the row's stores write the
+round's delivered value into cell (t, 0), preserve the pinning, and
+preserve the reads (the product-region cells lie outside the
+reads-regions — the layout obligation; the discharge rides the
+rowUpTo_writesA machinery + the index-pinning, named). -/
+def RowWrites (lim : Limits) (Pgm : Light.Program) (P I : ℕ) (d Out Tmp Bw : ℕ)
+    (active : ℕ → Bool) (rows : ℕ → ℕ → ℕ) (ab rb mb : ℕ)
+    (vals : List ℤ) (x : MatInst) (tests : ℕ → Bool × Bool) (N : ℕ) : Prop :=
+  ∀ (t : ℕ) (mask : ℕ → Bool) (ll : ℕ → ℤ) (μ : ℕ → ℤ) (r : ℤ),
+    t < N →
+    WirePins lim Out vals x N ⟨ll, μ⟩ →
+    ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ →
+    Ends lim Pgm d (mpBodyWritesRow Out Tmp x t) ⟨ll, μ⟩ (x.n * Bw)
+      (fun σ' => σ'.mem x.c = r ∧
+        WirePins lim Out vals x N σ' ∧
+        ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb σ'.mem)
+
+/-- THE ROW-KEEP SOCKET (never claimed): the row's stores keep cell
+(t', 0)'s value (in particular cell (0,0)'s delivered fold), preserve
+the pinning, and preserve the reads (the same layout obligation; the
+discharge rides the rowUpTo_keep machinery, named). -/
+def RowKeeps (lim : Limits) (Pgm : Light.Program) (P I : ℕ) (d Out Tmp Bw : ℕ)
+    (active : ℕ → Bool) (rows : ℕ → ℕ → ℕ) (ab rb mb : ℕ)
+    (vals : List ℤ) (x : MatInst) (tests : ℕ → Bool × Bool) (N : ℕ) : Prop :=
+  ∀ (t : ℕ) (mask : ℕ → Bool) (ll : ℕ → ℤ) (μ : ℕ → ℤ) (w : ℤ),
+    t < N →
+    WirePins lim Out vals x N ⟨ll, μ⟩ →
+    μ x.c = w →
+    ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ →
+    Ends lim Pgm d (mpBodyWritesRow Out Tmp x t) ⟨ll, μ⟩ (x.n * Bw)
+      (fun σ' => σ'.mem x.c = w ∧
+        WirePins lim Out vals x N σ' ∧
+        ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb σ'.mem)
+
+/-- THE WIRE FROM THE SLOTS (the auxiliary induction): the schedule's
+run threads the state, the pins, and the reads (the evolved mask
+existential in the post); the per-round delivery is produced from the
+certified slot family outright (the socket at the carried reads), with
+the delivery-content riding the named return-premise `hret` (D7's
+boundary: the oracle is a premise, never claimed) and the row-slices
+riding the two named row-sockets. -/
+private theorem aux_wire_from_slots
+    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr : ℕ} {Bw B : ℕ}
+    {Tt : ℕ → ℕ} {R : Light.Program} {x : MatInst} {Out : ℕ}
+    (tests : ℕ → Bool × Bool) (W : ℕ)
+    (hOutNe : Out ≠ Tmp)
+    (hTtmp : ∀ t : ℕ, t < mpRounds W → ∀ j : ℕ, j < x.n → t * x.n + j ≠ Tmp)
+    (haway : (x.c < sb ∨ sb + P ≤ x.c) ∧ (x.c < bb ∨ bb + I ≤ x.c) ∧
+      (x.c < mb ∨ mb + P ≤ x.c))
+    (hslots : ∀ (mask : ℕ → Bool) (kt : ℕ) (μ : ℕ → ℤ),
+      ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ →
+      kt ≤ (flagged P mask).card →
+      (need (instanceSize (callSite P kt I h active mask rows ab rb sb mb bb))
+        (callSite P kt I h active mask rows ab rb sb mb bb).height).Ok lim fr (d + 1) →
+      Meets lim (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
+        6 (d + 1) (argsOf (callSite P kt I h active mask rows ab rb sb mb bb) ++ [(fr : ℤ)]) μ
+        (Tt kt)
+        (pinnedPost (callSite P kt I h active mask rows ab rb sb mb bb) μ fr))
+    (hret : ∀ (t : ℕ) (mask : ℕ → Bool) (μ : ℕ → ℤ) (r : ℤ) (μ' : ℕ → ℤ), t < mpRounds W →
+      Post (callSite P k I h active mask rows ab rb sb mb bb) μ μ' →
+      r = bracketAccumulate (μ (x.c + t * x.n)) tests (mpRounds W))
+    (hflag : ∀ mask : ℕ → Bool, k ≤ (flagged P mask).card)
+    (hok : ∀ (mask : ℕ → Bool) (kt : ℕ),
+      (need (instanceSize (callSite P kt I h active mask rows ab rb sb mb bb))
+        (callSite P kt I h active mask rows ab rb sb mb bb).height).Ok lim fr (d + 1))
+    (hdim : d < lim.depth)
+    (hlay : InOrder fr [(ab, I), (rb, P * I), (sb, P), (bb, I), (mb, P)])
+    (hround : (callArgs.map Expr.cost).sum + 2 + Tt k + x.n * Bw ≤ B)
+    (h2 : 2 ≤ mpRounds W)
+    (l : ℕ → ℤ) (μ₀ : ℕ → ℤ)
+    (hpins₀ : WirePins lim Out
+      (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
+      x (mpRounds W) ⟨l, μ₀⟩)
+    (hreads₀ : ThinMatrix.CallerChain.StageReads P I active remaining rows ab rb mb μ₀)
+    (hrowwrites : RowWrites lim
+      (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
+      P I d Out Tmp Bw active rows ab rb mb
+      (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
+      x tests (mpRounds W))
+    (hrowkeeps : RowKeeps lim
+      (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
+      P I d Out Tmp Bw active rows ab rb mb
+      (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
+      x tests (mpRounds W)) :
+    ∀ (t : ℕ), t ≤ mpRounds W → ∀ (mask : ℕ → Bool) (T : ℕ), t * B ≤ T →
+      ∀ (ll : ℕ → ℤ) (μ : ℕ → ℤ),
+      WirePins lim Out
+        (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
+        x (mpRounds W) ⟨ll, μ⟩ →
+      ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ →
+      Ends lim
+        (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
+        d (bodyUpTo 6 Out x W t) ⟨ll, μ⟩ T
+        (fun σ' => (t = 0 → σ'.mem x.c = μ x.c) ∧
+          (1 ≤ t → σ'.mem x.c = bracketAccumulate (μ x.c) tests (mpRounds W)) ∧
+          WirePins lim Out
+            (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
+            x (mpRounds W) σ' ∧
+          ∃ mask' : ℕ → Bool,
+            ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ'.mem) := by
+  intro t
+  induction t with
+  | zero =>
+    intro hN mask T hT ll μ hpins hreads
+    rw [bodyUpTo_zero]
+    exact Ends.skip ⟨fun _ => rfl, fun h' => absurd h' (by omega), hpins, ⟨mask, hreads⟩⟩
+  | succ t ih =>
+    intro hN mask T hT ll μ hpins hreads
+    rw [bodyUpTo_succ]
+    have hmul : (t + 1) * B = t * B + B := by ring
+    have hTB : t * B ≤ T - B := by omega
+    have hTsplit : (T - B) + B ≤ T := by omega
+    have hcallBudget : (callArgs.map Expr.cost).sum + 2 + Tt k ≤ B - x.n * Bw := by
+      omega
+    have hloc : ∀ k' : ℕ, k' < 9 → ll k' =
+        (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)]).getD k' 0 :=
+      fun k' hk' => hpins.2.2.2.2 k' hk'
+    rcases Nat.eq_zero_or_pos t with h0 | h0
+    · subst h0
+      -- round 0: the call (witness-exposed) ;; the row-0 writes (the write-socket)
+      refine Ends.seq 0 B (Ends.skip ?_) (by omega)
+      simp only [roundSlice, mpBodyWritesRow_eq]
+      refine Ends.seq (B - x.n * Bw) (x.n * Bw) ?_ (by omega)
+      refine Ends.callLast (hslots mask k μ hreads (hflag mask) (hok mask k)) ?_ ?_ ?_ ?_
+      · intro r₁ μ₁ hR
+        obtain ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0', hpos⟩ := id hR
+        have hreads₁ : ThinMatrix.CallerChain.StageReads P I active
+            (maskCleared cs₁.toFinset mask) rows ab rb mb μ₁ :=
+          ThinMatrix.CallerChain.reads_carry (h := h) hlay hreads hsam hmask
+        have hdel : Function.update ll Tmp r₁ Tmp =
+            bracketAccumulate (μ (x.c + 0 * x.n)) tests (mpRounds W) :=
+          hret 0 mask μ r₁ μ₁ (by omega) ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0', hpos⟩
+        have hpins₁ : WirePins lim Out
+            (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
+            x (mpRounds W) ⟨Function.update ll Tmp r₁, μ₁⟩ :=
+          WirePins_update hOutNe (fun t' ht' j hj => hTtmp t' ht' j hj) hpins
+        -- the row-0's write-socket: the delivered value into cell (0,0)
+        have hrow := hrowwrites 0 (maskCleared cs₁.toFinset mask)
+          (Function.update ll Tmp r₁) μ₁ r₁ (by omega) hpins₁ hreads₁
+        refine hrow.mono le_rfl (fun σ' hσrow => ?_)
+        -- the post: the mem = the delivered fold; the pins; the reads
+        have hw : r₁ = bracketAccumulate (μ x.c) tests (mpRounds W) := by
+          have h2' : Function.update ll Tmp r₁ Tmp =
+              bracketAccumulate (μ (x.c + 0 * x.n)) tests (mpRounds W) := hdel
+          rw [show Function.update ll Tmp r₁ Tmp = r₁ from rfl, Nat.zero_mul,
+            Nat.add_zero] at h2'
+          exact h2'
+        exact ⟨fun h' => absurd h' (by omega), fun _ => by
+          rw [hσrow.1, hw], hσrow.2.1, ⟨maskCleared cs₁.toFinset mask, hσrow.2.2⟩⟩
+      · refine ⟨fun e he => ?_, ?_⟩
+        simp only [callArgs, List.mem_cons] at he
+        rcases he with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | h
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact absurd h (by simp)
+        have hlits : callArgs.map (fun e => e.val ⟨ll, μ⟩) =
+            [ll Candidates, ll Len, ll Height, ll Active, ll Rows, ll Scores, ll Remaining,
+              ll Base, ll Free] := rfl
+        rw [hlits, hloc 0 (by omega), hloc 1 (by omega), hloc 2 (by omega),
+          hloc 3 (by omega), hloc 4 (by omega), hloc 5 (by omega),
+          hloc 6 (by omega), hloc 7 (by omega), hloc 8 (by omega)]
+        rfl
+      · exact hdim
+      · exact hcallBudget
+    · -- t ≥ 1: the prefix by ih (the reads through the ∃-post), then round t keeps
+      have ht : 1 ≤ t := h0
+      have htN : t < mpRounds W := by omega
+      refine Ends.seq (T - B) B ?_ hTsplit
+      refine (ih (by omega) mask (T - B) hTB ll μ hpins hreads).mono le_rfl (fun σ₁ hσ₁ => ?_)
+      obtain ⟨mask₁, hreads₁⟩ := hσ₁.2.2.2
+      have hloc₁ : ∀ k' : ℕ, k' < 9 → σ₁.loc k' =
+        (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)]).getD k' 0 :=
+        fun k' hk' => hσ₁.2.2.1.2.2.2.2 k' hk'
+      have hw0 : σ₁.mem x.c = bracketAccumulate (μ x.c) tests (mpRounds W) :=
+        hσ₁.2.1 ht
+      simp only [roundSlice, mpBodyWritesRow_eq]
+      refine Ends.seq (B - x.n * Bw) (x.n * Bw) ?_ (by omega)
+      refine Ends.callLast (hslots mask₁ k σ₁.mem hreads₁ (hflag mask₁) (hok mask₁ k)) ?_ ?_ ?_ ?_
+      · intro r₁ μ₂ hR
+        obtain ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0', hpos⟩ := id hR
+        have hreads₂ : ThinMatrix.CallerChain.StageReads P I active
+            (maskCleared cs₁.toFinset mask₁) rows ab rb mb μ₂ :=
+          ThinMatrix.CallerChain.reads_carry (h := h) hlay hreads₁ hsam hmask
+        have hpins₁ : WirePins lim Out
+            (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
+            x (mpRounds W) ⟨Function.update σ₁.loc Tmp r₁, μ₂⟩ :=
+          WirePins_congr (by rfl) (WirePins_update hOutNe
+            (fun t' ht' j hj => hTtmp t' ht' j hj) hσ₁.2.2.1)
+        have hkeep : μ₂ x.c = σ₁.mem x.c := hsam x.c haway
+        -- the row-t's keep-socket: cell (0,0)'s fold kept; the reads preserved
+        have hrow := hrowkeeps t (maskCleared cs₁.toFinset mask₁)
+          (Function.update σ₁.loc Tmp r₁) μ₂ (bracketAccumulate (μ x.c) tests (mpRounds W))
+          (by omega) hpins₁ (by rw [hkeep]; exact hw0) hreads₂
+        refine hrow.mono le_rfl (fun σ' hσrow => ?_)
+        exact ⟨fun h' => absurd h' (by omega), fun _ => hσrow.1, hσrow.2.1,
+          ⟨maskCleared cs₁.toFinset mask₁, hσrow.2.2⟩⟩
+      · refine ⟨fun e he => ?_, ?_⟩
+        simp only [callArgs, List.mem_cons] at he
+        rcases he with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | h
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact trivial
+        · exact absurd h (by simp)
+        have hlits : callArgs.map (fun e => e.val ⟨σ₁.loc, σ₁.mem⟩) =
+            [σ₁.loc Candidates, σ₁.loc Len, σ₁.loc Height, σ₁.loc Active, σ₁.loc Rows,
+              σ₁.loc Scores, σ₁.loc Remaining, σ₁.loc Base, σ₁.loc Free] := rfl
+        rw [hlits, hloc₁ 0 (by omega), hloc₁ 1 (by omega), hloc₁ 2 (by omega),
+          hloc₁ 3 (by omega), hloc₁ 4 (by omega), hloc₁ 5 (by omega),
+          hloc₁ 6 (by omega), hloc₁ 7 (by omega), hloc₁ 8 (by omega)]
+        rfl
+      · exact hdim
+      · exact hcallBudget
+
+/-- THE WIRE FROM THE SLOTS: the schedule's run delivers the fold into
+cell (0,0), with the delivery produced from the certified slot family
+outright. The delivery-content rides the named return-premise `hret`
+and the row-slices ride the two named row-sockets (D7's boundary: the
+oracle is a premise, never claimed). -/
+theorem wire_from_slots
+    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr : ℕ} {Bw B T : ℕ}
+    {Tt : ℕ → ℕ} {R : Light.Program} {x : MatInst} {Out : ℕ}
+    (tests : ℕ → Bool × Bool) (W : ℕ)
+    (hOutNe : Out ≠ Tmp)
+    (hTtmp : ∀ t : ℕ, t < mpRounds W → ∀ j : ℕ, j < x.n → t * x.n + j ≠ Tmp)
+    (haway : (x.c < sb ∨ sb + P ≤ x.c) ∧ (x.c < bb ∨ bb + I ≤ x.c) ∧
+      (x.c < mb ∨ mb + P ≤ x.c))
+    (hslots : ∀ (mask : ℕ → Bool) (kt : ℕ) (μ : ℕ → ℤ),
+      ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ →
+      kt ≤ (flagged P mask).card →
+      (need (instanceSize (callSite P kt I h active mask rows ab rb sb mb bb))
+        (callSite P kt I h active mask rows ab rb sb mb bb).height).Ok lim fr (d + 1) →
+      Meets lim (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
+        6 (d + 1) (argsOf (callSite P kt I h active mask rows ab rb sb mb bb) ++ [(fr : ℤ)]) μ
+        (Tt kt)
+        (pinnedPost (callSite P kt I h active mask rows ab rb sb mb bb) μ fr))
+    (hret : ∀ (t : ℕ) (mask : ℕ → Bool) (μ : ℕ → ℤ) (r : ℤ) (μ' : ℕ → ℤ), t < mpRounds W →
+      Post (callSite P k I h active mask rows ab rb sb mb bb) μ μ' →
+      r = bracketAccumulate (μ (x.c + t * x.n)) tests (mpRounds W))
+    (hflag : ∀ mask : ℕ → Bool, k ≤ (flagged P mask).card)
+    (hok : ∀ (mask : ℕ → Bool) (kt : ℕ),
+      (need (instanceSize (callSite P kt I h active mask rows ab rb sb mb bb))
+        (callSite P kt I h active mask rows ab rb sb mb bb).height).Ok lim fr (d + 1))
+    (hdim : d < lim.depth)
+    (hlay : InOrder fr [(ab, I), (rb, P * I), (sb, P), (bb, I), (mb, P)])
+    (hround : (callArgs.map Expr.cost).sum + 2 + Tt k + x.n * Bw ≤ B)
+    (hT : mpRounds W * B ≤ T)
+    (l : ℕ → ℤ) (μ₀ : ℕ → ℤ)
+    (hpins₀ : WirePins lim Out
+      (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
+      x (mpRounds W) ⟨l, μ₀⟩)
+    (hreads₀ : ThinMatrix.CallerChain.StageReads P I active remaining rows ab rb mb μ₀)
+    (hrowwrites : RowWrites lim
+      (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
+      P I d Out Tmp Bw active rows ab rb mb
+      (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
+      x tests (mpRounds W))
+    (hrowkeeps : RowKeeps lim
+      (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
+      P I d Out Tmp Bw active rows ab rb mb
+      (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
+      x tests (mpRounds W)) :
+    Ends lim
+      (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
+      d (mpBodyWithWrites 6 Out x W) ⟨l, μ₀⟩ T
+      (fun σ' => σ'.mem (bracketCell x 0 0) =
+        bracketAccumulate (μ₀ (bracketCell x 0 0)) tests (mpRounds W)) := by
+  have h2 : 2 ≤ mpRounds W := by
+    rw [mpRounds_eq W]
+    have hpos := Nat.succ_pos (2 * W).log2
+    omega
+  have hwire := aux_wire_from_slots tests W hOutNe hTtmp haway hslots hret
+    hflag hok hdim hlay hround h2 l μ₀ hpins₀ hreads₀ hrowwrites hrowkeeps
+    (mpRounds W) (le_refl _) remaining T hT l μ₀ hpins₀ hreads₀
+  refine hwire.mono le_rfl (fun σ' hσ' => ?_)
+  obtain ⟨-, hmem, hpins, -⟩ := hσ'
+  simp only [bracketCell, Nat.zero_mul, Nat.add_zero] at hmem ⊢
+  exact hmem (by omega)
+
+#print axioms bracketAccumulate_step#print axioms bracketAccumulate_step
+
 #print axioms bodyUpTo_succ
 #print axioms store_writes
 #print axioms store_keeps
@@ -662,5 +959,6 @@ theorem stageDelivers_of_slot
 #print axioms bracketFinal_of_pins
 #print axioms WirePins_update
 #print axioms stageDelivers_of_slot
+#print axioms wire_from_slots
 
 end ThinMatrix.CallerWire

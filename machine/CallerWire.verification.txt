@@ -36,7 +36,30 @@ parameter (the chain's rounds evolve it via maskCleared), with hflag
 and hret generalized to the family form (forall-mask, chain_from's
 exact shape). Green on attempt 1.
 
-THE WIRE-LEVEL ASSEMBLY'S REMAINING CONTENT (statementable, named):
+THE WIRE-LEVEL ASSEMBLY: LANDED (the wire_from_slots induction).
+- RowWrites / RowKeeps — the two named row-sockets (the row's stores
+  write the round's delivered value into cell (t,0) / keep cell (0,0)'s
+  fold, preserve the pinning, and preserve the reads — the
+  product-region-outside-the-reads-regions layout obligation rides
+  inside them; the discharge = the rowUpTo_writesA / rowUpTo_keep
+  machinery + the index-pinning, named).
+- aux_wire_from_slots — the induction: chain_from's skeleton + the
+  delivery-extraction (hret at the exposed witness), the reads-carry
+  re-derived at each round's continuation (the evolved mask existential
+  in the post), the masks and budgets threaded (the per-round budget:
+  (callArgs costs).sum + 2 + Tt k + x.n * Bw <= B).
+- wire_from_slots — THE WIRE'S hdeliv FROM THE SLOTS OUTRIGHT: the
+  schedule's run delivers the fold into cell (0,0). Axioms:
+  [propext, Classical.choice, Quot.sound] — standard-3 exactly.
+
+REMAINING (named): the two row-sockets' discharges (RowWrites/
+RowKeeps from rowUpTo_writesA/rowUpTo_keep + the hprodaway layout trio
++ the index-pinning: loc (t*x.n+u) = t*x.n+u); the fold-delivery's
+identity (hret's content — the construction's own machine-conversion,
+D7's boundary); MinPlusIdentity (the named premise). Then the
+Seg-assembly.
+
+THE WIRE-LEVEL ASSEMBLY'S SHAPE HISTORY (superseded notes):
 (1) the enriched-hcall form — the socket's post carries the round's
 post-witness (exists cs₁, ...) so the reads-carry (reads_carry + the
 post's hmask/hsam) re-derives at each round's continuation;
