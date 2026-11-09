@@ -1,0 +1,53 @@
+CacheBodyWrites.lean — D7(b) FILL 1's cache-body statements verification
+receipt (the count-writes at the cache registers + the delivery target)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; green on attempt 1 after one
+HAppend fix — the cache body is a single procedure, wrapped as a
+one-procedure program for the append):
+  lake env lean -j1 CacheBodyWrites.lean
+    -o .lake/build/lib/lean/CacheBodyWrites.olean
+Exit codes: 0; olean 45232 bytes, module target named.
+Banner:
+  'ThinMatrix.CacheBodyWrites.cacheWritesEntry' does not depend on any axioms
+  'ThinMatrix.CacheBodyWrites.cacheWritesRow' does not depend on any axioms
+— no sorryAx, no native_decide; standard-3 or lighter (defs only).
+
+D7(b) FILL 1's cache-body statements: the count-writes at the cache's
+own register map.
+- cacheWritesEntry / cacheWritesRow — the per-(p, i) count-write
+  statements at the cache's own register map: the store into the cache's
+  row-base + entry-offset (the mpBodyWritesEntry/mpBodyWritesRow
+  store-pattern from CallerWrites, byte-formed like the landed
+  DenseScoreTablePass.roundBody's store), the row-loop unrolled over the
+  entry indices.
+- cacheBodyWrites — the cache-body write skeleton: the count-writes for
+  all P candidate rows, sequenced. SHAPE ONLY: the count cells'
+  COMPUTATION (the L2/L3 cone's score-table pass + the BinaryArrayFFT
+  cyclic path) is the board-side port's content — CacheFill's recorded
+  deferral; the cone-port's execution proof discharges
+  CellContentTarget.
+- CellContentTarget — THE DELIVERY TARGET: the cache body's run (over
+  the count-writes with the cone's computed counts in the CntBase cells)
+  delivers CellContent — the per-cell contract the EncodingIdentity
+  derivation consumes.
+
+THE REMAINING SLICES: the L2/L3 cone's cache-body port (board-side);
+the writes' execution derivation (the Seg half of mpBody's run); the
+step count for CallerHdom. Until they land, CallerTarget(Layered) and
+the twin stay conditional — honestly: no solver is postulated, no
+(min,+) product is claimed. D7's boundary stands: the oracle premise and
+the content contracts are premises, never claimed as proved.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
