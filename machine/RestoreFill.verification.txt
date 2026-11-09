@@ -1,0 +1,48 @@
+RestoreFill.lean — D7(b) FILL 2 verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+wrapper `trap "" TERM; exec …`):
+  lake env lean -j1 MinPlusCaller.lean
+    -o .lake/build/lib/lean/MinPlusCaller.olean
+  lake env lean -j1 RestoreFill.lean
+Exit codes: 0 (both stages)
+
+FILL 2: the finish/restore pass's task contract, pinned in the machine
+workspace.
+- restoreVal — the restored cell: the sentinel encoding of upstream's
+  pointwise restore `restore C W j` (encode S none = S when 2W < C j).
+  Axiom-free.
+- encode_restore — PROVED bridge to the functional chain: the Light cell
+  value IS `encode S (restore C W j)` (upstream restore/encode, case split).
+  [propext] only.
+- RestoreInst / restoreTask — the Light task the restore program solves:
+  pointwise sentinel-encode the m accumulated cells from cin into cout and
+  keep everything else (Kept). The caller's premises are byte-shaped to
+  upstream restore_correct's own hypotheses (FiniteBound content, the 3W < S
+  sentinel gap). The BODY is the L2/L3 cone's obligation; the contract is
+  what the caller composes with.
+- restoreReads_of_solves — PROVED: the restore program's Light.Solves
+  delivers the restored-region post and the Kept frame. [propext] only.
+- The functional linkage is NAMED, not claimed: under the caller's premises
+  upstream restore_correct closes OptionalMinimizes A B (restore C W); the
+  scheduling of the accumulated cells into A/B/T positions is FILL 3's
+  composition content.
+
+All declarations standard-3 or lighter (encode_restore and
+restoreReads_of_solves [propext]; restoreVal axiom-free); no sorry, no
+native_decide.
+
+'ThinMatrix.RestoreFill.restoreVal' does not depend on any axioms
+'ThinMatrix.RestoreFill.encode_restore' depends on axioms: [propext]
+'ThinMatrix.RestoreFill.restoreReads_of_solves' depends on axioms: [propext]
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+sentinel-encoded min-plus assembly (encode/restore/OptionalMinimizes/
+restore_correct); Josh Alman and Virginia Vassilevska Williams —
+arXiv:2610.06783; Li Xuanji — the verified ten-term construction and
+word-RAM compiler; Joshua Wharton (QFEX) — the canonical adapter arrangement
+and the checked selection round / restart-loop driver; Hrishik Sai Bojnal —
+the verified frontier being refined.
