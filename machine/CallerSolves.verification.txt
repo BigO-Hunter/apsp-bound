@@ -1,0 +1,57 @@
+CallerSolves.lean — D7(b) FILL 3, piece 3 verification receipt
+(the composition chaining)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher `trap "" TERM` + exit marker; RestoreFill's first batch build was
+host-killed, exit 137, and retried green on attempt 1 of the second
+finisher):
+  lake env lean -j1 CacheFill.lean        -o .lake/build/lib/lean/CacheFill.olean        (exit 0)
+  lake env lean -j1 RestoreFill.lean      -o .lake/build/lib/lean/RestoreFill.olean      (exit 137, then 0)
+  lake env lean -j1 CallerCompose.lean    -o .lake/build/lib/lean/CallerCompose.olean    (exit 0)
+  lake env lean -j1 ConservativeAdapter.lean
+                                          -o .lake/build/lib/lean/ConservativeAdapter.olean (exit 0)
+  lake env lean -j1 CallerSolves.lean     -o .lake/build/lib/lean/CallerSolves.olean     (exit 0;
+    first pass errored on a missing `by` before the term-mode simpa — fixed)
+Exit codes: 0 (final pass); olean 61488 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerSolves.cacheSlot_append' depends on axioms: [propext]
+  'ThinMatrix.CallerSolves.restoreSlot_append' depends on axioms: [propext]
+  'ThinMatrix.CallerSolves.thread_step_append' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3 piece 3: the composition chaining.
+- The fixed-program shape is pinned (recorded in STMTS.md, "FILL 3
+  composition shape"): the stage/cache/restore procedures ride INSIDE the
+  caller's own program P; the append direction is the upstream host's,
+  after P (isHost_ap builds its four procedures at P.length + k;
+  MachineAdapter.appendAPSP consumes the Solves; MachineAdapter's
+  docstring states the same).
+- cacheSlot_append / restoreSlot_append — the two fill slots' contracts
+  persist under a trailing append (Light.Solves.append, Lang/Tasks.lean
+  108), so the cache and restore procedures compose into the caller's
+  growing program with their entry indices fixed.
+- thread_step_append — piece 2's two-stage threading survives a trailing
+  append (Ends.append; the append-assoc normalization is the only glue),
+  the form the mpRounds schedule chains over; premises are thread_step's,
+  unchanged.
+- THE NAMED SUMMIT (not discharged here; D7's boundary stands): the
+  hsShape target — Light.Solves Light.mpTask P p Tn need — awaits the
+  caller's product-round body and its execution derivation over the
+  mpRounds schedule (MACHINE_OBLIGATIONS: "actual caller matching mpTask,
+  including all arrays, scans, control flow, and word bounds"), and hdom
+  awaits that program's completeCost step-count bound. Solves.append
+  cannot create a solver; nothing false is claimed.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement, the checked selection round /
+restart-loop driver, and the machine-obligations record; Hrishik Sai
+Bojnal — the verified frontier being refined.

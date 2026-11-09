@@ -95,6 +95,47 @@ flags) carries the same information through `cs.getD k` but is NOT what
 `≤ x.rounds * (100 * instanceSize x + 98)` when `R ≤ P`, and `R ≤ P ≤ n`
 gives `driverTime x ≤ n * (100*n + 98) = 100*n² + 98*n = taskTime n U`.
 
+## FILL 3 composition shape (pinned 2026-11-09, piece 3)
+
+The fixed-program shape for the `hsShape` target
+(`Light.Solves Light.mpTask P p Tn need`), decided against the adapter
+chain's evidence:
+
+**The stage/cache/restore procedures ride INSIDE the caller's own program
+`P`; the append direction is the upstream host's, after `P`.**
+
+Evidence chain (all read at the pinned sources):
+- `MachineAdapter.appendAPSP` consumes
+  `hs : Light.Solves Light.mpTask P p Tn need` and hands it to
+  `Light.Sec3.isHost_ap` (`Programs/Sec3/Theorem21b/Apsp/Host.lean:276`),
+  which builds the host's four procedures AFTER the solver's program:
+  `[apInitBody, clipBody, apOutBody, apBody p P.length (P.length + 1)
+  (P.length + 2)]` at entry `P.length + 3` — the append direction belongs
+  to the host, not to the caller's composition.
+- `MachineAdapter.lean`'s own docstring: "The upstream host appends four
+  finite procedures … These are composition lemmas. They do not supply an
+  improved min-plus program."
+- `Light.Solves.append` (Lang/Tasks.lean:108) extends a solver's program by
+  trailing procedures with the entry index fixed — the chaining primitive
+  while the port lands the caller's procedures.
+- The fills' slots are conditional: `cacheReads_of_solves` /
+  `restoreReads_of_solves` consume `Light.Solves` hypotheses; the cache and
+  restore bodies still trail board-side (CacheFill.lean's header). The
+  caller's product-round body is the named summit (MACHINE_OBLIGATIONS,
+  "Min-plus caller: actual caller matching mpTask, including all arrays,
+  scans, control flow, and word bounds"); `hdom` awaits that program's
+  `completeCost` step-count bound. `Solves.append` cannot create a solver —
+  no chaining closes the summit without the bodies.
+
+Landed composition content (`CallerSolves.lean`, piece 3): the fill slots'
+append persistence (`cacheSlot_append`, `restoreSlot_append`) and the
+schedule threading's append persistence (`thread_step_append`, the
+two-stage analog of piece 1's `stageEnds_behind_append`). The twin filing
+statement — `Race.bound` at the conservative exponent `2994999/1000000`
+via `ConservativeAdapter.conservativeStatementOfLedger` — is stated in its
+own module (`TwinRaceBound.lean`); no root swap; the filing call is the
+owner's.
+
 ## Discipline
 
 Statements touch no board-model text (D7 boundary stands). The wrapper will

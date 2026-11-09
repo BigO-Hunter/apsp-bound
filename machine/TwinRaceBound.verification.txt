@@ -1,0 +1,37 @@
+TwinRaceBound.lean — the twin filing statement verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker):
+  lake env lean -j1 ConservativeAdapter.lean
+    -o .lake/build/lib/lean/ConservativeAdapter.olean   (exit 0)
+  lake env lean -j1 TwinRaceBound.lean
+    -o .lake/build/lib/lean/TwinRaceBound.olean         (exit 0)
+Exit codes: 0; olean emitted, module target named.
+Banner: 'ThinMatrix.Twin.race_bound' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+The twin: the owner's filing form — `Race.bound` at the conservative
+exponent 2994999/1000000 (= 2.994999; the conservative row's exponent,
+M3e/M3f) — closed VIA
+ThinMatrix.ConservativeAdapter.conservativeStatementOfLedger from the
+three canonical slots (hs : Light.Solves Light.mpTask P p Tn need,
+hn : Light.PolyNeed need, hdom : the completeCost eventual-domination).
+Separate statement module: the landed root Race.bound (exponent
+2.995560766) is untouched — no root swap; the filing call is the owner's.
+The module closes nothing by itself: hs and hdom are the campaign's named
+remainders (MACHINE_OBLIGATIONS); the shapes are byte-identical to the
+upstream adapters' hypotheses. D7's boundary stands.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler (whose landed
+Race.bound is this module's root sibling, not its substitute); Joshua
+Wharton (QFEX) — the conservative adapter and the numerical refinement
+lineage; Hrishik Sai Bojnal — the verified frontier being refined.
