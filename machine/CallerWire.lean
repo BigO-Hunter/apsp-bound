@@ -1034,13 +1034,14 @@ theorem rowUpTo_writesA_pres (lim : Limits) (P : Light.Program) (d Out Base : �
     rcases Nat.eq_zero_or_pos j with h0 | h0
     · subst h0
       -- the single first entry: it writes A and keeps every other cell
-      refine Ends.skip ?_
+      refine Ends.seq 0 Bw (Ends.skip ?_)
+        (show (0:ℕ) + Bw ≤ x.n * Bw from by omega)
       have hsafe0 := hsafe 0 (by omega)
       have hcost0 := hcost 0 (by omega)
-      have hrow := store_writes_keeps lim P d (v Out +' v (t * x.n + 0)) (v (Base + 0)) σ Bw
+      have hrow := store_writes_keeps lim P d (v Out +' v (t * x.n + 0)) (v (Tmp + 0)) σ Bw
         hsafe0.2.1 hsafe0.2.2 hsafe0.1 hcost0
       refine hrow.mono le_rfl (fun σ' hσ' => ?_)
-      refine ⟨?_, hσ'.2.2, fun a ha => hσ'.2.1 a (ha 0 (by omega))⟩
+      refine ⟨?_, fun a' ha' => Function.update_of_ne ha' σ.mem ((v (Tmp + 0) : Expr).val σ), ?_⟩
       · have hAeq : ((v Out +' v (t * x.n + 0) : Expr).val σ).toNat = A := by
           have hsum : (v Out +' v (t * x.n + 0) : Expr).val σ =
               σ.loc Out + σ.loc (t * x.n) := rfl
@@ -1173,22 +1174,27 @@ theorem rowWrites_of_layout
     (fun u hu => hcost t (by omega) u hu)
     (x.n * Bw) (by omega)).mono le_rfl (fun σ' hσ' => ?_)
   · -- the A-distance: the later entries' addresses miss the (t,0) cell
-    simp only [State.loc]
+    have haddrpos : 0 ≤ (ll Out + ll (t * x.n + u) : ℤ) :=
+      (hpins.2.2.2.1 t (by omega) u (by omega)).1.1
+    have hapos2 : 0 ≤ ((x.c + t * x.n : ℕ) : ℤ) := by omega
+    simp only [State.loc, Expr.val, Op.eval]
+    show x.c + t * x.n ≠ ((ll Out + ll (t * x.n + u) : ℤ).toNat : ℕ)
+    rw [Int.toNat_of_nonneg haddrpos, Int.toNat_of_nonneg hapos2]
     rw [haddr u hu', Ne.eq_def]
     intro hcon
     have hu0 : u = 0 := by omega
     omega
   · refine ⟨?_, WirePins_congr hσ'.2.1 hpins, fun i hi => (hσ'.2.2 (ab + i) (fun u hu => by
-      simp only [State.loc]
+      simp only [State.loc, Expr.val, Op.eval]
       rw [haddr u hu]
       exact hne u (ab + i) hu (Or.inl ⟨by omega, by omega⟩))).trans (hreads.1 i hi),
     fun p hp i hi => (hσ'.2.2 (rb + p * I + i) (fun u hu => by
-      simp only [State.loc]
+      simp only [State.loc, Expr.val, Op.eval]
       rw [haddr u hu]
       exact hne u (rb + p * I + i) hu
         (Or.inr (Or.inl ⟨by omega, by omega⟩)))).trans (hreads.2.1 p hp i hi),
     fun p hp => (hσ'.2.2 (mb + p) (fun u hu => by
-      simp only [State.loc]
+      simp only [State.loc, Expr.val, Op.eval]
       rw [haddr u hu]
       exact hne u (mb + p) hu (Or.inr (Or.inr ⟨by omega, by omega⟩)))).trans
       (hreads.2.2 p hp)⟩
@@ -1196,8 +1202,8 @@ theorem rowWrites_of_layout
         show ll (Tmp + 0) = r; rw [Nat.add_zero]; exact hTmpr
       have haddr0 := haddr 0 (by omega)
       show σ'.mem (x.c + t * x.n + 0) = r
-      rw [← haddr0, h2]
-      exact hσ'.1
+      rw [← haddr0]
+      exact hσ'.1.trans h2
 
 /-- THE ROW-KEEP SOCKET'S DISCHARGE: the keep-socket from the landed
 `rowUpTo_keep_pres` under the same layout trio. -/
@@ -1243,23 +1249,28 @@ theorem rowKeeps_of_layout
     (fun u hu => hcost t (by omega) u hu)
     (x.n * Bw) (by omega)).mono le_rfl (fun σ' hσ' => ?_)
   · -- the A-distance: t ≥ 1 so every product address misses cell x.c
-    simp only [State.loc]
+    have haddrpos : 0 ≤ (ll Out + ll (t * x.n + u) : ℤ) :=
+      (hpins.2.2.2.1 t (by omega) u (by omega)).1.1
+    have hapos2 : 0 ≤ ((x.c : ℕ) : ℤ) := by omega
+    simp only [State.loc, Expr.val, Op.eval]
+    show x.c ≠ ((ll Out + ll (t * x.n + u) : ℤ).toNat : ℕ)
+    rw [Int.toNat_of_nonneg haddrpos, Int.toNat_of_nonneg hapos2]
     rw [haddr u hu, Ne.eq_def]
     intro hcon
     have hu0 : u = 0 := by omega
     omega
   · refine ⟨hσ'.1, WirePins_congr hσ'.2.1 hpins,
       fun i hi => (hσ'.2.2 (ab + i) (fun u hu => by
-      simp only [State.loc]
+      simp only [State.loc, Expr.val, Op.eval]
       rw [haddr u hu]
       exact hne u (ab + i) hu (Or.inl ⟨by omega, by omega⟩))).trans (hreads.1 i hi),
     fun p hp i hi => (hσ'.2.2 (rb + p * I + i) (fun u hu => by
-      simp only [State.loc]
+      simp only [State.loc, Expr.val, Op.eval]
       rw [haddr u hu]
       exact hne u (rb + p * I + i) hu
         (Or.inr (Or.inl ⟨by omega, by omega⟩)))).trans (hreads.2.1 p hp i hi),
     fun p hp => (hσ'.2.2 (mb + p) (fun u hu => by
-      simp only [State.loc]
+      simp only [State.loc, Expr.val, Op.eval]
       rw [haddr u hu]
       exact hne u (mb + p) hu (Or.inr (Or.inr ⟨by omega, by omega⟩)))).trans
       (hreads.2.2 p hp)⟩
