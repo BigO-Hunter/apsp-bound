@@ -1,0 +1,77 @@
+CallerChain.lean — D7(b) FILL 3, summit body session (a′) verification
+receipt (the round-chain induction — ChainTarget discharged)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; one host-killed pass (137) mid-
+iteration — the final pass green on attempt 1):
+  lake env lean -j1 CallerChain.lean
+    -o .lake/build/lib/lean/CallerChain.olean
+Exit codes: 0 (final pass); olean emitted, module target named.
+Banner:
+  'ThinMatrix.CallerChain.reads_carry' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+  'ThinMatrix.CallerChain.chain_from' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+  'ThinMatrix.CallerChain.chain_runs' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, summit body session (a′): the round-chain induction —
+CallerRounds.ChainTarget DISCHARGED.
+- StageReads — the stage's read bundle (active bits, rows table, plain
+  flags at the current mask).
+- reads_carry — the frame-carried reads: the round's pinned post preserves
+  the active/rows reads (below the scores region — the layout, omega) and
+  re-states the flag reads at the cleared mask. thread_step's evolved-read
+  extraction, packaged once for the whole chain.
+- chain_from — THE INDUCTION: from a uniform per-round slot family (for
+  every flag state, restart pinning and memory satisfying the reads — plus
+  the flag budget and the Ok fit — the round's certified slot meets within
+  its pinned clock, in the driver's own program), the schedule's round
+  sequence threads the evolved state and preserves the caller's three
+  regions. Base: the skip's reflexive frame. Step: Ends.callThen on the
+  round's slot; the continuation extracts the outcome from the pinned-post
+  witness (thread_step's obtain pattern), carries the reads by
+  reads_carry, re-enters the induction at the cleared mask (the loc
+  generalizes with the registers-on-0–8 hypothesis — the nested
+  Tmp-updates carried by dif_neg), and bridges the frame anchor through
+  the post's SameOutside3 (Ends.mono + SameOn.trans). The per-round
+  budget: one uniform round budget B, the total shrinking by it each
+  round.
+- chain_runs — THE SESSION TARGET: CallerRounds.ChainTarget (the mpRounds
+  schedule's round-chain Ends at the caller program) discharged — the
+  first two rounds glued manually at the plain frame, the rest by
+  chain_from at the schedule's own round count.
+
+Compiler-forced deltas this session (all diagnosed from exact goal
+states): the r₀/loc generalization (the IH's state must cover the
+nested Tmp-updates — the state-form r₀-fixed was too narrow); the
+(h := h) explicit for reads_carry's row-bound (StageReads carries no h);
+Nat.add_le_add_left for the budget doubling (products are opaque to
+omega — the piece-2 lesson, twice more); Nat.sub_mul +
+Nat.sub_add_cancel for the driver-count split (the rw-left
+`(m-2+2-2)*B` residue is opaque too); SameOn.trans's chain order
+(hsam → hsam₂ → hσ″); the missing `by` (term-position tactic); `;;`
+parses looser than `=`; hTtk hoisted (omega does not instantiate
+∀-facts).
+
+THE REMAINING MASS: (b) the Post assembly — the Seg half via the oracle
+functional chain (DenseOracleCorrect-conditioned, upstream's own shape)
+and the KeptBut half via mpPost_interior — consumes chain_runs'
+conclusion directly; (c) the step count → hdom via
+costBoundOfEventualDomination — the chain's per-round budget structure
+(B, Tt, the 9+2 overhead) pins the step count's shape. D7's boundary
+stands: no (min,+) product is claimed.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
