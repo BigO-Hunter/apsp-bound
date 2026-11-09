@@ -1,0 +1,35 @@
+DenseMinPlusPost.lean — L6(c) verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Commands (detached, exit-receipt files written in the same chain as each
+build; oleans emitted into the search path with -o .lake/build/lib/lean/):
+  lake env lean -j1 DenseCompositeLedger.lean
+    -o .lake/build/lib/lean/DenseCompositeLedger.olean
+  lake env lean -j1 DenseMinPlusPost.lean
+Exit codes: 0 (both stages)
+
+L6(c): the composite-incidence consumption at the mpTask Post — maskList /
+cert_mask_seg_of / cert_mask_seg (the cleared mask as a Seg over its
+materialized list), cert_keptBut (the frame in KeptBut's SameOn form over
+the caller's three written regions), cert_pop (the pool scalar),
+mpPost_interior (the packaged interior record the min-plus caller's hs
+assembly composes). The (min,+)-product output itself is NOT claimed — D7
+boundary stands; the hs slot is fed, not closed.
+
+All six declarations standard-3; no sorry, no native_decide.
+
+'Light.DenseMinPlusPost.maskList' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseMinPlusPost.cert_mask_seg_of' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseMinPlusPost.cert_mask_seg' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseMinPlusPost.cert_keptBut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseMinPlusPost.cert_pop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Light.DenseMinPlusPost.mpPost_interior' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence reduction; Josh Alman and Virginia Vassilevska Williams
+— arXiv:2610.06783; Li Xuanji — the verified ten-term construction and
+word-RAM compiler; Joshua Wharton (QFEX) — the checked selection round,
+restart-loop driver, and caller; Hrishik Sai Bojnal — the verified frontier
+being refined.
