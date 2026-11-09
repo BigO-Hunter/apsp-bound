@@ -136,6 +136,18 @@ via `ConservativeAdapter.conservativeStatementOfLedger` — is stated in its
 own module (`TwinRaceBound.lean`); no root swap; the filing call is the
 owner's.
 
+## The summit body's data-flow design (L7 — pinned 2026-11-09)
+
+The design narrative is `DATAFLOW.md` (the per-round cell semantics: the
+construction's refinement recurrence, the machine reading of the stage's
+score table as the oracle's evidence, the named remaining sub-design —
+the parameter concretization). The defs are `CallerDataflow.lean`
+(`oracleAnswerOf`, `refineStep` — byte-shaped to `cert_scores` and
+upstream `refine`). The remaining sessions: the reading lemma (the
+machine-stage→oracle-answer correctness at one round, then all rounds),
+the Seg-half assembly (discharging `SegTarget`, then `CallerTarget` via
+the (b) packaging), and the step count for `CallerHdom`.
+
 ## Discipline
 
 Statements touch no board-model text (D7 boundary stands). The wrapper will

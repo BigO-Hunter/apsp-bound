@@ -1,0 +1,45 @@
+CallerDataflow.lean — D7(b) FILL 3, the summit body design-session defs
+verification receipt (the per-round cell semantics)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; green on attempt 1):
+  lake env lean -j1 CallerDataflow.lean
+    -o .lake/build/lib/lean/CallerDataflow.olean
+Exit codes: 0; olean 30544 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerDataflow.oracleAnswerOf' does not depend on any axioms
+  'ThinMatrix.CallerDataflow.refineStep' does not depend on any axioms
+— no sorryAx, no native_decide; standard-3 or lighter (defs only).
+
+D7(b) FILL 3, the design session's defs — the per-round cell semantics,
+byte-shaped to the landed contracts:
+- oracleAnswerOf — the stage-score → oracle-answer reading: the answer at
+  candidate p is the nonzero test on the certified score cell μ₁ (sb + p)
+  — byte-shaped to L6(a) cert_scores (consumed, not re-proved).
+- refineStep — the bracket-doubling recurrence: the level-(t+1) entry
+  from the level-t coarse entry C and the two adaptive tests — byte-shaped
+  to upstream MinPlusReduction.refine's if-then-else (the lower test has
+  priority; neither test means the min is at least 2·C + 2).
+
+THE DESIGN NARRATIVE: machine/DATAFLOW.md (the per-round recurrence, the
+machine reading, the named remaining sub-design — the parameter
+concretization: the mod-p/band encoding at the pinning, mirrored from
+the upstream Batch chapter as the premise shape — and the remaining
+sessions: the reading lemma, the Seg-half assembly, the step count).
+D7's boundary stands: the oracle premise (OracleCorrect) is upstream's
+own shape, never claimed as proved; no (min,+) product is claimed in
+this module.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement, the refinement parameters,
+and the machine-obligations record; Hrishik Sai Bojnal — the verified
+frontier being refined and the refined numerical certificate this body
+targets.
