@@ -1,0 +1,54 @@
+CallerTestForm.lean — D7(b) FILL 3, the oracle test-form's instantiation
+session verification receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; green on attempt 1 (after the
+O-binder's-order fix — the explicit O-binder before the hO binding, the
+caller's oracle as the leading explicit binder)):
+  lake env lean -j1 CallerTestForm.lean
+    -o .lake/build/lib/lean/CallerTestForm.olean
+Exit codes: 0; olean 29688 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerTestForm.bracketTestLower_correct' does not depend
+    on any axioms
+  'ThinMatrix.CallerTestForm.bracketTestUpper_correct' does not depend
+    on any axioms
+— no sorryAx, no native_decide; standard-3 or lighter (both
+axiom-free).
+
+D7(b) FILL 3, the oracle test-form's instantiation: the bracket tests.
+- CallerOracle — the caller's abstract oracle: the triangle test at the
+  caller's ℕ-indexed table shapes (the upstream TriangleOracle's
+  ℕ-indexed form).
+- CallerOracleCorrect — the oracle's correctness: the triangle test's
+  answer ↔ the zero-sum existence — upstream `OracleCorrect`'s
+  ℕ-indexed form. THE PREMISE (D7's boundary: the oracle's correctness
+  is the premise, never claimed).
+- lowerTestTable / upperTestTable — the threshold-table defs
+  (byte-shaped to upstream `refine`'s test matrices, via the landed
+  lowerTestEntry/upperTestEntry).
+- bracketTestLower / bracketTestUpper — the oracle's invocations at the
+  threshold tables.
+- bracketTestLower_correct / bracketTestUpper_correct — the
+  `OracleCorrect`-conditioned answers: the bracket tests' trueness ↔
+  the zero-sum existence at the thresholds — upstream
+  `OracleCorrect`'s triangle-form consumed at the encoded tables. BOTH
+  AXIOM-FREE.
+
+D7's boundary stands: the oracle's correctness and the encoding
+identity are premises, never claimed as proved; no (min,+) product is
+claimed in this module.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement, the refinement parameters,
+and the machine-obligations record; Hrishik Sai Bojnal — the verified
+frontier being refined and the refined numerical certificate this body
+targets.
