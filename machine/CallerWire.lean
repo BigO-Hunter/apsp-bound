@@ -590,19 +590,19 @@ theorem stageDelivers_of_slot
         6 (d + 1) (argsOf (callSite P kt I h active mask rows ab rb sb mb bb) ++ [(fr : ℤ)]) μ
         (Tt kt)
         (pinnedPost (callSite P kt I h active mask rows ab rb sb mb bb) μ fr))
-    (hflag : k ≤ (flagged P remaining).card)
+    (hflag : ∀ mask : ℕ → Bool, k ≤ (flagged P mask).card)
     (hok : ∀ (mask : ℕ → Bool) (kt : ℕ),
       (need (instanceSize (callSite P kt I h active mask rows ab rb sb mb bb))
         (callSite P kt I h active mask rows ab rb sb mb bb).height).Ok lim fr (d + 1))
     (hdim : d < lim.depth)
     (hTcall : (callArgs.map Expr.cost).sum + 2 + Tt k ≤ Tcall)
-    (hret : ∀ (t : ℕ) (μ : ℕ → ℤ) (r : ℤ) (μ' : ℕ → ℤ), t < N →
-      Post (callSite P k I h active remaining rows ab rb sb mb bb) μ μ' →
+    (hret : ∀ (t : ℕ) (mask : ℕ → Bool) (μ : ℕ → ℤ) (r : ℤ) (μ' : ℕ → ℤ), t < N →
+      Post (callSite P k I h active mask rows ab rb sb mb bb) μ μ' →
       r = bracketAccumulate (μ (x.c + t * x.n)) tests N) :
-    ∀ (t : ℕ) (l : ℕ → ℤ) (μ : ℕ → ℤ), t < N →
+    ∀ (t : ℕ) (mask : ℕ → Bool) (l : ℕ → ℤ) (μ : ℕ → ℤ), t < N →
       (∀ k' : ℕ, k' < 9 → l k' =
         (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)]).getD k' 0) →
-      ThinMatrix.CallerChain.StageReads P I active remaining rows ab rb mb μ →
+      ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ →
       WirePins lim Out
         (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
         x N ⟨l, μ⟩ →
@@ -614,14 +614,14 @@ theorem stageDelivers_of_slot
           WirePins lim Out
             (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
             x N σ₁) := by
-  intro t l μ htN hloc hreads hpins
-  refine Ends.callLast (hslots remaining k μ hreads hflag (hok remaining k)) ?_ ?_ ?_ ?_
+  intro t mask l μ htN hloc hreads hpins
+  refine Ends.callLast (hslots mask k μ hreads (hflag mask) (hok mask k)) ?_ ?_ ?_ ?_
   · intro r μ' hR
     obtain ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0, hpos⟩ := id hR
     refine ⟨?_, ?_, ?_⟩
     · show Function.update l Tmp r Tmp = bracketAccumulate (μ (x.c + t * x.n)) tests N
       rw [Function.update_self]
-      exact hret t μ r μ' htN hR
+      exact hret t mask μ r μ' htN ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0, hpos⟩
     · show μ' x.c = μ x.c
       exact hsam x.c haway
     · exact WirePins_update hOutNe

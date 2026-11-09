@@ -29,7 +29,24 @@ Banner (the socket's proof and the wire):
     axioms: [propext]
 — standard-3 or lighter throughout; no sorryAx, no native_decide.
 
-D7(b) FILL 3, the socket's proof session:
+D7(b) FILL 3, the socket's proof session.
+AMENDED (the assembly's shape session): the socket is MASK-GENERAL —
+stageDelivers_of_slot's statement takes the round's mask as a
+parameter (the chain's rounds evolve it via maskCleared), with hflag
+and hret generalized to the family form (forall-mask, chain_from's
+exact shape). Green on attempt 1.
+
+THE WIRE-LEVEL ASSEMBLY'S REMAINING CONTENT (statementable, named):
+(1) the enriched-hcall form — the socket's post carries the round's
+post-witness (exists cs₁, ...) so the reads-carry (reads_carry + the
+post's hmask/hsam) re-derives at each round's continuation;
+(2) the reads-preservation through the row-writes — the product-region
+cells lie outside the reads-regions (the hprodaway layout trio, the
+hlay-based argument);
+(3) the induction itself — chain_from's skeleton + the
+delivery-extraction (hret at the exposed witness), the masks and
+budgets threaded as in chain_from (the per-round budget: Tcall +
+x.n * Bw <= B).
 
 (a) THE FRAME-CONDITION AMENDMENT (landed, green):
 - WirePins gains the vals parameter and the fifth clause: registers
