@@ -1,0 +1,58 @@
+CallerMultNonzero.lean — D7(b) FILL 3, the MultiplicationNonzero delivery
+session verification receipt (the count-vs-existence bridge + the
+oracle-composition socket)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry — attempt 1 host-killed (137),
+attempt 2 green):
+  lake env lean -j1 CallerMultNonzero.lean
+    -o .lake/build/lib/lean/CallerMultNonzero.olean
+Exit codes: 0 (final pass); olean 48392 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerMultNonzero.countOfTest_ne_zero_iff_exists' depends on
+    axioms: [propext, Classical.choice, Quot.sound]
+  'ThinMatrix.CallerMultNonzero.multNonzeroOfCount' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, the MultiplicationNonzero delivery: the count-vs-existence
+bridge and the oracle-composition socket.
+- countOfTest — the count-def: the ℕ-count of the test-positives over
+  the incidence range (the Finset filter's card; the typed-0 form — the
+  `0`-numeral's elaboration under the pipe was the Finset-0 ambiguity's
+  trap).
+- countOfTest_ne_zero_iff_exists — the count-vs-existence bridge: the
+  ℕ-count's nonzeroness ↔ the ∃-test-positive (the Finset filter's
+  Nonempty-form with the named-args pinning — the `∅`-numeral's instance
+  was the other trap; the Finset.card_pos.mpr route).
+- multNonzeroOfCount — THE ORACLE-COMPOSITION'S SOCKET: from the
+  rows-table's count-semantics + the per-cell contract + the
+  oracle's test-form (the OracleCorrect-conditioned premise — upstream's
+  own shape, never claimed — D7's boundary) yields `MultiplicationNonzero`'s
+  shape — the active-gated oracle positivity ↔ the machine-product's
+  entry's nonzeroness. The two directions' cell-iff projections (the
+  `.2 hpair` pos-direction, the `.1 hviewne` neg-direction — the Iff's
+  transport directions were the recurring elaboration trap).
+
+THE REMAINING SESSIONS: the oracle's test-form's instantiation (the
+OracleCorrect-conditioned bracket-encodings — the parameter
+concretization's proof, DATAFLOW.md's named sub-design); the Seg-half
+assembly (the bracket accumulation via `refineStep` — the writes'
+shapes landed); the step count for `CallerHdom`. Until they land,
+`CallerTarget(Layered)` and the twin stay conditional — honestly: no
+solver is postulated, no (min,+) product is claimed. D7's boundary
+stands: the oracle premise and the encoding identity are premises, never
+claimed as proved.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement and the machine-obligations
+record; Hrishik Sai Bojnal — the verified frontier being refined and the
+refined numerical certificate this body targets.
