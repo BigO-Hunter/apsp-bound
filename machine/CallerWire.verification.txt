@@ -1,0 +1,90 @@
+CallerWire.lean — D7(b) FILL 3, the wire-lemma's session verification
+receipt
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; green on attempt 1 of the final
+pass — the pass's fixes: the row lemmas' budgets threaded through the
+∀ (the ih runs at T - Bw), the Expr.Safe state-transfer via the
+show-defeq bridge, the Int.toNat_of_nonneg bridge for the address
+distance, and the 0 * x.n non-defeq propositional rewrites):
+  lake env lean -j1 CallerWire.lean
+    -o .lake/build/lib/lean/CallerWire.olean
+Exit codes: 0; olean 680784 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerWire.store_writes' depends on axioms: [propext]
+  'ThinMatrix.CallerWire.store_keeps' depends on axioms: [propext]
+  'ThinMatrix.CallerWire.bracketAccumulate_step' depends on axioms:
+    [propext, Quot.sound]
+  'ThinMatrix.CallerWire.bodyUpTo_succ' depends on axioms:
+    [propext, Quot.sound]
+  'ThinMatrix.CallerWire.rowUpTo_keep' depends on axioms:
+    [propext, Quot.sound]
+  'ThinMatrix.CallerWire.rowUpTo_writesA' depends on axioms:
+    [propext, Quot.sound]
+  'ThinMatrix.CallerWire.roundZero_writes' depends on axioms:
+    [propext, Quot.sound]
+  'ThinMatrix.CallerWire.roundKeeps' depends on axioms:
+    [propext, Quot.sound]
+  'ThinMatrix.CallerWire.wire_runs' depends on axioms:
+    [propext, Quot.sound]
+  'ThinMatrix.CallerWire.wire_compose' depends on axioms:
+    [propext, Quot.sound]
+  'ThinMatrix.CallerWire.bracketFinal_of_pins' depends on axioms:
+    [propext, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter (ALL eleven theorems
+are propext/Quot.sound only — lighter than the standard-3: no
+Classical.choice).
+
+D7(b) FILL 3, the wire-lemma's session: the pure core discharged.
+
+1. THE PURE CORE (all proved, axiom-light):
+- bracketAccumulate_zero / bracketAccumulate_step — the fold's
+  recursion equations.
+- bodyUpTo / bodyUpTo_succ — the schedule's round-splitting;
+  mpBodyWithWrites = the full-length prefix.
+- rowUpTo / rowUpTo_succ — the row's entry-splitting.
+- store_writes / store_keeps — the store's memory semantics (the
+  Exec.store rule read off the state): one store writes its own cell
+  and keeps every other cell and every register.
+- rowUpTo_keep / rowUpTo_writesA — the row's run keeps a pinned cell
+  (every entry's address away from it), or writes it once at the first
+  entry and keeps it after.
+- roundZero_writes / roundKeeps — the per-round slice: round 0 writes
+  the delivered fold into cell (0,0); every later round keeps it.
+- wire_runs / wire_compose — THE WIRE: the schedule's run threads the
+  state and delivers the fold into cell (0,0).
+- bracketFinal_of_pins — CallerRun.BracketFinal at the pinned states:
+  under the delivery socket, the pinning, the budgets, and the start
+  value (the cells at 0), the body's run's bracket cell (0,0) = the
+  bracketAccumulate fold. AXIOM-LIGHT.
+
+2. THE DELIVERY SOCKET (named, never claimed):
+- StageDelivers — the stage call at round t delivers the row's refined
+  value (the fold seeded by the row cell's current value) into the
+  source register, keeps cell (0,0), and keeps the pinning. The body's
+  per-round machine-computation contract (DATAFLOW.md's remaining
+  sub-design). The min-plus identity of the delivered values rides the
+  oracle premise — D7's boundary: the oracle is a premise, never
+  claimed as proved. The socket's proof session is named, not landed.
+- The pinning (WirePins) and the budgets (Bw, B) are the layout's
+  obligations — their discharge is the layout session (named). The
+  start value (the cells at 0) is the initialization's obligation
+  (named).
+
+Until the socket and the pinning discharge, CallerTarget(Layered) and
+the twin stay conditional — honestly: no solver is postulated, no
+(min,+) product is claimed.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement, the refinement parameters,
+and the machine-obligations record; Hrishik Sai Bojnal — the verified
+frontier being refined and the refined numerical certificate this body
+targets.
