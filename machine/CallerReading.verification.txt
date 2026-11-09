@@ -1,0 +1,53 @@
+CallerReading.lean — D7(b) FILL 3, the reading-lemma session verification
+receipt (the design's first consumed proof)
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
+upstream machine pin 225c3747)
+Build chain (exit receipts in the same chain as each build; TERM-immune
+finisher + exit marker + armed retry; final pass green on attempt 1:
+  lake env lean -j1 CallerReading.lean
+    -o .lake/build/lib/lean/CallerReading.olean
+Exit codes: 0 (final pass); olean 36712 bytes, module target named.
+Banner:
+  'ThinMatrix.CallerReading.reading_at_one_round' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+— no sorryAx, no native_decide; standard-3 or lighter.
+
+D7(b) FILL 3, the reading-lemma session: the design's first consumed
+proof.
+- reading_at_one_round — at one scheduled round, the certified score
+  cells read as the round's answers through the design's
+  `oracleAnswerOf` — GIVEN the encoding-identity socket (`henc`: the
+  score's ℤ-cast nonzeroness ↔ the answer; the socket is DATAFLOW.md's
+  named parameter-concretization deliverable — the mod-p/band encoding
+  at the pinning, upstream's own shape: the OracleCorrect-conditioned
+  construction lemmas consume the same identity). The certified-score
+  premise is L6(a)/`chain_runs`' `cert_scores` clause, consumed not
+  re-proved. Proof: the decide-arg's conjunction proven directly
+  (`decide_eq_true ⟨hp, hpos⟩` / `decide_eq_false (fun hc => hc.2 hpos)`)
+  — the decide-instance for the socket-dependent ∧ does not reduce, so
+  the conjunction is proved at the Prop level and the decide is rewritten
+  to it.
+- ReadingAllRounds — the all-rounds target, stated as the named next
+  slice: the same reading at every round boundary of the chain's run
+  (the per-round certified posts feed the one-round lemma through the
+  `chain_from` induction's structure).
+
+THE REMAINING SLICES: the all-rounds reading (the chain-induction
+form); the Seg-half assembly (the bracket accumulation via `refineStep`
+over the rounds — discharging `SegTarget`, then `CallerTarget(Layered)`
+via the (b) packaging); the step count for `CallerHdom`. D7's boundary
+stands: the oracle premise and the encoding identity are premises, never
+claimed as proved.
+
+All declarations standard-3 or lighter; no sorry, no native_decide.
+
+Credits (constructions first, filer last): shresh (shreshth-s) — the
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji —
+the verified ten-term construction and word-RAM compiler; Joshua Wharton
+(QFEX) — the canonical adapter arrangement, the refinement parameters,
+and the machine-obligations record; Hrishik Sai Bojnal — the verified
+frontier being refined and the refined numerical certificate this body
+targets.
