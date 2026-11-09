@@ -662,10 +662,12 @@ def RowWrites (lim : Limits) (Pgm : Light.Program) (P I : ℕ) (d Out Tmp Bw : �
     (vals : List ℤ) (x : MatInst) (tests : ℕ → Bool × Bool) (N : ℕ) : Prop :=
   ∀ (t : ℕ) (mask : ℕ → Bool) (ll : ℕ → ℤ) (μ : ℕ → ℤ) (r : ℤ),
     t < N →
+    (∀ j : ℕ, j < x.n → ll (t * x.n + j) = ((t * x.n + j : ℕ) : ℤ)) →
+    ll Tmp = r →
     WirePins lim Out vals x N ⟨ll, μ⟩ →
     ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ →
     Ends lim Pgm d (mpBodyWritesRow Out Tmp x t) ⟨ll, μ⟩ (x.n * Bw)
-      (fun σ' => σ'.mem x.c = r ∧
+      (fun σ' => σ'.mem (bracketCell x t 0) = r ∧
         WirePins lim Out vals x N σ' ∧
         ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb σ'.mem)
 
@@ -677,7 +679,8 @@ def RowKeeps (lim : Limits) (Pgm : Light.Program) (P I : ℕ) (d Out Tmp Bw : �
     (active : ℕ → Bool) (rows : ℕ → ℕ → ℕ) (ab rb mb : ℕ)
     (vals : List ℤ) (x : MatInst) (tests : ℕ → Bool × Bool) (N : ℕ) : Prop :=
   ∀ (t : ℕ) (mask : ℕ → Bool) (ll : ℕ → ℤ) (μ : ℕ → ℤ) (w : ℤ),
-    t < N →
+    1 ≤ t → t < N →
+    (∀ j : ℕ, j < x.n → ll (t * x.n + j) = ((t * x.n + j : ℕ) : ℤ)) →
     WirePins lim Out vals x N ⟨ll, μ⟩ →
     μ x.c = w →
     ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ →
@@ -727,6 +730,10 @@ private theorem aux_wire_from_slots
       (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
       x (mpRounds W) ⟨l, μ₀⟩)
     (hreads₀ : ThinMatrix.CallerChain.StageReads P I active remaining rows ab rb mb μ₀)
+    (hidx : ∀ (t : ℕ) (ll' : ℕ → ℤ) (μ' : ℕ → ℤ), t < mpRounds W →
+      (∀ k' : ℕ, k' < 9 → ll' k' =
+        (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)]).getD k' 0) →
+      ∀ j : ℕ, j < x.n → ll' (t * x.n + j) = ((t * x.n + j : ℕ) : ℤ))
     (hrowwrites : RowWrites lim
       (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
       P I d Out Tmp Bw active rows ab rb mb
@@ -791,7 +798,11 @@ private theorem aux_wire_from_slots
           WirePins_update hOutNe (fun t' ht' j hj => hTtmp t' ht' j hj) hpins
         -- the row-0's write-socket: the delivered value into cell (0,0)
         have hrow := hrowwrites 0 (maskCleared cs₁.toFinset mask)
-          (Function.update ll Tmp r₁) μ₁ r₁ (by omega) hpins₁ hreads₁
+          (Function.update ll Tmp r₁) μ₁ r₁ (by omega)
+          (hidx 0 (Function.update ll Tmp r₁) μ₁ (by omega)
+            (fun k' hk' => by rw [show Function.update ll Tmp r₁ k' = ll k' from
+              dif_neg (by have : Tmp = (10 : ℕ) := rfl; omega)]))
+          hpins₁ hreads₁
         refine hrow.mono le_rfl (fun σ' hσrow => ?_)
         -- the post: the mem = the delivered fold; the pins; the reads
         have hw : r₁ = bracketAccumulate (μ x.c) tests (mpRounds W) := by
@@ -852,7 +863,11 @@ private theorem aux_wire_from_slots
         -- the row-t's keep-socket: cell (0,0)'s fold kept; the reads preserved
         have hrow := hrowkeeps t (maskCleared cs₁.toFinset mask₁)
           (Function.update σ₁.loc Tmp r₁) μ₂ (bracketAccumulate (μ x.c) tests (mpRounds W))
-          (by omega) hpins₁ (by rw [hkeep]; exact hw0) hreads₂
+          (by omega) (by omega)
+          (hidx t (Function.update σ₁.loc Tmp r₁) μ₂ (by omega)
+            (fun k' hk' => by rw [show Function.update σ₁.loc Tmp r₁ k' = σ₁.loc k' from
+              dif_neg (by have : Tmp = (10 : ℕ) := rfl; omega)]))
+          hpins₁ (by rw [hkeep]; exact hw0) hreads₂
         refine hrow.mono le_rfl (fun σ' hσrow => ?_)
         exact ⟨fun h' => absurd h' (by omega), fun _ => hσrow.1, hσrow.2.1,
           ⟨maskCleared cs₁.toFinset mask₁, hσrow.2.2⟩⟩
@@ -918,6 +933,10 @@ theorem wire_from_slots
       (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)])
       x (mpRounds W) ⟨l, μ₀⟩)
     (hreads₀ : ThinMatrix.CallerChain.StageReads P I active remaining rows ab rb mb μ₀)
+    (hidx : ∀ (t : ℕ) (ll' : ℕ → ℤ) (μ' : ℕ → ℤ), t < mpRounds W →
+      (∀ k' : ℕ, k' < 9 → ll' k' =
+        (argsOf (callSite P k I h active remaining rows ab rb sb mb bb) ++ [(fr : ℤ)]).getD k' 0) →
+      ∀ j : ℕ, j < x.n → ll' (t * x.n + j) = ((t * x.n + j : ℕ) : ℤ))
     (hrowwrites : RowWrites lim
       (program (callSite P k I h active remaining rows ab rb sb mb bb) ++ R)
       P I d Out Tmp Bw active rows ab rb mb
@@ -945,7 +964,304 @@ theorem wire_from_slots
   simp only [bracketCell, Nat.zero_mul, Nat.add_zero] at hmem ⊢
   exact hmem (by omega)
 
+/-! ## The row-sockets' discharge: the layout trio and the index-pinning -/
+
+/-- One store writes its own cell, keeps every other cell, and keeps the
+registers — the combined post the row's preservation-threading consumes. -/
+theorem store_writes_keeps (lim : Limits) (P : Light.Program) (d : ℕ)
+    (a e : Expr) (σ : State) (T : ℕ) (A : ℕ)
+    (ha : a.Safe lim σ) (he : e.Safe lim σ) (haddr : lim.Addr (a.val σ))
+    (hcost : a.cost + e.cost + 1 ≤ T)
+    (hne : A ≠ (a.val σ).toNat) :
+    Ends lim P d (Light.Stmt.store a e) σ T
+      (fun σ' => σ'.mem (a.val σ).toNat = e.val σ ∧
+        (∀ a' : ℕ, a' ≠ (a.val σ).toNat → σ'.mem a' = σ.mem a') ∧ σ'.loc = σ.loc) := by
+  refine Ends.store ha he haddr hcost ⟨⟨?_, fun a' ha' => ?_⟩, rfl⟩
+  · exact Function.update_self _ _ _
+  · exact Function.update_of_ne ha' _ _ _
+
+/-- One store keeps every memory cell except its own address, and keeps
+the registers — the general-preservation post. -/
+theorem store_keeps_all (lim : Limits) (P : Light.Program) (d : ℕ)
+    (a e : Expr) (σ : State) (T : ℕ)
+    (ha : a.Safe lim σ) (he : e.Safe lim σ) (haddr : lim.Addr (a.val σ))
+    (hcost : a.cost + e.cost + 1 ≤ T) :
+    Ends lim P d (Light.Stmt.store a e) σ T
+      (fun σ' => (∀ a' : ℕ, a' ≠ (a.val σ).toNat → σ'.mem a' = σ.mem a') ∧ σ'.loc = σ.loc) := by
+  refine Ends.store ha he haddr hcost ⟨fun a' ha' => ?_, rfl⟩
+  exact Function.update_of_ne ha' _ _ _
+
+/-- The row's run writes a pinned cell at the first entry, keeps it
+after, and preserves every memory cell distinct from all the row's
+write addresses. -/
+theorem rowUpTo_writesA_pres (lim : Limits) (P : Light.Program) (d Out Base : ℕ)
+    (x : MatInst) (t : ℕ) (A : ℕ) (w : ℤ) (Bw : ℕ) :
+    ∀ (j : ℕ), 1 ≤ j → ∀ (σ : State),
+      (σ.loc Out + σ.loc (t * x.n) : ℤ).toNat = A →
+      σ.loc Base = w →
+      (∀ u : ℕ, 1 ≤ u → u < j → A ≠ (σ.loc Out + σ.loc (t * x.n + u) : ℤ).toNat) →
+      (∀ u : ℕ, u < j →
+        lim.Addr (σ.loc Out + σ.loc (t * x.n + u)) ∧
+        (v Out +' v (t * x.n + u) : Expr).Safe lim σ ∧
+        (v (Base + u) : Expr).Safe lim σ) →
+      (∀ u : ℕ, u < j → (v Out +' v (t * x.n + u) : Expr).cost +
+        (v (Base + u) : Expr).cost + 1 ≤ Bw) →
+      ∀ T : ℕ, j * Bw ≤ T →
+      Ends lim P d (rowUpTo Out Base x t j) σ T
+        (fun σ' => σ'.mem A = w ∧ σ'.loc = σ.loc ∧
+          ∀ a : ℕ, (∀ u : ℕ, u < j → a ≠ (σ.loc Out + σ.loc (t * x.n + u) : ℤ).toNat) →
+            σ'.mem a = σ.mem a) := by
+  intro j
+  induction j with
+  | zero =>
+    intro hj _ _ _ _ _ _ _
+    exact absurd hj (by omega)
+  | succ j ih =>
+    intro hj σ haddrA hval hdist hsafe hcost T hT
+    rw [rowUpTo_succ]
+    have hmul : (j + 1) * Bw = j * Bw + Bw := by ring
+    have hT1 : j * Bw ≤ T - Bw := by omega
+    have hTsplit : (T - Bw) + Bw ≤ T := by omega
+    refine Ends.seq (T - Bw) Bw ?_ hTsplit
+    rcases Nat.eq_zero_or_pos j with h0 | h0
+    · subst h0
+      -- the single first entry: it writes A and keeps every other cell
+      refine Ends.skip ?_
+      refine (store_writes_keeps lim P d (v Out +' v (t * x.n + 0)) (v (Base + 0)) σ Bw A
+        ((hsafe 0 (by omega)).2.1) ((hsafe 0 (by omega)).2.2)
+        ((hsafe 0 (by omega)).1)
+        (hcost 0 (by omega))
+        (hdist 0 (by omega) (by omega))).mono le_rfl (fun σ' hσ' => ?_)
+      refine ⟨?_, fun a' _ => rfl, ?_⟩
+      · have hAeq : ((v Out +' v (t * x.n + 0) : Expr).val σ).toNat = A := by
+          have hsum : (v Out +' v (t * x.n + 0) : Expr).val σ =
+              σ.loc Out + σ.loc (t * x.n) := rfl
+          rw [hsum]; exact haddrA
+        rw [hAeq]
+        exact hσ'.1
+      · intro a ha
+        exact hσ'.2.1 a ha
+    · have hj' : 1 ≤ j := h0
+      -- the prefix by ih (the preservation over u < j); the last entry keeps
+      refine (ih hj' σ haddrA hval (fun u hu hu' => hdist u hu (by omega))
+        (fun u hu => hsafe u (by omega)) (fun u hu => hcost u (by omega))
+        (T - Bw) hT1).mono le_rfl (fun σ' hσ' => ?_)
+      have hloc : σ'.loc = σ.loc := hσ'.2.1
+      have haddr' : lim.Addr (σ'.loc Out + σ'.loc (t * x.n + j)) := by
+        rw [hloc]; exact (hsafe j (by omega)).1
+      have hne' : A ≠ (σ'.loc Out + σ'.loc (t * x.n + j)).toNat := by
+        rw [hloc]; exact hdist j hj' (by omega)
+      have hsaf' : (v Out +' v (t * x.n + j) : Expr).Safe lim σ' := by
+        show True ∧ True ∧ |σ'.loc Out + σ'.loc (t * x.n + j)| ≤ lim.word
+        rw [hloc]
+        exact (hsafe j (by omega)).2.1
+      refine (store_keeps_all lim P d (v Out +' v (t * x.n + j)) (v (Base + j)) σ' Bw
+        hsaf' trivial haddr' (hcost j (by omega))).mono le_rfl
+        (fun σ'' h'' => ⟨(h''.1 A hne').trans hσ'.1, h''.2.trans hloc,
+          fun a ha => (h''.1 a (fun u hu => ha u (by omega))).trans
+            (hσ'.3 a fun u hu => ha u (by omega))⟩)
+
+/-- The row's run keeps a pinned cell and preserves every memory cell
+distinct from all the row's write addresses. -/
+theorem rowUpTo_keep_pres (lim : Limits) (P : Light.Program) (d Out Base : ℕ)
+    (x : MatInst) (t : ℕ) (A : ℕ) (w : ℤ) (Bw : ℕ) :
+    ∀ (j : ℕ) (σ : State),
+      σ.mem A = w →
+      (∀ u : ℕ, u < j → A ≠ (σ.loc Out + σ.loc (t * x.n + u) : ℤ).toNat) →
+      (∀ u : ℕ, u < j →
+        lim.Addr (σ.loc Out + σ.loc (t * x.n + u)) ∧
+        (v Out +' v (t * x.n + u) : Expr).Safe lim σ ∧
+        (v (Base + u) : Expr).Safe lim σ) →
+      (∀ u : ℕ, u < j → (v Out +' v (t * x.n + u) : Expr).cost +
+        (v (Base + u) : Expr).cost + 1 ≤ Bw) →
+      ∀ T : ℕ, j * Bw ≤ T →
+      Ends lim P d (rowUpTo Out Base x t j) σ T
+        (fun σ' => σ'.mem A = w ∧ σ'.loc = σ.loc ∧
+          ∀ a : ℕ, (∀ u : ℕ, u < j → a ≠ (σ.loc Out + σ.loc (t * x.n + u) : ℤ).toNat) →
+            σ'.mem a = σ.mem a) := by
+  intro j
+  induction j with
+  | zero =>
+    intro σ hw _ _ _ T _
+    rw [rowUpTo_zero]
+    refine Ends.skip ⟨?_, ?_, ?_⟩
+    · exact hw
+    · rfl
+    · intro a _; rfl
+  | succ j ih =>
+    intro σ hw hdist hsafe hcost T hT
+    rw [rowUpTo_succ]
+    have hmul : (j + 1) * Bw = j * Bw + Bw := by ring
+    have hT1 : j * Bw ≤ T - Bw := by omega
+    have hTsplit : (T - Bw) + Bw ≤ T := by omega
+    refine Ends.seq (T - Bw) Bw ?_ hTsplit
+    refine (ih σ hw (fun u hu => hdist u (by omega))
+      (fun u hu => hsafe u (by omega)) (fun u hu => hcost u (by omega))
+      (T - Bw) hT1).mono le_rfl (fun σ' hσ' => ?_)
+    have hloc : σ'.loc = σ.loc := hσ'.2.1
+    have haddr' : lim.Addr (σ'.loc Out + σ'.loc (t * x.n + j)) := by
+      rw [hloc]; exact (hsafe j (by omega)).1
+    have hne' : A ≠ (σ'.loc Out + σ'.loc (t * x.n + j)).toNat := by
+      rw [hloc]; exact hdist j (by omega)
+    have hsaf' : (v Out +' v (t * x.n + j) : Expr).Safe lim σ' := by
+      show True ∧ True ∧ |σ'.loc Out + σ'.loc (t * x.n + j)| ≤ lim.word
+      rw [hloc]
+      exact (hsafe j (by omega)).2.1
+    exact (store_keeps_all lim P d (v Out +' v (t * x.n + j)) (v (Base + j)) σ' Bw
+      hsaf' trivial haddr' (hcost j (by omega))).mono le_rfl
+      (fun σ'' h'' => ⟨(h''.1 A hne').trans hσ'.1, h''.2.trans hloc,
+        fun a ha => (h''.1 a (fun u hu => ha u (by omega))).trans
+          (hσ'.3 a fun u hu => ha u (by omega))⟩)
+
+/-- THE ROW-WRITE SOCKET'S DISCHARGE: the write-socket from the landed
+`rowUpTo_writesA_pres` under the index-pinning (per-state) and the
+product-cells' outside-the-reads-regions layout trio. -/
+theorem rowWrites_of_layout
+    {lim : Limits} {Pgm : Light.Program} {P I : ℕ} {d Out Tmp Bw : ℕ}
+    {active : ℕ → Bool} {rows : ℕ → ℕ → ℕ} {ab rb mb : ℕ}
+    {vals : List ℤ} {x : MatInst}
+    (tests : ℕ → Bool × Bool) (N : ℕ)
+    (hxn : 1 ≤ x.n)
+    (hcost : ∀ t : ℕ, t < N → ∀ u : ℕ, u < x.n →
+      (v Out +' v (t * x.n + u) : Expr).cost + (v (Tmp + u) : Expr).cost + 1 ≤ Bw)
+    (hprodaway : ∀ (t : ℕ) (u : ℕ), t < N → u < x.n →
+      (((x.c + t * x.n + u : ℕ) : ℤ) < ab ∨ ab + I ≤ ((x.c + t * x.n + u : ℕ) : ℤ)) ∧
+      (((x.c + t * x.n + u : ℕ) : ℤ) < rb ∨ rb + P * I ≤ ((x.c + t * x.n + u : ℕ) : ℤ)) ∧
+      (((x.c + t * x.n + u : ℕ) : ℤ) < mb ∨ mb + P ≤ ((x.c + t * x.n + u : ℕ) : ℤ))) :
+    RowWrites lim Pgm P I d Out Tmp Bw active rows ab rb mb vals x tests N := by
+  intro t mask ll μ r htN hidx hTmpr hpins hreads
+  have haddr : ∀ u : ℕ, u < x.n →
+      (ll Out + ll (t * x.n + u) : ℤ).toNat = x.c + t * x.n + u := by
+    intro u hu
+    rw [hpins.1, hidx u hu]
+    rw [Int.toNat_of_nonneg (by push_cast; omega)]
+    push_cast
+    ring
+  have hne : ∀ (u a : ℕ), u < x.n →
+      ((ab ≤ (a : ℤ) ∧ (a : ℤ) < ab + I) ∨
+       (rb ≤ (a : ℤ) ∧ (a : ℤ) < rb + P * I) ∨
+       (mb ≤ (a : ℤ) ∧ (a : ℤ) < mb + P)) →
+      a ≠ x.c + t * x.n + u := by
+    intro u a hu hin
+    obtain ⟨p1, p2, p3⟩ := hprodaway t u htN hu
+    rcases hin with ⟨h1a, h1b⟩ | ⟨h2a, h2b⟩ | ⟨h3a, h3b⟩
+    · rcases p1 with h | h <;> omega
+    · rcases p2 with h | h <;> omega
+    · rcases p3 with h | h <;> omega
+  have hbound : ∀ u : ℕ, u < x.n →
+      |ll Out + ll (t * x.n + u)| ≤ lim.word :=
+    fun u hu => (hpins.2.2.2.1 t (by omega) u (by omega)).2
+  refine (rowUpTo_writesA_pres lim Pgm d Out Tmp x t (x.c + t * x.n) r Bw
+    x.n (by omega) ⟨ll, μ⟩ (by rw [Nat.add_zero]; exact haddr 0 (by omega))
+    (by show ll Tmp = r; exact hTmpr)
+    (fun u hu hu' => ?_)
+    (fun u hu => ⟨(hpins.2.2.2.1 t (by omega) u (by omega)).1,
+      ⟨trivial, trivial, hbound u (by omega)⟩, trivial⟩)
+    (fun u hu => hcost t (by omega) u hu)
+    (x.n * Bw) (by omega)).mono le_rfl (fun σ' hσ' => ?_)
+  · -- the A-distance: the later entries' addresses miss the (t,0) cell
+    rw [haddr u hu]
+    omega
+  · refine ⟨?_, ?_, ?_⟩
+    · -- clause 1: the active bits preserved
+      intro i hi
+      exact (hσ'.2.2 (ab + i) (fun u hu => by
+        rw [haddr u hu]
+        exact hne u (ab + i) hu (Or.inl ⟨by omega, by omega⟩))).trans (hreads.1 i hi)
+    · -- clause 2: the rows table preserved
+      intro p hp i hi
+      exact (hσ'.2.2 (rb + p * I + i) (fun u hu => by
+        rw [haddr u hu]
+        exact hne u (rb + p * I + i) hu
+          (Or.inr (Or.inl ⟨by omega, by omega⟩)))).trans (hreads.2.1 p hp i hi)
+    · -- clause 3: the flag bits preserved
+      intro p hp
+      exact (hσ'.2.2 (mb + p) (fun u hu => by
+        rw [haddr u hu]
+        exact hne u (mb + p) hu (Or.inr (Or.inr ⟨by omega, by omega⟩)))).trans
+        (hreads.2.2 p hp)
+
+/-- THE ROW-KEEP SOCKET'S DISCHARGE: the keep-socket from the landed
+`rowUpTo_keep_pres` under the same layout trio. -/
+theorem rowKeeps_of_layout
+    {lim : Limits} {Pgm : Light.Program} {P I : ℕ} {d Out Tmp Bw : ℕ}
+    {active : ℕ → Bool} {rows : ℕ → ℕ → ℕ} {ab rb mb : ℕ}
+    {vals : List ℤ} {x : MatInst}
+    (tests : ℕ → Bool × Bool) (N : ℕ)
+    (hxn : 1 ≤ x.n)
+    (hcost : ∀ t : ℕ, t < N → ∀ u : ℕ, u < x.n →
+      (v Out +' v (t * x.n + u) : Expr).cost + (v (Tmp + u) : Expr).cost + 1 ≤ Bw)
+    (hprodaway : ∀ (t : ℕ) (u : ℕ), t < N → u < x.n →
+      (((x.c + t * x.n + u : ℕ) : ℤ) < ab ∨ ab + I ≤ ((x.c + t * x.n + u : ℕ) : ℤ)) ∧
+      (((x.c + t * x.n + u : ℕ) : ℤ) < rb ∨ rb + P * I ≤ ((x.c + t * x.n + u : ℕ) : ℤ)) ∧
+      (((x.c + t * x.n + u : ℕ) : ℤ) < mb ∨ mb + P ≤ ((x.c + t * x.n + u : ℕ) : ℤ))) :
+    RowKeeps lim Pgm P I d Out Tmp Bw active rows ab rb mb vals x tests N := by
+  intro t mask ll μ w ht htN hidx hpins hmw hreads
+  have haddr : ∀ u : ℕ, u < x.n →
+      (ll Out + ll (t * x.n + u) : ℤ).toNat = x.c + t * x.n + u := by
+    intro u hu
+    rw [hpins.1, hidx u hu]
+    rw [Int.toNat_of_nonneg (by push_cast; omega)]
+    push_cast
+    ring
+  have hne : ∀ (u a : ℕ), u < x.n →
+      ((ab ≤ (a : ℤ) ∧ (a : ℤ) < ab + I) ∨
+       (rb ≤ (a : ℤ) ∧ (a : ℤ) < rb + P * I) ∨
+       (mb ≤ (a : ℤ) ∧ (a : ℤ) < mb + P)) →
+      a ≠ x.c + t * x.n + u := by
+    intro u a hu hin
+    obtain ⟨p1, p2, p3⟩ := hprodaway t u htN hu
+    rcases hin with ⟨h1a, h1b⟩ | ⟨h2a, h2b⟩ | ⟨h3a, h3b⟩
+    · rcases p1 with h | h <;> omega
+    · rcases p2 with h | h <;> omega
+    · rcases p3 with h | h <;> omega
+  have hbound : ∀ u : ℕ, u < x.n →
+      |ll Out + ll (t * x.n + u)| ≤ lim.word :=
+    fun u hu => (hpins.2.2.2.1 t (by omega) u (by omega)).2
+  refine (rowUpTo_keep_pres lim Pgm d Out Tmp x t x.c w Bw x.n ⟨ll, μ⟩ hmw
+    (fun u hu => ?_)
+    (fun u hu => ⟨(hpins.2.2.2.1 t (by omega) u (by omega)).1,
+      ⟨trivial, trivial, hbound u (by omega)⟩, trivial⟩)
+    (fun u hu => hcost t (by omega) u hu)
+    (x.n * Bw) (by omega)).mono le_rfl (fun σ' hσ' => ?_)
+  · -- the A-distance: t ≥ 1 so every product address misses cell x.c
+    intro u hu
+    rw [haddr u hu]
+    omega
+  · refine ⟨?_, ?_, ?_⟩
+    · intro i hi
+      exact (hσ'.2.2 (ab + i) (fun u hu => by
+        rw [haddr u hu]
+        exact hne u (ab + i) hu (Or.inl ⟨by omega, by omega⟩))).trans (hreads.1 i hi)
+    · intro p hp i hi
+      exact (hσ'.2.2 (rb + p * I + i) (fun u hu => by
+        rw [haddr u hu]
+        exact hne u (rb + p * I + i) hu
+          (Or.inr (Or.inl ⟨by omega, by omega⟩)))).trans (hreads.2.1 p hp i hi)
+    · intro p hp
+      exact (hσ'.2.2 (mb + p) (fun u hu => by
+        rw [haddr u hu]
+        exact hne u (mb + p) hu (Or.inr (Or.inr ⟨by omega, by omega⟩)))).trans
+        (hreads.2.2 p hp)
+
 #print axioms bracketAccumulate_step#print axioms bracketAccumulate_step
+
+#print axioms bodyUpTo_succ
+#print axioms store_writes
+#print axioms store_keeps
+#print axioms rowUpTo_keep
+#print axioms rowUpTo_writesA
+#print axioms roundZero_writes
+#print axioms roundKeeps
+#print axioms wire_runs
+#print axioms wire_compose
+#print axioms bracketFinal_of_pins
+#print axioms WirePins_update
+#print axioms stageDelivers_of_slot
+#print axioms wire_from_slots
+
+end ThinMatrix.CallerWire
+#print axioms bracketAccumulate_step
 
 #print axioms bodyUpTo_succ
 #print axioms store_writes
