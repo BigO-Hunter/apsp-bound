@@ -199,6 +199,29 @@ theorem reads_persist {P I rb fr : ℕ} {μ μ' : ℕ → ℤ}
     rw [hkept (mb + p) ⟨hlt, hout⟩]
     exact hfl p hp
 
+/-! ## `MatInst.Pre`'s segments reach the cache's end memory -/
+
+/-- `MatInst.Pre`'s `segA`/`segB` reach the cache's end memory through the
+REPAIRED frame — the form of `Seg.of_kept` that `KeptBut` actually admits.
+
+`Seg.of_kept` (`Lang/Tasks.lean:75`) needs `Kept`, and the repaired cache frame
+is `KeptBut`, so it does not apply directly. What holds instead is
+`Seg.of_sameOn` on the sub-region `(· < out)`: a segment that ends at or below
+the start of the region the cache writes is outside every cell it changes, so it
+survives regardless of what the cache writes further up.
+
+This is exactly the reach route (c) needs, and it is why no extra premise is
+required to carry the caller's matrices across the cache call: for the universal
+body's layout `MatInst.Pre.belowA` gives `x.a + n*n ≤ fr` while the rows region
+begins at `rb = fr + n > fr`, so `x.a + l.length ≤ rb` holds with room to spare.
+Stated and proved here rather than asserted in prose, because "it re-derives by
+`Seg.of_kept`" was the version of this claim that was wrong before the frame
+repair. -/
+theorem seg_of_keptBut {μ μ' : ℕ → ℤ} {a fr out len : ℕ} {l : List ℤ}
+    (h : Seg μ a l) (hk : KeptBut μ μ' fr out len)
+    (hle : a + l.length ≤ fr) (hbelow : a + l.length ≤ out) : Seg μ' a l :=
+  h.of_sameOn hk fun i hi => ⟨by omega, Or.inl (by omega)⟩
+
 /- NAMED FILL 3 CONTENT (not proved here): the stage slot inside the
 composed caller program. A cache-first program layout shifts the driver's
 procedure indices (the driver's loop calls procedure 5 of `program cs`), so
@@ -211,5 +234,6 @@ together with FILL 2's finish pass. The slot itself is INHABITED:
 #print axioms image_of_kept_post
 #print axioms cacheReads_of_solves
 #print axioms reads_persist
+#print axioms seg_of_keptBut
 
 end ThinMatrix.CacheFill

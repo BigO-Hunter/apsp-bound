@@ -55,6 +55,11 @@ BUILD + VERDICTS (read from the log, never from a wrapper):
       'ThinMatrix.CacheFill.cacheReads_of_solves'    depends on axioms: [propext]
       'ThinMatrix.CacheFill.reads_persist'           depends on axioms: [propext, Quot.sound]
 
+  lake env lean -j1 CacheFill.lean      (with seg_of_keptBut added)
+    /private/tmp/apsp_c5.log   rc=0, attempt 1, 0 errors, 0 sorry,
+    olean 291224 bytes. Banner gains:
+      'ThinMatrix.CacheFill.seg_of_keptBut'  depends on axioms: [propext, Quot.sound]
+
   lake env lean -j1 CallerFill1Measure.lean
     /private/tmp/apsp_<tag>.log (see FILL1_CENSUS.md for the tag of record)
     — the doc-only correction in that file is re-verified there.
@@ -65,6 +70,11 @@ fcntl lock (/Volumes/Substrate-1/bigo/.build.lock), with kill-retry on
 transport deaths — this host was at 93 % swap with the lean-build governor in
 `enforce` mode, and elaborators were being SIGTERM'd in the 35-50 s window;
 a SIGTERM'd build is not a verdict about the proof.
+
+seg_of_keptBut is the reach route (c) needs for `MatInst.Pre`, PROVED rather
+than asserted: `Seg.of_kept` needs `Kept`, the repaired frame is `KeptBut`, and
+what applies is `Seg.of_sameOn` on the sub-region `(x < out)`. "It re-derives by
+Seg.of_kept" was the version of that claim that was wrong before the repair.
 
 REMAINING (route (c) proper, not claimed here): the 3-argument cache call
 before `univPrologue` in `mpBodyUniv`, the `cacheTime (n²) U` increment in
