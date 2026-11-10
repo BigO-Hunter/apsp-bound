@@ -243,3 +243,87 @@ Li Xuanji -> Wharton (QFEX) -> Hrishik Sai Bojnal) is the module header's,
 verbatim; the firing commit is the one that lands this receipt, and its SHA and
 this file's content hashes (blob + worktree) are recorded in the session report
 so the citation is verifiable rather than asserted. Do NOT post.
+
+FIFTH PASS (2026-11-10) — THE SOCKET INSTANTIATED, THE BUNDLE UN-OVER-NAMED
+=========================================================================
+Brick: instantiate the two `Need`s the bundle was still hypothesising
+(`need`, `cacheNeed`), close `NeedCovers`/`PolyNeed` at the one witness term,
+and DERIVE the two resource sockets (`hokC`, `hokS`) instead of naming them.
+
+WHAT LANDED (each `#print axioms` = [propext, Classical.choice, Quot.sound])
+
+  * `pow_signedLevels_le (U) : 2 ^ signedLevels U ≤ 4*U + 2` — the two landed
+    sides (`pow_pred_signed_levels_le`, `two_mul_lt_pow_signed_levels`) doubled.
+    Stated at `4U + 2`, NOT `4U`, so the degenerate `U = 0` (where
+    `signedLevels 0 = 1`) is INCLUDED: `2 ≤ 2`. The census's `2^signedLevels U
+    ≤ 4U` silently excluded that case.
+  * `abbrev univSocket s U := Light.DenseRestartSelectionLoop.need s U`
+    (word `(s+1)(U+1)+1`, cells `0`, depth `4`) — the STACK-SHAPED socket:
+    everything this body calls sits at the same stack top and writes below its
+    own free pointer.
+  * `def univNeed n U := ⟨(n²+4n+5)(U+1)+8, n²+4n+8, 5⟩`.
+  * `NeedCovers` grows from six numeric facts to eight: the nested STAGE
+    socket's word (`stackWord (stageSize n) U`) and the nested socket's DEPTH
+    (`1 + 4 ≤ depth`). Both are what makes the two sockets derived rather than
+    named.
+  * `stackSocket_ok` — ONE lemma, both sockets: given
+    `(need x.n x.U).Ok lim fr d` + `NeedCovers` and `s ≤ stageSize x.n`,
+    `(univSocket s x.U).Ok lim (LTop x fr) (d + 1)`. Applied at `s = n²` it IS
+    `hokC`; at `s = n² + 4n` it IS `hokS`.
+  * `needCovers_univNeed` — all eight facts, monotonicity + `omega`.
+  * `polyNeed_univNeed` — `unfold univNeed; poly_need []`.
+  * `twinUniv_socket` — the twin at `need := univNeed`: hypothesis list is now
+    the bundle + `hdom` ONLY.
+
+TWO CORRECTIONS TO THE CENSUS, DISCLOSED (FILL1_CENSUS.md row 9 chose
+`⟨(n²+4n+1)(U+1)+8, n²+4n+8, 1⟩`):
+  1. `depth = 1` is WRONG. The stage's socket is
+     `DenseRestartSelectionLoop.need` = `depth := 4`, asked at `d + 1`, so the
+     caller needs `d + 1 + 4 ≤ lim.depth`; `depth = 1` supplies `d + 1` only.
+     (The census checked `1 ≤ depth` — the wrong question.)
+  2. the `(n²+4n+1)` bracket is WRONG at `n = 0`: `NeedCovers` quantifies over
+     every `MatInst`, and at `n = 0` that word is `U + 9`, which does not
+     dominate `4U + 2` for `U ≥ 3`. The `+5` bracket gives `5U + 13`, which
+     does, and costs nothing (the slack was already there).
+
+BUNDLE SHAPE CHANGE (disclosed, not silent): `UnivBundle` loses its
+`cacheNeed` parameter (conjunct 1 is at `univSocket`) and three of its nine
+conjuncts — `hokC`, `hokS` (both derived in `univSolves`) and `hflag` (at
+`k := 0` it is `0 ≤ card`, proved inline). Constructing the cache boundary at a
+FIXED socket is a STRENGTHENING of the premise (a caller may no longer pick a
+looser one), so the reduction stays sound. `cacheTime` deliberately stays a
+parameter: it is the cache solver's clock, part of that boundary.
+
+SOCKET DISCLOSURE: `cells = 0` says the cache writes only below its own free
+pointer (`cacheTask.Pre` puts the rows region there); `depth = 4` is the
+stage driver's nesting; the word covers the row counts. The caller's socket has
+EIGHT cells of slack above the stack (`cells = n²+4n+8` vs a stack of `4n+n²`),
+so an L2/L3 cache body needing scratch may take up to eight cells without
+touching this composition.
+
+BUILD RECEIPT
+-------------
+Workspace .machine-build/machine, Lean 4.33.1, mathlib 0df444a360eaa60.
+  nice -n 19 lake env lean -j1 CallerUniversalBody.lean \
+      -o .lake/build/lib/lean/CallerUniversalBody.olean
+  attempt 1, rc=0, 0 errors, 0 sorryAx, olean 4,590,768 bytes
+  log /private/tmp/apsp_univ7.log ; re-run receipt /private/tmp/apsp_univ7b.log (rc=0)
+Importer re-checked after the shape change:
+  nice -n 19 lake env lean -j1 CallerFill1Measure.lean   → 0 errors
+  log /private/tmp/apsp_fill1b.log
+
+Axiom banner (standard 3, no sorryAx):
+  'univSolves'          [propext, Classical.choice, Quot.sound]
+  'twinUniv_of'         [propext, Classical.choice, Quot.sound]
+  'twinUniv_socket'     [propext, Classical.choice, Quot.sound]
+  'stackSocket_ok'      [propext, Classical.choice, Quot.sound]
+  'needCovers_univNeed' [propext, Classical.choice, Quot.sound]
+  'polyNeed_univNeed'   [propext, Classical.choice, Quot.sound]
+  'pow_signedLevels_le' [propext, Classical.choice, Quot.sound]
+
+CHAIN STATE AFTER THIS PASS
+---------------------------
+  Supply the bundle (cache boundary + stage slot + `hret` + `hTt` + `hident` +
+  `hkept`) and `hdom`, and `twinUniv_socket` fires the filing bound. Nothing
+  in the need/socket layer remains a hypothesis. D7's boundary stands: no
+  oracle, no cache body, no (min,+) product is proved here.

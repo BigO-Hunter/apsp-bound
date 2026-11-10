@@ -2,7 +2,8 @@
 
 Lane: `wip-summit-body` (apsp-l1), `/Volumes/Substrate-1/bigo/apsp-l1-work`.
 Bench: `.machine-build/machine`, Lean 4.33.1, mathlib `0df444a360eaa60`.
-Base of this draft: the commit that repairs `hflag` (parent `76605d0`).
+Base of this draft: `9298c40` (the cache call landed end to end), plus the fifth
+pass on 2026-11-10 (the socket instantiated, the bundle un-over-named).
 
 ## The label, stated first and honestly
 
@@ -20,7 +21,7 @@ Distinguish three things this lane can and cannot say:
 
 | claim | status |
 |---|---|
-| `(premises) → EndStatement.APSP.SolvedInTime (2994999/1000000)` is PROVED | **yes** — `ThinMatrix.CallerUniversalBody.twinUniv_of`, axioms `[propext, Classical.choice, Quot.sound]` only, 0 `sorry` |
+| `(premises) → EndStatement.APSP.SolvedInTime (2994999/1000000)` is PROVED | **yes** — `ThinMatrix.CallerUniversalBody.twinUniv_of`, and at the one witness term `twinUniv_socket`; axioms `[propext, Classical.choice, Quot.sound]` only, 0 `sorry`, 0 `sorryAx` |
 | the premise bundle is INHABITED | **no** — not witnessed. Post-repair it is *consistent with* the premises (no longer refuted); inhabitance is unproved |
 | the row is `Verified` | **no** — four named premises remain, three of them D7's boundary |
 
@@ -28,16 +29,34 @@ The one thing that changed on 2026-11-10: the bundle is no longer
 **UNSATISFIABLE**. Before the repair its flag conjunct was false and the
 reduction was vacuous-as-green. After it, satisfiability is merely unproved.
 
+The second thing that changed later on 2026-11-10 (fifth pass): the bundle is
+also no longer **OVER-NAMED**. Its flag conjunct is gone (a tautology at
+`k := 0`) and its two resource sockets are DERIVED from one witness term
+(`stackSocket_ok`), so the bundle states five things instead of nine, and the
+`need` socket is instantiated rather than hypothesised (`twinUniv_socket`).
+
 ## The root shape
 
 ```lean
-theorem twinUniv_of (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
-    (need : ℕ → ℕ → Light.Need)
-    (hb : UnivBundle stage cacheProg restoreProg cs need)
+theorem twinUniv_of (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Program)
+    (cs : Inst) (need : ℕ → ℕ → Light.Need) (cacheTime : ℕ → ℕ → ℕ)
+    (hb : UnivBundle stage cacheProc cacheProg restoreProg cs cacheTime need)
     (hcov : NeedCovers need)
     (hn : Light.PolyNeed need)
     (hdom : ∀ κ : Nat, ∃ (k : Nat) (C : Real), ∀ᶠ n : Nat in atTop,
-      Light.timeUpTo (Light.Sec3.apTime univTn) n ((n : Real) ^ (κ : Real)) ≤
+      Light.timeUpTo (Light.Sec3.apTime (univTn cacheTime)) n ((n : Real) ^ (κ : Real)) ≤
+        C * AsymptoticCosts.completeCost k n) :
+    EndStatement.APSP.SolvedInTime ((2994999 : Rat) / 1000000)
+```
+
+and the FILING form, with the socket instantiated at the one witness term:
+
+```lean
+theorem twinUniv_socket (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Program)
+    (cs : Inst) (cacheTime : ℕ → ℕ → ℕ)
+    (hb : UnivBundle stage cacheProc cacheProg restoreProg cs cacheTime univNeed)
+    (hdom : ∀ κ : Nat, ∃ (k : Nat) (C : Real), ∀ᶠ n : Nat in atTop,
+      Light.timeUpTo (Light.Sec3.apTime (univTn cacheTime)) n ((n : Real) ^ (κ : Real)) ≤
         C * AsymptoticCosts.completeCost k n) :
     EndStatement.APSP.SolvedInTime ((2994999 : Rat) / 1000000)
 ```
@@ -47,30 +66,55 @@ theorem twinUniv_of (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : 
 landed `Race.bound (((1497780383 : Rat) / 500000000))` in
 `verified/Submission.lean:25`. The composition is
 `ThinMatrix.Twin.race_bound` (`TwinRaceBound.lean:48`) at
-`P := callerProgramUniv stage cacheProg restoreProg cs`, `p := 0`,
-`Tn := univTn`.
+`P := callerProgramUniv stage cacheProc cacheProg restoreProg cs`, `p := 0`,
+`Tn := univTn cacheTime`.
 
 ## The premise list — four named, everything else closed or routed
+
+The four, stated as the ONE theorem that fires (`twinUniv_socket`):
+
+1. **the cache boundary** — `Light.Solves cacheTask cacheProg cacheProc cacheTime univSocket`
+   (`UnivBundle`'s conjunct 1). This is D7's cache slot, at the stack-shaped
+   socket (see the fifth-pass section). It is the ONLY named premise that is a
+   *solver contract* rather than an oracle fact.
+2. `hret` — the oracle's return (bundle conjunct 2).
+3. `hTt` — the tight clock, `Tt 0 ≤ callerTt x.n` (bundle conjunct 3). Index
+   `0`, not `x.n`: `k := 0` is forced by the mask-generic flag budget.
+4. `hident` — `MinPlusIdentity`, the head's delivery is every entry (bundle
+   conjunct 4).
+
+Plus `hdom` (class (iii)): the `completeCost` domination for `univTn`. It is
+the fourth hypothesis of `twinUniv_socket` and is NOT a bundle conjunct.
+
+Everything else is closed: `NeedCovers` and `PolyNeed` are THEOREMS at the
+witness term, and the two resource sockets (`hokC`, `hokS`) and the flag budget
+(`hflag`) are no longer named at all.
 
 ### Named, class (ii) — D7's oracle/cache/identity boundary ("upstream's own")
 
 | # | premise | site | why it cannot be closed here |
 |---|---|---|---|
-| 1 | **FILL 1 rows image** — `∀ p < x.n, ∀ i < x.n, ((rows p i : ℕ) : ℤ) = μ (fr + x.n + p·x.n + i)` | `CallerUniversalBody.lean:1752` | **The CACHE-BOUNDARY route (c).** The image *is* `cacheTask.Post`'s first conjunct. Two direct routes were measured and both fail (`FILL1_CENSUS.md` §1): the copy pass costs `13n²+6n` against `n+12` slack, and `rb := x.a` contradicts `MatInst.Pre.belowA`. The producer is the cache call: `CacheFill.cacheReads_of_solves` (**landed**, `CacheFill.lean:149`) turns `Light.Solves cacheTask cacheProg …` into that reads clause, and `CacheFill.reads_persist` (**landed**, `CacheFill.lean:175`) carries it through the cache's frame. **The call itself is UNLANDED** — see route (c) state below. The cache slot is already pre-wired in the bundle's shape (`cacheProg : Light.Program` is a parameter). **This premise is producible only because the cache task's FRAME was repaired on 2026-11-10 — see "The frame repair" below; with the frame shape the lane first carried, route (c) renamed this premise instead of discharging it.** |
-| 2 | `hret` — the oracle's return: the delivery is the bracket fold seeded at row `t`'s head | `:1756` | the oracle functional chain (shresh's construction) supplies it; not instance arithmetic |
-| 3 | `hTt` — the tight clock: `Tt 0 ≤ callerTt x.n` | `:1773` | producer = the re-clocked selection round's `solvedIn`. Not derivable from `taskTime (instanceSize …)` (that is `~100n⁴ ≫ 25n²`). **Post-repair the index is `0`, not `x.n`** — see the repair note |
-| 4 | `hident` — `MinPlusIdentity` (the head's delivery is every entry) | `:1774` | D7's construction identity |
+| 1 | **the CACHE boundary** — `Solves cacheTask cacheProg cacheProc cacheTime univSocket` | `CallerUniversalBody.lean:1972` | **The CACHE-BOUNDARY route (c), now WIRED (commit `9298c40`).** The rows image *is* `cacheTask.Post`'s first conjunct, and the entry body CALLS the cache for it: `CacheFill.cacheReads_of_solves` (**landed**, `CacheFill.lean:149`) turns the `Solves` premise into that reads clause, and `reads_persist` (`CacheFill.lean:175`) carries it through the cache's `KeptBut` frame. What remains here is the cache's own body (the L2/L3 cone), which is upstream's — this lane composes against its contract and does not claim it. The socket is DISCLOSED in the fifth-pass section: `univSocket` = zero cells of its own, `(n²+1)(U+1)+1` word, four call levels. |
+| 2 | `hret` — the oracle's return: the delivery is the bracket fold seeded at row `t`'s head | `:1967` | the oracle functional chain (shresh's construction) supplies it; not instance arithmetic |
+| 3 | `hTt` — the tight clock: `Tt 0 ≤ callerTt x.n` | `:1967` | producer = the re-clocked selection round's `solvedIn`. Not derivable from `taskTime (instanceSize …)` (that is `~100n⁴ ≫ 25n²`). The index is `0`, not `x.n` |
+| 4 | `hident` — `MinPlusIdentity` (the head's delivery is every entry) | `:1968` | D7's construction identity |
 
-### Closed or routed, class (i) — the argument is given, the proof is not all written
+### Closed outright — the fifth pass turned these into theorems
 
 | premise | site | state |
 |---|---|---|
-| `UnivSlot` at `k := 0` (certified stage socket) | `:1753` | `stageSlot_any` is **landed**; `hAR`/`hfl` from the prologue's two passes, `hlay` from the layout ring, `hok` from `Ok`+`NeedCovers`. Its `hRR` is premise 1 |
-| `hflag` — the flag budget | `:1763` | **REPAIRED and now a tautology**: `∀ mask', 0 ≤ (flagged x.n mask').card`. No longer a premise at all. Receipts `hflag_shape_true_zero`, `refuted_mask_now_satisfies` |
-| `hok` — the stage's own `need` fits the limits | `:1764` | **routed**: closes with the witness `need` below + `Need.Ok.mono` |
-| `hkept` — `KeptBut` frame | `:1777` | **routed**: write set `{x.c} ⊆ [x.c, x.c+n²)` by `Pre.belowC`; prologue writes at `ab = fr` and above |
-| `NeedCovers need` | `:1783` | **routed, witness chosen**: see below |
-| `PolyNeed need` | `:1913` | **routed**: the `poly_need []` tactic at the same witness |
+| `hflag` — the flag budget | — | **GONE from the bundle.** At `k := 0` it reads `0 ≤ (flagged _ _).card`; `univSolves` proves it by `fun _ => Nat.zero_le _`. The earlier draft's "no longer a premise at all" is now literally true of the tree |
+| `hokC` — the cache's resource socket | — | **DERIVED.** `stackSocket_ok` at `s = n²` from the caller's own `Ok` + `NeedCovers` |
+| `hokS` — the stage's resource socket | — | **DERIVED.** `stackSocket_ok` at `s = n² + 4n` — the same lemma, the same instance |
+| `NeedCovers need` | — | **PROVED at the witness**: `needCovers_univNeed` (8 numeric facts) |
+| `Light.PolyNeed need` | — | **PROVED at the witness**: `polyNeed_univNeed` (`unfold univNeed; poly_need []`) |
+
+### Still argument, not all-written — the bundle's remaining conjuncts
+
+| premise | site | state |
+|---|---|---|
+| `UnivSlot` at `k := 0` (certified stage socket) | `:1959` | closed by the bundle's inhabitant: `stageSlot_any` is **landed**; `hAR`/`hfl` from the prologue's two passes, `hlay` from the layout ring. Its `hRR` was premise 1 and is now supplied by the cache call's post |
+| `hkept` — `KeptBut` frame | `:1971` | closed by the bundle's inhabitant: write set `{x.c} ⊆ [x.c, x.c+n²)` by `Pre.belowC`; prologue writes at `ab = fr` and above |
 
 ### Class (iii) — image arithmetic / domination
 
@@ -80,20 +124,38 @@ landed `Race.bound (((1497780383 : Rat) / 500000000))` in
 
 ## The need witness
 
-One witness closes `NeedCovers`'s six numeric facts, `hok`, and `PolyNeed`:
+One term, and it closes `NeedCovers`'s eight numeric facts and `PolyNeed` — both
+are theorems now, not routing notes:
 
 ```lean
-need := fun n U => ⟨(n^2 + 4*n + 1) * (U + 1) + 8,   -- word
-                     n^2 + 4*n + 8,                   -- cells
-                     1⟩                               -- depth
+def univNeed (n U : ℕ) : Light.Need where
+  word  := (n*n + 4*n + 5) * (U + 1) + 8      -- the stage socket's word at n²+4n, with an n = 0 floor
+  cells := n*n + 4*n + 8                      -- the prologue's five-region stack + 8 cells of slack
+  depth := 5                                  -- this body's level + the nested socket's four
 ```
 
-`cells = n²+4n+8` covers `4n + n² ≤ cells`; `word ≥ (n²+4n+1)(U+1)+1` is the
-stage's own `need` at `instanceSize = n²+4n`, comfortably above `2U+1`,
-`mpRounds U ≤ 4U+2` and `2^signedLevels U ≤ 4U` (from the landed
-`pow_pred_signed_levels_le` and `two_mul_lt_pow_signed_levels`); `depth = 1`
-satisfies `1 ≤ depth`. Under `Need.Ok.mono` the same witness serves every
-`kt`.
+`cells = n²+4n+8` covers `4n + n² ≤ cells`; `word` dominates `2U+1`, `mpRounds U ≤ 2·log₂U + 6`,
+`2^signedLevels U ≤ 4U+2` (from `pow_signedLevels_le`, i.e. the landed
+`pow_pred_signed_levels_le` + `two_mul_lt_pow_signed_levels`), and the nested stage
+socket's own word `(n²+4n+1)(U+1)+1`; `depth = 5` covers the stage's four levels
+one call down.
+
+**Two corrections to the census's literal term, disclosed because they are
+corrections.** `FILL1_CENSUS.md` row 9 carries
+`⟨(n²+4n+1)(U+1)+8, n²+4n+8, 1⟩`. Both differences matter:
+
+* the `depth = 1` is WRONG for this bundle. The stage's socket is
+  `Light.DenseRestartSelectionLoop.need` — `depth := 4` — asked at `d + 1`, so
+  the caller's socket must satisfy `d + 1 + 4 ≤ lim.depth`; `depth = 1` gives
+  only `d + 1`. (It was "1 ≤ depth" in the coverage list, which is what the
+  census checked — the wrong question.)
+* the `(n²+4n+1)` bracket is WRONG at `n = 0`: `NeedCovers` quantifies over
+  every `MatInst`, and at `n = 0` the census word is `U + 9`, which does not
+  dominate `4U + 2` for `U ≥ 3`. The `+5` bracket gives `5U + 13`, which does.
+  The `+5` costs nothing (the slack was already there).
+
+`polyNeed_univNeed` is `unfold univNeed; poly_need []` — the same tactic the
+stage's own need uses.
 
 ## The repair that unblocked this draft (2026-11-10)
 
@@ -197,17 +259,54 @@ names and the shape the board's D7 vocabulary recognises. Callers of the
 bundle then owe `Light.Solves cacheTask …` rather than an
 `∀ p < n, ∀ i < n, μ (…) = rows p i` they could not justify.
 
-**LANDED SO FAR (2026-11-10, third pass — the swap itself is NOT landed).**
-Green in `CallerUniversalBody`, no `sorryAx`, each `#print axioms` =
-[propext, Classical.choice, Quot.sound]: `univCacheArgs` +
-`univCacheArgs_val` (the call's four frame values `[n, n, fr + n,
-fr + 4n + n²]`, evaluated and proved); `cacheSolves_composed` (the cache's
-`Solves` at `callerProgramUniv`, procedure `1 + cacheProc`, body shifted —
-`Solves` → `Ends.append` → `Ends.shift_append`); and the clock (`univTn`
-takes `cacheTime`; `univTn_le` carries the cache's share as a hypothesis,
-without which its conclusion is false). Not landed: the entry body's call,
-`UnivBundle`'s conjunct-1 swap, and the derived `hfill`. The obstruction and
-the cure are in `CallerUniversalBody.verification.txt`.
+**LANDED, FOURTH PASS (`9298c40`) — the swap itself IS landed.** The cache
+call is in the entry body: `entryBodyUniv = call (cacheProcInP cacheProc)
+univCacheArgs Tmp ;; .set Tmp (k 0) ;; mpBodyUniv stage`, `UnivBundle`'s
+conjunct 1 is `Solves cacheTask cacheProg cacheProc cacheTime …`, and the rows
+image is taken from the cache's post, not asserted on `μ`. The `Tmp` reset's two
+steps fold into `univCallB := 16 + 2`. Earlier landed: `univCacheArgs` +
+`univCacheArgs_val` (the call's four frame values `[n, n, fr + n, fr + 4n + n²]`,
+evaluated and proved); `cacheSolves_composed` (the cache's `Solves` at
+`callerProgramUniv`, procedure `1 + cacheProc`, body shifted — `Solves` →
+`Ends.append` → `Ends.shift_append`); and the clock (`univTn` takes `cacheTime`;
+`univTn_le` carries the cache's share as a hypothesis, without which its
+conclusion is false).
+
+## THE FIFTH PASS (2026-11-10, this one) — the socket instantiated, the bundle un-over-named
+
+The bounded brick after the call: `need` and `cacheNeed` are no longer
+hypotheses. What changed in `CallerUniversalBody.lean`:
+
+| before | after |
+|---|---|
+| `UnivBundle … cacheTime cacheNeed need`, conjunct 1 at a free `cacheNeed` | `UnivBundle … cacheTime need`, conjunct 1 at `univSocket` |
+| `cacheNeed` a parameter of `univSolves` / `twinUniv_of` | GONE — the socket is `univSocket` |
+| `hokC` (cache socket) a bundle conjunct | **derived** by `stackSocket_ok` at `s = n²` |
+| `hokS` (stage socket) a bundle conjunct | **derived** by `stackSocket_ok` at `s = n² + 4n` |
+| `hflag` a bundle conjunct | **gone** — `0 ≤ card`, proved inline |
+| `NeedCovers` a hypothesis, six facts | **theorem** `needCovers_univNeed`, eight facts |
+| `PolyNeed` a hypothesis | **theorem** `polyNeed_univNeed` |
+| — | **`twinUniv_socket`** — the twin at `need := univNeed`, with only the bundle + `hdom` |
+
+So the bundle states FIVE things (the cache boundary, the stage slot, `hret`,
+`hTt`, `hident`, `hkept` — six conjuncts, one of them the cache boundary) where
+it stated nine, and the filing theorem's hypothesis list is
+`bundle + hdom`.
+
+**THE SOCKET IS DISCLOSED, because it is a claim about a body this lane does not
+have.** `univSocket s U = Light.DenseRestartSelectionLoop.need s U` —
+`word := (s+1)(U+1)+1`, `cells := 0`, `depth := 4`. `cells = 0` says the cache
+writes only BELOW its own free pointer (`cacheTask.Pre` puts the whole rows
+region there) and needs no stack of its own; `depth = 4` is the same nesting the
+stage's driver has; the word covers the row counts. The caller's socket has
+EIGHT cells of slack above the stack (`cells = n²+4n+8` against a stack of
+`4n+n²`), so if the L2/L3 cache body needs scratch it can take up to eight cells
+for free — that is the one socket adjustment this composition absorbs without
+touching anything. Beyond that, the socket is D7's to raise, and raising it is
+a visible edit to `univSocket`, not a hidden one.
+
+Receipts: `CallerUniversalBody.verification.txt` (fifth-pass section);
+`/private/tmp/apsp_univ7.log` (rc=0, `lake env lean -j1`, 0 errors, 0 `sorry`).
 
 Verified signatures (read from the tree at `ea7e86d`, not assumed):
 
@@ -229,18 +328,24 @@ Verified signatures (read from the tree at `ea7e86d`, not assumed):
 ## What a reviewer should check before this becomes `Verified`
 
 1. Inhabitance. Nobody has exhibited `tests, Tt, rows` discharging `hslot`,
-   `hret`, `hident`, `hkept`. Until someone does, the twin is a conditional.
-2. Route (c)'s call. The rows image is the only premise with a *cheap
-   mechanical* producer left, and it is STILL not wired: `mpBodyUniv` does not
-   call the cache, `UnivBundle`'s conjunct 1 is still the flat image, and
-   `univSolves` still takes it from the bundle. What IS wired: the cache
-   task's frame repair (`ea7e86d`) — without which the call would have renamed
-   the premise rather than produced it — plus its three mechanical
-   prerequisites (`univCacheArgs_val`, `cacheSolves_composed`, and the clock in
-   `univTn`/`univTn_le`). A reviewer should check the frame and the clock's
-   hypothesis, and should NOT read the three landed pieces as the call.
-3. `hdom` under route (c)'s extra clock.
-4. That this file's label is not quietly upgraded to `Verified` on the way to
+   `hret`, `hident`, `hkept`, nor a `cacheProg`/`cacheProc` discharging the
+   cache boundary. Until someone does, the twin is a conditional. Note what is
+   NO LONGER part of this: `hokC`/`hokS` (derived), `hflag` (tautology),
+   `NeedCovers` and `PolyNeed` (proved at the witness).
+2. Route (c)'s call. It IS wired now (`9298c40`): `entryBodyUniv` calls the
+   cache, `UnivBundle`'s conjunct 1 is the cache's `Solves`, and `hrows`
+   comes from the call's post. What a reviewer should check is the SEQUENCING,
+   which is where the earlier version was wrong twice: the frame repair
+   (`ea7e86d`) had to land first, or the call renames the premise instead of
+   producing it. Also check the disclosed socket (fifth-pass section) — that is
+   a claim about the cache body, which this lane does not have.
+3. The two socket derivations. `stackSocket_ok` is one lemma applied twice; a
+   reviewer should confirm that the STAGE's socket really is
+   `DenseRestartSelectionLoop.need` at `instanceSize = n² + 4n` (the
+   `depth := 4` is what forces `need.depth = 5`, and the census's `depth = 1`
+   was wrong), and that `NeedCovers` really is closed at `n = 0`.
+4. `hdom` under route (c)'s extra clock.
+5. That this file's label is not quietly upgraded to `Verified` on the way to
    the board. It is a Claimed row.
 
 D7's boundary stands throughout: no oracle, no cache body, no (min,+) product

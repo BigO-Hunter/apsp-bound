@@ -1400,6 +1400,25 @@ theorem two_mul_lt_pow_signed_levels (W : ℕ) : 2 * W < 2 ^ signedLevels W := b
   rw [h1]
   simpa [Nat.succ_eq_add_one] using h
 
+/-- The level count fits a word of `4U + 2`: the two sides above, doubled.
+This is the form `NeedCovers` consumes (the `2^signedLevels U` item of the
+census's six facts), and it is stated at `2·` so that the degenerate `U = 0`
+is INCLUDED rather than silently excluded — there `signedLevels 0 = 1` and the
+bound reads `2 ≤ 2`. -/
+theorem pow_signedLevels_le (U : ℕ) : 2 ^ signedLevels U ≤ 4 * U + 2 := by
+  rcases Nat.eq_zero_or_pos U with h0 | hpos
+  · subst h0
+    have : signedLevels 0 = 1 := by unfold signedLevels; simp
+    rw [this]
+    omega
+  · have hpred := pow_pred_signed_levels_le U (by omega)
+    have hs : signedLevels U = (signedLevels U - 1) + 1 := by
+      have := signedLevels_pos U; omega
+    rw [hs, Nat.pow_succ]
+    have : 2 ^ (signedLevels U - 1) * 2 ≤ (2 * U) * 2 :=
+      Nat.mul_le_mul_right 2 hpred
+    omega
+
 /-- THE WIRE'S DISCHARGE (PRODUCT_BODY.md §5 — the lane's last named seam):
 `WireUnivTarget`, by `Ends.while` at `signedLevels W` iterations, invariant
 `UnivInvAll`, constant per-iteration budget `univLevelB n`, body
@@ -1866,6 +1885,45 @@ TWO FILLS ARE NAMED, NOT FAKED:
   conversion; D7's boundary): the head's delivery is every entry.
 -/
 
+/-! ### The stack-shaped socket (the nested calls' resource shape)
+
+Every procedure this body CALLS sits at the same stack top `LTop x fr = fr + 4n + n²`
+and writes its output BELOW its own free pointer, so all of them share one socket
+shape: `Light.DenseRestartSelectionLoop.need`'s — a word big enough for the
+instance's own numbers, ZERO cells of its own stack, and the round's four call
+levels. `univSocket` is that shape; the cache's `cacheNeed` and the stage's
+`hokS` are the SAME function at the two nested sizes (`n²` and `n² + 4n`). -/
+
+/-- The stack-shaped socket at size `s` and word bound `U`: `(s+1)(U+1)+1` word,
+zero cells of its own, four call levels. Definitionally the stage driver's own
+`Light.DenseRestartSelectionLoop.need`. -/
+abbrev univSocket (s U : ℕ) : Light.Need := Light.DenseRestartSelectionLoop.need s U
+
+/-- The stage's `instanceSize` at the caller's call site (`P = I = n`): `n² + 4n`
+(the round's own `candidates·length + 2·candidates + 2·length`). -/
+def stageSize (n : ℕ) : ℕ := n * n + 2 * n + 2 * n
+
+/-- The socket's word at size `s`. -/
+def stackWord (s U : ℕ) : ℕ := (s + 1) * (U + 1) + 1
+
+/-- THE UNIVERSAL BODY'S OWN SOCKET — the one witness term, chosen once.
+
+`cells = n² + 4n + 8` is the prologue's five-region stack (`fr` to `fr + 4n + n²`)
+plus the eight cells of slack the cache call's own socket may ever want;
+`word` is the stage's socket word at `instanceSize = n² + 4n` with the constant
+floor that makes the SAME term correct at the degenerate size `n = 0` (where the
+census's literal `(n²+4n+1)(U+1)+8` was 8 short of `mpRounds U` and of
+`2^signedLevels U`: `(n²+4n+5)(U+1)+8 = 5U+13` at `n = 0` dominates `4U+2`);
+`depth = 5` is one level (this body) plus the socket's four.
+
+The census (`FILL1_CENSUS.md` row 9) chose the same term without the `n = 0`
+floor and with `depth = 1`; both are corrected here rather than carried, for
+the reasons in `needCovers_univNeed`'s two `n = 0` arms. -/
+def univNeed (n U : ℕ) : Light.Need where
+  word := (n * n + 4 * n + 5) * (U + 1) + 8
+  cells := n * n + 4 * n + 8
+  depth := 5
+
 /-- THE BUNDLE — D7's named premises, universally closed at the stacked layout.
 
 THE FIRST CONJUNCT IS THE CACHE'S OWN SOLVER (cures (c)/(d), 2026-11-10).
@@ -1881,30 +1939,40 @@ the cache post's two halves directly (`hrows`, `hkeep`).
 For every instance, oracle data (`tests`, the stage clock `Tt`) and the rows
 table exist and:
 
-1. the CACHE's resource socket (`hokC`) at the stack top, at depth `d + 1`
-   (the entry body calls the cache at `d + 1`);
-2. the certified stage socket (`UnivSlot`, byte-identical premises to the
+1. the certified stage socket (`UnivSlot`, byte-identical premises to the
    landed wire's `hslots`) at the prologue's layout, stage free pointer = the
    stack top;
-3. the oracle's return premise (`hret`: the delivery is the bracket fold seeded
+2. the oracle's return premise (`hret`: the delivery is the bracket fold seeded
    at row `t`'s head);
-4. the flag budget (`hflag`);
-5. the stage's own resource socket (`hok`) at the stack top;
-6. the stage clock inside the certified per-candidate clock (`hTtk`);
-7. THE IDENTITY (D7's boundary) — the head's delivery is every entry;
-8. the frame half (`KeptBut`) — the named remainder. -/
+3. the stage clock inside the certified per-candidate clock (`hTtk`);
+4. THE IDENTITY (D7's boundary) — the head's delivery is every entry;
+5. the frame half (`KeptBut`) — the named remainder.
+
+THE TWO NESTED SOCKETS ARE DERIVED, NOT NAMED (2026-11-10, fifth pass).
+The bundle used to carry `hokC` (the CACHE's resource socket at the stack top,
+depth `d + 1`) and `hokS` (the STAGE's, same place, same depth) as conjuncts,
+and `cacheNeed` as a free parameter. Both sockets are numeric consequences of
+the caller's own socket and of `NeedCovers`, once the cache's conventional
+socket is fixed: the cache is called at the stack top with the rows region
+BELOW its own free pointer (`cacheTask.Pre`), so it needs no cells of its own
+and its shape is exactly the stack-shaped one — `univSocket`, which IS
+`Light.DenseRestartSelectionLoop.need` — while the stage's socket is that same
+function at `instanceSize = n² + 4n`. One lemma, `stackSocket_ok`, derives
+both from `(need x.n x.U).Ok lim fr d` plus `NeedCovers`; `univSolves` is
+where the derivation happens, so the bundle no longer names either. The flag
+budget (`hflag`) is gone for the same reason: at `k := 0` it reads
+`0 ≤ (flagged _ _).card`, a tautology. -/
 def UnivBundle (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
-    (cacheTime : ℕ → ℕ → ℕ) (cacheNeed : ℕ → ℕ → Light.Need)
+    (cacheTime : ℕ → ℕ → ℕ)
     (need : ℕ → ℕ → Light.Need) : Prop :=
   -- FILL 1 IS A PROGRAM OBLIGATION NOW, NOT AN IMAGE PREMISE: the entry body
   -- CALLS the cache, so the bundle demands the cache's solver contract and
-  -- takes the rows image from that call's post.
-  Light.Solves cacheTask cacheProg cacheProc cacheTime cacheNeed ∧
+  -- takes the rows image from that call's post. The cache's socket is the
+  -- STACK-SHAPED one (`univSocket`), which is what makes `hokC` derivable.
+  Light.Solves cacheTask cacheProg cacheProc cacheTime univSocket ∧
   ∀ (R : Light.Program) (lim : Limits) (d : ℕ) (x : MatInst) (μ : ℕ → ℤ) (fr : ℕ),
     x.Pre μ fr → (need x.n x.U).Ok lim fr d →
     ∃ (tests : ℕ → Bool × Bool) (Tt : ℕ → ℕ) (rows : ℕ → ℕ → ℕ),
-      -- the CACHE's resource socket at the stack top, one call level deeper
-      (cacheNeed (x.n * x.n) x.U).Ok lim (LTop x fr) (d + 1) ∧
       @UnivSlot lim d x.n 0 x.n x.U (fun _ => true) (rows)
           fr (fr + x.n) (LRow x fr) (LRem x fr) (LBase x fr) (LTop x fr)
           stage cacheProc cacheProg restoreProg cs R Tt ∧
@@ -1915,16 +1983,6 @@ def UnivBundle (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Program) (
             (remaining := mask') (rows := rows) (ab := fr) (rb := fr + x.n)
             (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)) μ' μ'' →
         r' = bracketAccumulate (μ' (x.c + t' * x.n)) tests (mpRounds x.U)) ∧
-      (∀ mask' : ℕ → Bool, 0 ≤ (flagged x.n mask').card) ∧
-      (∀ (mask' : ℕ → Bool) (kt : ℕ),
-        (Light.DenseRestartSelectionLoop.need (instanceSize (callSite (P := x.n) (R := kt) (I := x.n) (h := x.U)
-            (active := fun _ => true) (remaining := mask') (rows := rows)
-            (ab := fr) (rb := fr + x.n) (sb := LRow x fr) (mb := LRem x fr)
-            (bb := LBase x fr)))
-          (callSite (P := x.n) (R := kt) (I := x.n) (h := x.U) (active := fun _ => true)
-            (remaining := mask') (rows := rows) (ab := fr) (rb := fr + x.n)
-            (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)).height).Ok lim
-          (LTop x fr) (d + 1)) ∧
       Tt 0 ≤ callerTt x.n ∧
       (∀ (σ' : State), UnivPins lim (univProloguePins x fr) x x.U σ' →
         σ'.mem x.c = bracketAccumulate (μ x.c) tests (mpRounds x.U) →
@@ -1933,8 +1991,16 @@ def UnivBundle (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Program) (
         σ'.mem x.c = bracketAccumulate (μ x.c) tests (mpRounds x.U) →
         KeptBut μ σ'.mem fr x.c (x.n * x.n))
 
-/-- THE NEED'S COVERAGE — the six numeric facts `Need.Ok` alone does not carry:
-it bounds what the caller DEMANDS, not what the body's stack needs. -/
+/-- THE NEED'S COVERAGE — the numeric facts `Need.Ok` alone does not carry: it
+bounds what the caller DEMANDS of the run, not what the body's own stack needs.
+
+The last two items are the NESTED sockets (2026-11-10, fifth pass): the body
+calls the cache and the stage one level down at the stack top, with sockets
+whose shapes are fixed (`univSocket`, zero cells of their own), so the only
+thing the caller's `Ok` must additionally supply is the WORD (at the stage's
+`instanceSize = n² + 4n`, which dominates the cache's `n²`) and the DEPTH (this
+body's level plus the socket's four). Both are instance arithmetic, so
+`stackSocket_ok` turns them into the bundle's two former conjuncts. -/
 def NeedCovers (need : ℕ → ℕ → Light.Need) : Prop :=
   ∀ x : MatInst,
     4 * x.n + x.n * x.n ≤ (need x.n x.U).cells ∧
@@ -1942,7 +2008,109 @@ def NeedCovers (need : ℕ → ℕ → Light.Need) : Prop :=
     1 ≤ (need x.n x.U).word ∧
     1 ≤ (need x.n x.U).depth ∧
     mpRounds x.U ≤ (need x.n x.U).word ∧
-    2 ^ signedLevels x.U ≤ (need x.n x.U).word
+    2 ^ signedLevels x.U ≤ (need x.n x.U).word ∧
+    -- the NESTED STAGE socket's word, at `instanceSize = n² + 4n`
+    stackWord (stageSize x.n) x.U ≤ (need x.n x.U).word ∧
+    -- the NESTED socket's depth: this body's level plus its four
+    1 + 4 ≤ (need x.n x.U).depth
+
+/-- THE SOCKET DERIVATION — `hokC` and `hokS` are ONE lemma, not two premises.
+
+Given the caller's own socket `(need x.n x.U).Ok lim fr d` and `NeedCovers`, any
+stack-shaped socket at a size no larger than the stage's fits at the stack top
+one level down. Applied at `s = n²` this IS the bundle's former `hokC` (the
+cache, whose `size` is `P·I = n²`); at `s = n² + 4n` it IS the former `hokS`
+(the stage, whose `instanceSize` is `n² + 4n`). -/
+theorem stackSocket_ok {lim : Limits} {d : ℕ} {x : MatInst} {fr s : ℕ}
+    {need : ℕ → ℕ → Light.Need}
+    (hcov : NeedCovers need) (hok : (need x.n x.U).Ok lim fr d)
+    (hs : s ≤ stageSize x.n) :
+    (univSocket s x.U).Ok lim (LTop x fr) (d + 1) := by
+  obtain ⟨hcells, _hwU2, _hw1, _hdep, _hwRt, _hwLvl, hwStack, hdepStack⟩ := hcov x
+  refine ⟨?_, ?_, hok.space, ?_⟩
+  · -- WORD: the nested socket's word is `stackWord s U`, the stage's dominates it
+    have hmono : stackWord s x.U ≤ stackWord (stageSize x.n) x.U := by
+      have hs' : s + 1 ≤ stageSize x.n + 1 := Nat.succ_le_succ hs
+      have := Nat.mul_le_mul_right (x.U + 1) hs'
+      simpa only [stackWord] using Nat.add_le_add_right this 1
+    have h1 : (univSocket s x.U).word ≤ (need x.n x.U).word := by
+      show stackWord s x.U ≤ (need x.n x.U).word
+      exact hmono.trans hwStack
+    have h2 : ((univSocket s x.U).word : ℤ) ≤ ((need x.n x.U).word : ℤ) := by
+      exact_mod_cast h1
+    linarith [hok.word]
+  · -- CELLS: the socket owns no cells, so only the stack top must fit
+    show LTop x fr + 0 ≤ lim.space
+    have := hok.cells
+    simp only [LTop] at this ⊢
+    omega
+  · -- DEPTH: this body's level plus the socket's four
+    show d + 1 + (univSocket s x.U).depth ≤ lim.depth
+    have h4 : (univSocket s x.U).depth = 4 := rfl
+    rw [h4]
+    have := hok.depth
+    omega
+
+/-- THE WITNESS CLOSES `NeedCovers` — one term, eight numeric facts.
+
+Every arm is monotonicity plus subtraction-free linear arithmetic: the bracket
+`n² + 4n + 5` is at least 5, so `5·(U+1) = 5U + 5` rides under the product, and
+every required bound (`2U+1`, `2·log₂U + 6`, `4U+2`, the nested socket's
+`(n²+4n+1)(U+1)+1`) sits under `5U + 5 + 8`. The two arms that the census's
+literal term got WRONG at `n = 0` are the round count and the level count: with
+the census's `(n²+4n+1)(U+1)+8` the word is `U + 9` at `n = 0`, which does not
+dominate `4U + 2` for `U ≥ 3`; the `+5` in the bracket (rather than `+1`) is
+exactly the floor that repairs it. -/
+theorem needCovers_univNeed : NeedCovers univNeed := by
+  intro x
+  -- the product floor: the bracket is at least 5, so `5(U+1)` rides under the word
+  have h5 : 5 ≤ x.n * x.n + 4 * x.n + 5 := by
+    have := Nat.zero_le (x.n * x.n + 4 * x.n); omega
+  have hprod : 5 * (x.U + 1) ≤ (x.n * x.n + 4 * x.n + 5) * (x.U + 1) :=
+    Nat.mul_le_mul_right (x.U + 1) h5
+  have hprod5 : 5 * (x.U + 1) = 5 * x.U + 5 := by rw [Nat.mul_add, Nat.mul_one]
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · -- cells: `4n + n² ≤ n² + 4n + 8`
+    show 4 * x.n + x.n * x.n ≤ x.n * x.n + 4 * x.n + 8
+    omega
+  · -- word I: `2U + 1` rides under `5(U+1)`
+    show 2 * x.U + 1 ≤ (x.n * x.n + 4 * x.n + 5) * (x.U + 1) + 8
+    omega
+  · -- word II: positive
+    show 1 ≤ (x.n * x.n + 4 * x.n + 5) * (x.U + 1) + 8
+    omega
+  · -- depth: positive
+    show 1 ≤ 5
+    omega
+  · -- the round count fits the word
+    show mpRounds x.U ≤ (x.n * x.n + 4 * x.n + 5) * (x.U + 1) + 8
+    have h1 : mpRounds x.U ≤ 2 * x.U + 6 := by
+      have h2 := mpRounds_le_two_log_succ x.U
+      have h3 : Nat.log2 x.U ≤ x.U := by
+        rw [Nat.log2_eq_log_two]; exact Nat.log_le_self 2 x.U
+      omega
+    omega
+  · -- the level count fits the word: `2^signedLevels U ≤ 4U + 2`
+    show 2 ^ signedLevels x.U ≤ (x.n * x.n + 4 * x.n + 5) * (x.U + 1) + 8
+    have hlev : 2 ^ signedLevels x.U ≤ 4 * x.U + 2 := pow_signedLevels_le x.U
+    omega
+  · -- the nested STAGE socket's word, at `instanceSize = n² + 4n`
+    show stackWord (stageSize x.n) x.U ≤ (x.n * x.n + 4 * x.n + 5) * (x.U + 1) + 8
+    have hss : stageSize x.n = x.n * x.n + 4 * x.n := by
+      simp only [stageSize]; ring
+    have hle : stageSize x.n + 1 ≤ x.n * x.n + 4 * x.n + 5 := by
+      rw [hss]; omega
+    have hmul := Nat.mul_le_mul_right (x.U + 1) hle
+    simp only [stackWord]
+    omega
+  · -- the nested socket's depth: `1 + 4 ≤ 5`
+    show 1 + 4 ≤ 5
+    omega
+
+/-- THE WITNESS IS POLYNOMIAL — the summit's second socket (`hn`). -/
+theorem polyNeed_univNeed : Light.PolyNeed univNeed := by
+  unfold univNeed
+  poly_need []
 
 /-- THE RUN BRIDGE: the bundle is the universal body's `Solves mpTask`.
 
@@ -1950,7 +2118,9 @@ Nothing here is arithmetic beyond the layout's own ring identities: the
 prologue is `prologue_runs` at the stacked layout, the while is
 `wireUnivTarget_of` at the same layout with the stage's free pointer at the
 stack top, the composition is `entryAssembly`, and the two Post halves are
-bundle conjuncts (6) and (7) through the landed `seg_of_entries`.
+bundle conjuncts (4) and (5) through the landed `seg_of_entries`. The two
+NESTED sockets the run needs (`hokC` for the cache call, `hokS` for the stage)
+are derived here from `hcov` plus the caller's own `Ok`, by `stackSocket_ok`.
 
 THE PIN SEAM. `wireUnivTarget_of`'s `hvals` is `vals = argsOf callSite ++ [↑fr]`
 with `fr` the stage's free pointer, and the prologue produces
@@ -1959,8 +2129,7 @@ therefore `univProloguePins_eq_argsOf` read right-to-left — the brick restored
 and corrected this session for exactly this consumer. -/
 theorem univSolves (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Program)
     (cs : Inst) (need : ℕ → ℕ → Light.Need) (cacheTime : ℕ → ℕ → ℕ)
-    (cacheNeed : ℕ → ℕ → Light.Need)
-    (hb : UnivBundle stage cacheProc cacheProg restoreProg cs cacheTime cacheNeed need)
+    (hb : UnivBundle stage cacheProc cacheProg restoreProg cs cacheTime need)
     (hcov : NeedCovers need) :
     Light.Solves Light.mpTask (callerProgramUniv stage cacheProc cacheProg restoreProg cs) 0
       (univTn cacheTime) need := by
@@ -1968,7 +2137,7 @@ theorem univSolves (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Progra
   refine ⟨entryBodyUniv stage cacheProc,
     callerProgramUniv_entry stage cacheProc cacheProg restoreProg cs, ?_⟩
   intro R lim d x μ fr hpre hok
-  obtain ⟨tests, Tt, rows, hokC, hslot, hret, hflag, hokS, hTt, hident, hkept⟩ :=
+  obtain ⟨tests, Tt, rows, hslot, hret, hTt, hident, hkept⟩ :=
     hb R lim d x μ fr hpre hok
   -- `mpTask.size`/`mpTask.bound` ARE `x.n`/`x.U` and `mpTask.args x` IS the
   -- entry frame; normalise so the arithmetic and the frame have one spelling.
@@ -1980,7 +2149,26 @@ theorem univSolves (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Progra
   rw [hsize, hbound] at hok ⊢
   rw [hfv]
   have hok' : (need x.n x.U).Ok lim fr d := hok
-  obtain ⟨hcells, hwU2, hw1, hdep, hwRt, hwLvl⟩ := hcov x
+  obtain ⟨hcells, hwU2, hw1, hdep, hwRt, hwLvl, _hwStack, _hdepStack⟩ := hcov x
+  -- THE TWO NESTED SOCKETS, DERIVED FROM THE CALLER'S OWN (fifth pass): ONE
+  -- lemma, two applications — the cache at `size = P·I = n²`, the stage at
+  -- `instanceSize = n² + 4n`. The bundle names neither, and the flag budget is
+  -- a tautology at `k := 0`.
+  have hokC : (univSocket (x.n * x.n) x.U).Ok lim (LTop x fr) (d + 1) :=
+    stackSocket_ok hcov hok' (by simp only [stageSize]; omega)
+  have hokS : ∀ (mask' : ℕ → Bool) (kt : ℕ),
+      (Light.DenseRestartSelectionLoop.need
+        (instanceSize (callSite (P := x.n) (R := kt) (I := x.n) (h := x.U)
+          (active := fun _ => true) (remaining := mask') (rows := rows)
+          (ab := fr) (rb := fr + x.n) (sb := LRow x fr) (mb := LRem x fr)
+          (bb := LBase x fr)))
+        (callSite (P := x.n) (R := kt) (I := x.n) (h := x.U) (active := fun _ => true)
+          (remaining := mask') (rows := rows) (ab := fr) (rb := fr + x.n)
+          (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)).height).Ok lim
+        (LTop x fr) (d + 1) := by
+    intro mask' kt
+    exact stackSocket_ok hcov hok' (le_refl _)
+  have hflag : ∀ mask' : ℕ → Bool, 0 ≤ (flagged x.n mask').card := fun _ => Nat.zero_le _
   have hfit : fr + 4 * x.n + x.n * x.n ≤ lim.space := by
     rw [Nat.add_assoc]
     exact le_trans (Nat.add_le_add_left hcells fr) hok'.cells
@@ -2061,7 +2249,7 @@ theorem univSolves (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Progra
       μ (cacheTime (x.n * x.n) x.U)
       (cacheTask.Post ⟨x.n, x.n, x.U, fr + x.n, LTop x fr, rows⟩ μ (LTop x fr)) := by
     obtain ⟨bodyC, hbC', hrunC⟩ :=
-      cacheSolves_composed stage cacheProc cacheProg restoreProg cs R cacheTime cacheNeed
+      cacheSolves_composed stage cacheProc cacheProg restoreProg cs R cacheTime univSocket
         hcSolve
     refine ⟨bodyC, hbC', ?_⟩
     have h := hrunC [] lim (d + 1) ⟨x.n, x.n, x.U, fr + x.n, LTop x fr, rows⟩ μ
@@ -2206,8 +2394,7 @@ body's `twin_of_CallerTarget`: when the bundle's premises are supplied, the
 filing theorem is THIS one, with no further composition. -/
 theorem twinUniv_of (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Program)
     (cs : Inst) (need : ℕ → ℕ → Light.Need) (cacheTime : ℕ → ℕ → ℕ)
-    (cacheNeed : ℕ → ℕ → Light.Need)
-    (hb : UnivBundle stage cacheProc cacheProg restoreProg cs cacheTime cacheNeed need)
+    (hb : UnivBundle stage cacheProc cacheProg restoreProg cs cacheTime need)
     (hcov : NeedCovers need)
     (hn : Light.PolyNeed need)
     (hdom : ∀ κ : Nat, ∃ (k : Nat) (C : Real), ∀ᶠ n : Nat in atTop,
@@ -2218,10 +2405,39 @@ theorem twinUniv_of (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Progr
   ThinMatrix.Twin.race_bound
     (P := callerProgramUniv stage cacheProc cacheProg restoreProg cs)
     (p := 0) (Tn := univTn cacheTime) (need := need)
-    (univSolves stage cacheProc cacheProg restoreProg cs need cacheTime cacheNeed hb hcov)
+    (univSolves stage cacheProc cacheProg restoreProg cs need cacheTime hb hcov)
     hn hdom
 
 #print axioms twinUniv_of
+
+/-- THE TWIN AT THE ONE WITNESS TERM — the filing theorem with the need socket
+INSTANTIATED, not hypothesised.
+
+`twinUniv_of` carried four hypotheses: the bundle, `NeedCovers`, `PolyNeed`,
+and the domination. At `need := univNeed` the middle two are THEOREMS
+(`needCovers_univNeed`, `polyNeed_univNeed`), so what remains is exactly the
+cache boundary (`Solves cacheTask cacheProg cacheProc cacheTime univSocket`,
+the bundle's conjunct 1), the stage slot, `hret`/`hTt`/`hident`/`hkept`, and
+the `univTn` domination — which is the premise list the filing draft carries.
+
+`cacheTime` stays a parameter on purpose: it is the cache SOLVER's clock, part
+of the cache boundary premise, not a socket this lane may choose. -/
+theorem twinUniv_socket (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Program)
+    (cs : Inst) (cacheTime : ℕ → ℕ → ℕ)
+    (hb : UnivBundle stage cacheProc cacheProg restoreProg cs cacheTime univNeed)
+    (hdom : ∀ κ : Nat, ∃ (k : Nat) (C : Real), ∀ᶠ n : Nat in atTop,
+      Light.timeUpTo (Light.Sec3.apTime (univTn cacheTime)) n
+        ((n : Real) ^ (κ : Real)) ≤
+        C * AsymptoticCosts.completeCost k n) :
+    EndStatement.APSP.SolvedInTime ((2994999 : Rat) / 1000000) :=
+  twinUniv_of stage cacheProc cacheProg restoreProg cs univNeed cacheTime hb
+    needCovers_univNeed polyNeed_univNeed hdom
+
+#print axioms twinUniv_socket
+#print axioms stackSocket_ok
+#print axioms needCovers_univNeed
+#print axioms polyNeed_univNeed
+#print axioms pow_signedLevels_le
 
 /-! ## Restored bricks
 
