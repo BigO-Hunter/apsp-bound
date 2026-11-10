@@ -1,4 +1,4 @@
-# FILING DRAFT — CLAIMED-conditional (ready to hand to the PR author, NOT posted)
+# FILING DRAFT — CLAIMED-conditional (ready to hand to the PR author, NOT posted) — FILED 2026-11-10: https://github.com/bigospeedrun/site/pull/22
 
 Lane: `wip-summit-body` (apsp-l1), `/Volumes/Substrate-1/bigo/apsp-l1-work`.
 Bench: `.machine-build/machine`, Lean 4.33.1, mathlib `0df444a360eaa60`.
