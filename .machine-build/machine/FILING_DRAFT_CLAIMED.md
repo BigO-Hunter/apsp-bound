@@ -133,6 +133,34 @@ Credits (constructions first, filer last):
 - Hrishik Sai Bojnal — the verified frontier being refined and the refined
   numerical certificate this body targets.
 
+## What route (c) buys — stated precisely, because it is easy to over-claim
+
+Route (c) does **not** reduce the *count* of named premises. It replaces one
+*shape* with another:
+
+| | before | after (route (c)) |
+|---|---|---|
+| the rows image | a raw assertion about a memory image that **no program step can establish** (both direct routes measured refuted) | a **consequence** of `Light.Solves cacheTask cacheProg cacheProc cacheTime cacheNeed` + `cacheTask.Pre` + `Ok`, via the landed `cacheReads_of_solves` |
+| premise kind | class (ii) "cache boundary", but asserted flatly | class (ii) "cache boundary", in the boundary's own vocabulary |
+
+So the honest framing is: the premise moves from a *flat memory-image
+assertion* to a *cache-slot boundary premise* — the shape the lane already
+names and the shape the board's D7 vocabulary recognises. Callers of the
+bundle then owe `Light.Solves cacheTask …` rather than an
+`∀ p < n, ∀ i < n, μ (…) = rows p i` they could not justify.
+
+Verified signatures (read, not assumed):
+
+* `CacheFill.cacheReads_of_solves` — `CacheFill.lean:91`; consumes
+  `Light.Solves cacheTask cacheProg cacheProc cacheTime cacheNeed`,
+  `cacheTask.Pre x μ fr`, `(cacheNeed (size x) (bound x)).Ok lim fr d`.
+* `CacheFill.reads_persist` — `CacheFill.lean:112`; carries the reads clause
+  through `Kept μ μ' fr` given the `hAR`/`hRR`/`hfl` triple — its second
+  conjunct is exactly `hRR`, i.e. the rows image FILL 1 wants.
+* `Seg.of_kept` — `verified/Submission/ThreeSumApsp/Lang/Tasks.lean:75`;
+  re-derives `Seg μ' a l` from `Seg μ a l` and `Kept μ μ' fr`, which is what
+  keeps `MatInst.Pre` alive across the cache's frame using `Pre.belowA`.
+
 ## What a reviewer should check before this becomes `Verified`
 
 1. Inhabitance. Nobody has exhibited `tests, Tt, rows` discharging `hslot`,
