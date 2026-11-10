@@ -124,16 +124,39 @@ program with the instance's body.
 
 The universal term that discharges `CallerTarget` (and hence, through
 `CallerPost.summit_of_CallerTarget`, `SummitSlot`) computes the indices
-instead of baking them: a fixed register `IdxR` (≠ `Tmp`, ≠ the frame
-registers) holding `t·x.n + j`, advanced by `.set` between stores; the
-per-entry write becomes `set IdxR (…t…x.n…j…) ;; store (v Out +' v IdxR)
-(v (Tmp + j))`. The loop control (`while` over a round counter) replaces
-the fold-unrolled schedule; the run-derivation re-runs the wire induction
-over the while semantics (`Ends.whileTrue`). This is the campaign's
-actual "all arrays, scans, control flow" row (MACHINE_OBLIGATIONS) —
-multi-session, with the per-instance machinery of this session as its
-skeleton: every per-round socket (`StageDelivers`, `RowWrites`,
-`RowKeeps`) transfers verbatim once the index register is computed.
+instead of baking them. LANDED STATE (2026-11-09, the universal-body
+session, `CallerUniversalBody.lean`, stages A–D): the program term is
+GREEN — fixed register map (Out/Nreg/U2/Lvl/Rt/IdxR/DstR/J, all missing
+the stage frame 0–8 and Tmp), `univRowPass` = `set IdxR (t·n) ;; set DstR
+(x.c + t·n) ;; pass J (v Nreg) (v DstR) (v Tmp)` (the per-entry addressing
+through the upstream canonical `pass` combinator — the design sketch's
+per-entry `set IdxR (t·n+j)` advance is subsumed by `Ends.pass`'s
+`dst + c` rule, and the stored value is the call's single delivery
+register `Tmp`: `v (Tmp + j)` is not expressible with a computed index,
+and no landed conclusion consumes the other entries' values);
+`univWhile` = the level-doubling loop (test `v Lvl ≤' v U2`, two
+certified rounds per level) — exactly `mpRounds W` rounds in one term;
+the caller program composed by NESTED `Program.behind` (the flat `++` of
+the per-instance skeleton is not renumbering-consistent for
+cache/restore layers of length > 0); the run-derivation GREEN through the
+row pass (`univRowPass_runs`, the inner while owned by `Ends.pass`) and
+the round slice (`univRound_runs`, `Ends.callLast` at the caller program
++ `reads_carry` + the row pass). The clock: `univTn n U = mpRounds U ·
+univUnitB n + univProB n`, quadratic, `univTn_le`.
+
+THE NAMED REMAINDER (the lane's one open seam): the while induction's
+discharge — `WireUnivTarget` is STATED in `CallerUniversalBody.lean`
+(lane target-def pattern, no sorry); `UnivInv` (the invariant) and
+`UnivPins_set` (the counter-set pins' obligation) are landed; the
+discharge is `Ends.while` at `signedLevels W` iterations, the body = two
+`univRound_runs` rounds + three counter sets, the exit =
+`2^signedLevels W > 2·U`, the budget = `univWhile_cost` + `univTn_eq`.
+Then: the entry assembly (prologue run — 12 sets + the active/flag init
+passes — then the wire), the `Light.Solves` packaging (bundle: hslot,
+hret, hflag, hok, hrows (the FILL-1 seam), hidentU, hkeptU), and
+`summitSlotUniv_of`/`twinUniv_of` fire `Race.bound` 2994999/1000000.
+This is the campaign's actual "all arrays, scans, control flow" row
+(MACHINE_OBLIGATIONS).
 
 ## 6. The step count (landed this session)
 

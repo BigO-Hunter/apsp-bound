@@ -136,6 +136,25 @@ via `ConservativeAdapter.conservativeStatementOfLedger` — is stated in its
 own module (`TwinRaceBound.lean`); no root swap; the filing call is the
 owner's.
 
+## The universal body's status (L7 — the universal-body session, 2026-11-09)
+
+`CallerUniversalBody.lean` lands the instance-free program term GREEN
+(stages A–C): the fixed register map, the computed-index write pass
+(`set IdxR (t·n) ;; set DstR (x.c + t·n) ;; pass J (v Nreg) (v DstR)
+(v Tmp)`), the level-doubling `univWhile` (exactly `mpRounds W` rounds in
+one fixed term), the nested-behind caller program (renumbering-consistent
+where the per-instance skeleton's flat `++` is not), `univRowPass_runs`
+and `univRound_runs` (the run-derivation green through the row pass and
+the round slice, at the caller program), and the quadratic `univTn`.
+STATED, not yet discharged (the lane's one open seam):
+`WireUnivTarget` — the while induction over `Ends.while` with `UnivInv`
+(the invariant def) and `UnivPins_set` (landed) as its bricks; the exit
+arithmetic and the budget close by landed lemmas. When it discharges:
+the entry assembly (prologue + wire), the `Light.Solves` packaging (the
+named-premise bundle: hslot, hret, hflag, hok, hrows (FILL 1), hidentU,
+hkeptU), and `twinUniv_of` fires `Race.bound` 2994999/1000000 — the
+filing package assembles at THAT commit.
+
 ## The summit body's data-flow design (L7 — pinned 2026-11-09)
 
 The design narrative is `DATAFLOW.md` (the per-round cell semantics: the
