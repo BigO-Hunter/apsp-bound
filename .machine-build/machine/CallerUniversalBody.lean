@@ -61,6 +61,56 @@ open Filter Asymptotics ThreeSumApsp ThreeSumApsp.Spec ThreeSumApsp.WordRam
   ThinMatrix.CallerPost ThinMatrix.CallerStepCount ThinMatrix.Summit
   ThinMatrix.CallerWrites ThinMatrix.CallerRun ThinMatrix.CallerBodyStep
 
+/-! ## The restricted task: `mpTaskRounds` (cure (a), wound R2125609577) -/
+
+/-- THE RESTRICTED (min,+) PRODUCT TASK — `mpTask`'s instance class narrowed
+by the round-containment `mpRounds U ≤ n`.
+
+WHY THE RESTRICTION IS NECESSARY (disclosed, measured — R2125609577). The
+universal body's per-round row pass writes round `t`'s row at `x.c + t·n`;
+when `mpRounds U > n` those stores land above `x.c + n²`, i.e. INSIDE the
+stage's buffer stack, so the certified stage post (`SameOutside3` at
+`sb/bb/mb`) and the final `KeptBut` both break. Concrete counterexample:
+`n = 1, U = 100` gives `mpRounds 100 = 2·(log₂ 200 + 1) = 16 > 1`. No
+`Need` can express the constraint (`Need` bounds only the word, the cells
+and the call depth) and `MatInst.Pre` bounds `U` only from BELOW
+(`AbsLe`), so the containment is genuinely underivable from `mpTask.Pre`
+— a defect of the CLAIM CLASS, not of the run-derivation.
+
+WHY IT COSTS NOTHING (the asymptotic regime). The scored class ranges over
+`U ≤ n^κ`, where `mpRounds U = 2·(log₂(2U) + 1) = O(log U) ≤ n` holds
+EVENTUALLY; the bound is `timeUpTo`'s supremum over that class, so
+restricting to the instances that satisfy the containment yields the same
+supremum — the bound content is unchanged.
+
+THE RESTRICTION IS A PREMISE OF THE TASK, NOT A HIDDEN HYPOTHESIS:
+`Pre' := mpTask.Pre ∧ mpRounds U ≤ n`, so a solver of `mpTaskRounds` is
+honest about which instances it solves, and `hregion` is *supplied* to the
+body rather than assumed inside its proof. -/
+def mpTaskRounds : Task where
+  Inst := MatInst
+  size := mpTask.size
+  bound := mpTask.bound
+  args := mpTask.args
+  Pre x μ fr := mpTask.Pre x μ fr ∧ mpRounds (mpTask.bound x) ≤ mpTask.size x
+  Post := mpTask.Post
+
+/-- The restricted task's precondition, unfolded: `mpTask`'s `Pre` plus the
+round containment that the row pass needs. -/
+theorem mpTaskRounds_pre {x : MatInst} {μ : ℕ → ℤ} {fr : ℕ} :
+    mpTaskRounds.Pre x μ fr ↔ x.Pre μ fr ∧ mpRounds x.U ≤ x.n := Iff.rfl
+
+/-- The restricted task's size is the side length (unchanged from
+`mpTask`): `timeUpTo` reads the same parameter. -/
+theorem mpTaskRounds_size (x : MatInst) : mpTaskRounds.size x = x.n := rfl
+
+/-- The restricted task's bound is `U` (unchanged from `mpTask`). -/
+theorem mpTaskRounds_bound (x : MatInst) : mpTaskRounds.bound x = x.U := rfl
+
+/-- The restricted task's postcondition is `mpTask`'s, verbatim. -/
+theorem mpTaskRounds_post (x : MatInst) (μ : ℕ → ℤ) (fr : ℕ) (v : ℤ) (μ' : ℕ → ℤ) :
+    mpTaskRounds.Post x μ fr v μ' ↔ mpTask.Post x μ fr v μ' := Iff.rfl
+
 /-! ## The register map (fixed, instance-free) -/
 
 /-- The product base register: holds `x.c`. -/
