@@ -47,12 +47,21 @@ now retries rc=137. The verdict is always read from the LOG's error lines.
 
 CHAIN STATE — WHAT IS NOT DONE
 ------------------------------
-  1. `wireUnivTarget_of`'s `hvals` still says `argsOf … ++ [(fr : ℤ)]`. It must
-     move to `++ [((mb + P : ℕ) : ℤ)]` to be simultaneously satisfiable with
-     `prologue_runs`' `hvals : vals = univProloguePins x fr`. That hypothesis is
-     consumed structurally at `univRound_runs`' clock discharge (`rw […,
-     hframe 8 (by omega), hvals]; rfl`), so the move must be MEASURED against
-     that `rfl`, not assumed.
+  1. `wireUnivTarget_of`'s `hvals` still says `argsOf … ++ [(fr : ℤ)]`, so it is
+     NOT simultaneously satisfiable with `prologue_runs`' `hvals : vals =
+     univProloguePins x fr`. This was MEASURED, not hypothesised: moving it was
+     tried twice (`++ [(mb + P : ℕ)]` and `++ [(mb + x.n : ℕ)]`, both applied
+     consistently to all three binders — univRound_runs, univLevel_runs,
+     wireUnivTarget_of) and BOTH builds failed at the SAME place:
+     `univRound_runs` line 736, `rfl`, in the discharge
+     `rw […, hframe 8 (by omega), hvals]; rfl`. So the seam's VALUE is not the
+     whole problem: that discharge relates `ll 8` to `hvals`' last element
+     definitionally. CURE (next mind, bounded): replace that trailing `rfl`
+     with an explicit step (`push_cast; ring`, or carry
+     `hfree : ll 8 = ↑(mb + x.n)` into `univRound_runs`), then move `hvals`.
+     Logs: /private/tmp/apsp_hvals_build.log, /private/tmp/apsp_hvals2_build.log.
+     The lane is left GREEN at `af17fde` + this doc-only commit; the two
+     experiments were reverted, not left half-applied.
   2. `Solves mpTask` bundle at `callerProgramUniv` (hslot, hret, hflag, hok,
      hrows = FILL 1, hidentU, hkeptU) + the mpTask.Post packing (`Seg` via
      `MinPlusIdentity` + `seg_of_entries`; `KeptBut` via hkeptU). BLOCKED on 1.

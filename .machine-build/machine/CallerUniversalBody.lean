@@ -1699,13 +1699,28 @@ instance's own value). Two do not, and are named here rather than faked:
   2W`), together with `two_mul_lt_pow_signed_levels`. Both are already
   stated, proved and consumed by `wireUnivTarget_of`; re-introducing the
   old name would be an alias, not a brick.
-* `univProloguePins_eq_argsOf` — NOT RESTORED. It identified the prologue's
-  nine pins with `argsOf (callSite …) ++ [fr]`, which needs the callSite's
-  nine field projections read in their exact slot order. Nothing in the
-  landed chain consumes that identity (the correspondence is carried as the
-  named `hvals` premise of `univRound_runs`/`univLevel_runs`), so restoring
-  it is bookkeeping, not proof. Recorded as the next brick for whoever
-  assembles the entry package. -/
+* `univProloguePins_eq_argsOf` — RESTORED, CORRECTED, AND USED (2026-11-10).
+  The lost form identified the prologue's nine pins with
+  `argsOf (callSite …) ++ [fr]`; that is FALSE at slot 8. `argsOf`'s eight
+  slots are candidates/length/height/activeBase/rowsBase/scoresBase/
+  remainingBase/baseBase, and the NINTH frame value is the STAGE's free
+  pointer, which the prologue computes as `Free := Remaining + Nreg =
+  fr + 4n + n² = mb + n` — not the caller's `fr`, which is slot 3's base.
+  The restored brick states the seam at `++ [(mb + P : ℕ)]` (equal to
+  `mb + n` under `hP : P = x.n`) and carries `h = x.U` for slot 2.
+
+  MEASURED CONSEQUENCE FOR THE NEXT MIND. `wireUnivTarget_of`'s `hvals` still
+  says `++ [(fr : ℤ)]`, so it is NOT simultaneously satisfiable with
+  `prologue_runs`' `hvals : vals = univProloguePins x fr`. Moving it was
+  TRIED TWICE and FAILED both times at the same place:
+  `univRound_runs`, line 736, `rfl` (the discharge
+  `rw […, hframe 8 (by omega), hvals]; rfl`). Both `++ [(mb + P : ℕ)]` and
+  `++ [(mb + x.n : ℕ)]` fail there, so the seam's VALUE is not the whole
+  problem: the discharge relates `ll 8` to `hvals`' last element
+  definitionally. The cure is at that discharge — replace the trailing `rfl`
+  with an explicit `ll 8`-to-free-pointer step (`push_cast; ring`, or carry
+  `hfree : ll 8 = ↑(mb + x.n)` into `univRound_runs`) — and then the bundle
+  is unblocked. Recorded as MEASURED, not hypothesised. -/
 
 /-- Brick: the round counter fits a word, so every round index is a legal
 word-RAM value. Restored from the lost set (it is write-shape independent). -/
