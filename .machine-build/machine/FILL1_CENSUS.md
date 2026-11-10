@@ -86,7 +86,7 @@ says landed.
 | 1 | FILL 1 rows image | `:1752` | **(ii)** cache boundary | NOT Pre-derivable (measured, §1). Producer: route (c). |
 | 2 | `UnivSlot` (certified stage socket) | `:1753` | **(i) landed** | `stageSlot_any` is LANDED and is exactly this shape; its `hAR`/`hfl` follow from the prologue's two passes (`bit true = 1`), `hlay` from the layout ring, `hok` from `Ok`+`NeedCovers`. Its `hRR` IS premise 1. |
 | 3 | `hret` (oracle return) | `:1756` | **(ii)** oracle boundary | stays named. |
-| 4 | `hflag : ∀ mask', x.n ≤ (flagged x.n mask').card` | `:1763` | **FALSE** | `(range n).filter` ⇒ card `0` at the all-false mask; `Pre.n_pos` ⇒ `1 ≤ x.n`. `hflag_shape_false` + `univBundle_false`. **Repair: the call site, not the wire** — the wire is generic in `k` and the schedule clears one flag per round, so a mask-generic budget forces `k = 0`; the bundle instantiates `k := x.n`. |
+| 4 | `hflag : ∀ mask', x.n ≤ (flagged x.n mask').card` | `:1763` | **FALSE — REPAIRED 2026-11-10** | `(range n).filter` ⇒ card `0` at the all-false mask; `Pre.n_pos` ⇒ `1 ≤ x.n`. `hflag_shape_false` (kept) records it. **The repair is at the CALL SITE, not the wire** — the wire is generic in `k` and the schedule clears one flag per round, so a mask-generic budget forces `k = 0`; the bundle instantiates `k := x.n`. Applied at `:1753` (slot), `:1759` (hret call site), `:1763` (conjunct), `:1773` (`hTt`) + six `univSolves` instantiations. **The conjunct is now a tautology** (`hflag_shape_true_zero`, `refuted_mask_now_satisfies`), so this premise LEAVES the list. |
 | 5 | `hok` (`∀ mask kt`, the stage's own `need` fits the limits) | `:1764` | **(i) routed** | closes with the SAME witness `need` as rows 9/10, chosen with `word ≥ (n²+4n+1)(U+1)+1` (the stage's own need at `instanceSize = n²+4n`), `cells ≥ n²+4n+8`, `depth ≥ 1`; then `Need.Ok.mono`. |
 | 6 | `hTt : Tt x.n ≤ callerTt x.n` | `:1773` | **(ii)** L5/L6(c) tight-clock wrapper | named; producer = the re-clocked selection round's `solvedIn`. Not derivable from `taskTime (instanceSize …)` (that is `~100n⁴ ≫ 25n²`). |
 | 7 | `hident` (`MinPlusIdentity`) | `:1774` | **(ii)** D7 construction identity | stays named. |
@@ -103,13 +103,51 @@ slot, `hret`, `hTt`, `hident`). So there is **no unconditional
 conditional and the filing package is a CLAIMED route with disclosed
 conditions.
 
-And the route's conditions are not merely named: premise 4 is FALSE, which
+~~And the route's conditions are not merely named: premise 4 is FALSE, which
 makes the bundle unsatisfiable and the twin vacuous. **The filing is therefore
-BLOCKED-ON-REPAIR, not merely CLAIMED**: repair `hflag` (one binder at the
-call site — `k := 0`, or restate per round from the greedy's `enoughFlags`
-with `k + mpRounds ≤ n`), then land route (c) + `hkept` + the `hdom`
-transfer, then the honest label is CLAIMED-ROUTE-READY with premises
-`{FILL 1 (cache slot), hret, hTt, hident}`.
+BLOCKED-ON-REPAIR, not merely CLAIMED**~~ — **SUPERSEDED 2026-11-10**: premise
+4 was false and the bundle was unsatisfiable; the call-site repair above landed
+and the bundle rebuilds green with the conjunct now a tautology. See
+§"The repair" below. The filing is no longer BLOCKED-ON-REPAIR; it is CLAIMED
+with four named premises, and **inhabitance is still unwitnessed** — the
+bundle is consistent with its premises, not proved non-empty.
+
+## The repair (2026-11-10, after this census)
+
+Applied to `CallerUniversalBody.lean` (`:1753`, `:1759`, `:1763`, `:1773`, and
+the six `univSolves` instantiations `:1841`, `:1847`, `:1858`, `:1864`,
+`:1869`, `:1891`): `k := 0`. Ten lines, 20 characters, no other edit.
+
+Verdicts, read from the logs (`log-never-the-wrapper`):
+
+| build | log | verdict |
+|---|---|---|
+| `lake env lean -j1 CallerUniversalBody.lean` | `/private/tmp/apsp_univ_repair_130520.log` | **exit 0**, 0 errors, 0 `sorry`, olean written; `univSolves`/`twinUniv_of` axioms `[propext, Classical.choice, Quot.sound]` |
+| `lake env lean -j1 CallerFill1Measure.lean` | `/private/tmp/apsp_fill1_repair_130815.log` | **exit 0**, 0 errors, 0 `sorry` |
+
+Both ran detached behind `_build_lock.py` (fcntl, `/Volumes/Substrate-1/bigo/.build.lock`)
+under host load 63.7/76.9/94.3 on 16 cores.
+
+Receipts added to `CallerFill1Measure.lean`: `hflag_shape_true_zero` (the new
+conjunct is a tautology) and `refuted_mask_now_satisfies` (the mask that
+refuted the old conjunct satisfies the new one). `univBundle_false` is
+**deleted, not weakened** — its proof consumed the conjunct at `k = 1`, which
+the bundle no longer supplies, so it described a file state that no longer
+exists. `hflag_shape_false` stays: still true for every `k ≥ 1`, and the record
+of why `k = 0` is forced.
+
+**Non-vacuity, stated at exactly the strength witnessed:** no provably-false
+conjunct remains, so the old vacuity is gone; and no `tests, Tt, rows` are
+exhibited, so inhabitance is *consistent with* the premises — not proved. The
+filing label is CLAIMED-conditional, not Lean Verified.
+
+Route (c) is still **UNLANDED**. The census's own recommendation stands, with
+its seams now enumerated in `FILING_DRAFT_CLAIMED.md`: `mpBodyUniv` /
+`callerProgramUniv` gain the 3-argument cache call before `univPrologue`,
+`univProB` and `univTn` gain `cacheTime (n²) U`, `hdom` must absorb it, and
+`MatInst.Pre` must be carried from the caller memory into the cache's end
+memory by `Seg.of_kept` (`Lang/Tasks.lean:75`) off `Pre.belowA`.
+
 
 D7's boundary stands throughout: no oracle, no cache body, no (min,+) product
 is claimed here.

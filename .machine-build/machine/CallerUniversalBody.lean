@@ -1750,17 +1750,17 @@ def UnivBundle (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
       -- FILL 1: the rows table is the memory image at the rows buffer (the
       -- prologue copies nothing into it; `mpTask.Pre` does not provide this).
       (∀ p < x.n, ∀ i < x.n, ((rows p i : ℕ) : ℤ) = μ (fr + x.n + p * x.n + i)) ∧
-      @UnivSlot lim d x.n x.n x.n x.U (fun _ => true) (rows)
+      @UnivSlot lim d x.n 0 x.n x.U (fun _ => true) (rows)
           fr (fr + x.n) (LRow x fr) (LRem x fr) (LBase x fr) (LTop x fr)
           stage cacheProg restoreProg cs R Tt ∧
       (∀ (t' : ℕ) (mask' : ℕ → Bool) (μ' μ'' : ℕ → ℤ) (r' : ℤ),
         t' < mpRounds x.U →
         Light.DenseRestartSelectionLoop.Post
-          (callSite (P := x.n) (R := x.n) (I := x.n) (h := x.U) (active := fun _ => true)
+          (callSite (P := x.n) (R := 0) (I := x.n) (h := x.U) (active := fun _ => true)
             (remaining := mask') (rows := rows) (ab := fr) (rb := fr + x.n)
             (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)) μ' μ'' →
         r' = bracketAccumulate (μ' (x.c + t' * x.n)) tests (mpRounds x.U)) ∧
-      (∀ mask' : ℕ → Bool, x.n ≤ (flagged x.n mask').card) ∧
+      (∀ mask' : ℕ → Bool, 0 ≤ (flagged x.n mask').card) ∧
       (∀ (mask' : ℕ → Bool) (kt : ℕ),
         (Light.DenseRestartSelectionLoop.need (instanceSize (callSite (P := x.n) (R := kt) (I := x.n) (h := x.U)
             (active := fun _ => true) (remaining := mask') (rows := rows)
@@ -1770,7 +1770,7 @@ def UnivBundle (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
             (remaining := mask') (rows := rows) (ab := fr) (rb := fr + x.n)
             (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)).height).Ok lim
           (LTop x fr) (d + 1)) ∧
-      Tt x.n ≤ callerTt x.n ∧
+      Tt 0 ≤ callerTt x.n ∧
       (∀ (σ' : State), UnivPins lim (univProloguePins x fr) x x.U σ' →
         σ'.mem x.c = bracketAccumulate (μ x.c) tests (mpRounds x.U) →
         ∀ i j : ℕ, σ'.mem (bracketCell x i j) = minPlusEntry x.n x.A x.B i j) ∧
@@ -1838,13 +1838,13 @@ theorem univSolves (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : I
   -- projections are invisible to `omega`).
   have hbC : x.c + x.n * x.n ≤ fr := hpre.belowC
   have hn1 : 1 ≤ x.n := hpre.n_pos
-  have hpro : PrologueTarget (lim := lim) (d := d) (P := x.n) (k := x.n) (I := x.n)
+  have hpro : PrologueTarget (lim := lim) (d := d) (P := x.n) (k := 0) (I := x.n)
       (h := x.U) (active := fun _ => true) (rows := rows)
       (ab := fr) (rb := fr + x.n) (sb := LRow x fr) (mb := LRem x fr)
       (bb := LBase x fr) (fr := LTop x fr) (frC := fr)
       stage cacheProg restoreProg cs R Tt x x.U tests (univProloguePins x fr)
       (([(x.n : ℤ), (x.U : ℤ), (x.a : ℤ), (x.b : ℤ), (x.c : ℤ)] : List ℤ) ++ [(fr : ℤ)]) μ :=
-    prologue_runs (lim := lim) (d := d) (P := x.n) (k := x.n) (I := x.n) (h := x.U)
+    prologue_runs (lim := lim) (d := d) (P := x.n) (k := 0) (I := x.n) (h := x.U)
       (active := fun _ => true) (rows := rows) (ab := fr) (rb := fr + x.n)
       (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr) (fr := fr) (frC := fr)
       stage cacheProg restoreProg cs R Tt x x.U tests (univProloguePins x fr)
@@ -1855,18 +1855,18 @@ theorem univSolves (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : I
       (hwordU2 := hwordU2p) (hword1 := hword1) (hactive := fun i hi => rfl)
       (hrows := hfill)
   have hseam : univProloguePins x fr =
-      argsOf (callSite (P := x.n) (R := x.n) (I := x.n) (h := x.U) (active := fun _ => true)
+      argsOf (callSite (P := x.n) (R := 0) (I := x.n) (h := x.U) (active := fun _ => true)
         (remaining := fun _ => true) (rows := rows) (ab := fr) (rb := fr + x.n)
         (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr))
         ++ [((LTop x fr : ℕ) : ℤ)] :=
     (univProloguePins_eq_argsOf x (hP := rfl) (hI := rfl) (hU := rfl) (hab := rfl)
       (hrb := rfl) (hsb := rfl) (hbb := rfl) (hmb := rfl)).symm
-  have hwire : WireUnivTarget (lim := lim) (d := d) (P := x.n) (k := x.n) (I := x.n)
+  have hwire : WireUnivTarget (lim := lim) (d := d) (P := x.n) (k := 0) (I := x.n)
       (h := x.U) (active := fun _ => true) (remaining := fun _ => true)
       (rows := rows) (ab := fr) (rb := fr + x.n) (sb := LRow x fr)
       (mb := LRem x fr) (bb := LBase x fr) (fr := LTop x fr) (frC := fr)
       stage cacheProg restoreProg cs R Tt x x.U tests (univProloguePins x fr) μ :=
-    wireUnivTarget_of (lim := lim) (d := d) (P := x.n) (k := x.n) (I := x.n) (h := x.U)
+    wireUnivTarget_of (lim := lim) (d := d) (P := x.n) (k := 0) (I := x.n) (h := x.U)
       (active := fun _ => true) (remaining := fun _ => true) (rows := rows)
       (ab := fr) (rb := fr + x.n) (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)
       (fr := LTop x fr) (frC := fr)
@@ -1888,7 +1888,7 @@ theorem univSolves (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : I
           exact_mod_cast hwLvl
         linarith [hok'.word])
       (hwordU2 := hwordU2) (hword1 := hword1) (hWU := rfl) (hWpos := hpre.U_pos)
-  refine (entryAssembly (lim := lim) (d := d) (P := x.n) (k := x.n) (I := x.n) (h := x.U)
+  refine (entryAssembly (lim := lim) (d := d) (P := x.n) (k := 0) (I := x.n) (h := x.U)
     (active := fun _ => true) (remaining := fun _ => true) (rows := rows)
     (ab := fr) (rb := fr + x.n) (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)
     (fr := LTop x fr) (frC := fr)

@@ -71,6 +71,35 @@ flag per round (`maskCleared cs₁.toFinset`), so a mask-generic budget forces
 
 D7's boundary stands: nothing here proves the oracle, the cache body, or the
 (min,+) product. This module is a measurement and a refutation.
+
+## The repair (2026-11-10, same session, after the finding)
+
+The finding was acted on at the call site it named: `UnivBundle`'s slot, the
+oracle conjunct and the clock conjunct now instantiate `k := 0`
+(`CallerUniversalBody.lean:1753, :1759, :1763, :1773`, plus the six
+`univSolves` instantiations that must agree with them). The module rebuilds
+clean (`lake env lean -j1 CallerUniversalBody.lean` → exit 0, 0 errors,
+0 `sorry`, and `univSolves`/`twinUniv_of` still depend on
+`[propext, Classical.choice, Quot.sound]` only).
+
+What that does and does not buy, stated precisely:
+
+* The flag conjunct becomes `∀ mask', 0 ≤ (flagged P mask').card` — a
+  tautology (`hflag_shape_true_zero`), and true at the very mask that refuted
+  the old one (`refuted_mask_now_satisfies`). The bundle therefore contains NO
+  provably-false conjunct, and the twin's vacuity-via-`hflag` is GONE.
+* `hTt` becomes `Tt 0 ≤ callerTt x.n`. `Tt` is existentially chosen inside
+  the bundle, so this conjunct is not a fixed obligation either; it stays a
+  named premise because `hslot` pins `Tt` at every `kt` the wire reaches.
+* **Inhabitance is NOT claimed.** `hslot`, `hret`, `hident`, `hkept` and the
+  rows image are still named. Satisfiability of `UnivBundle` is now
+  CONSISTENT WITH its premises — no longer refuted — but this module does not
+  witness it and no theorem here asserts it.
+
+`univBundle_false` is DELETED, not weakened: its proof consumed the conjunct
+at `k = 1`, which the bundle no longer supplies, so it was a receipt about a
+state of the file that no longer exists. `hflag_shape_false` stays — it is
+still true of every `k ≥ 1`, and it is the record of why `k = 0` is forced.
 -/
 
 namespace ThinMatrix.CallerFill1Measure
@@ -206,32 +235,22 @@ theorem xInst_pre : MatInst.Pre xInst (fun _ => 0) 8 := by
     subst hz
     norm_num
 
-/-- THE RECEIPT: `UnivBundle` is unsatisfiable at every `need`, hence
-`univSolves`/`twinUniv_of` are vacuous as they stand. The `Ok` premise is
-discharged by choosing limits large enough for any `need` — the bundle's `∀`
-over `lim` makes that a legitimate instantiation, and the false conjunct
-survives it. -/
-theorem univBundle_false (stage : ℕ) (cacheProg restoreProg : Light.Program)
-    (cs : Inst) (need : ℕ → ℕ → Light.Need) :
-    ¬ UnivBundle stage cacheProg restoreProg cs need := by
-  intro hb
-  let lim : Limits :=
-    { word := (((8 + (need 1 1).cells) + (need 1 1).word : ℕ) : ℤ),
-      space := 8 + (need 1 1).cells, depth := (need 1 1).depth }
-  have hok : (need 1 1).Ok lim 8 0 := by
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · dsimp only [lim]
-      exact_mod_cast Nat.le_add_left (need 1 1).word (8 + (need 1 1).cells)
-    · dsimp only [lim]
-      omega
-    · dsimp only [lim]
-      push_cast
-      omega
-    · dsimp only [lim]
-      omega
-  have hb' := hb [] lim 0 xInst (fun _ => 0) 8 xInst_pre hok
-  obtain ⟨tests, Tt, rows, h1, h2, h3, hflag, h5, h6, h7, h8⟩ := hb'
-  exact (hflag_shape_false 1 1 le_rfl) hflag
+/-- THE REPAIR'S RECEIPT (1 of 2): at the repaired instantiation `k = 0` the
+flag conjunct is a TAUTOLOGY. This is why the repair is `k := 0` and not a
+restatement of the budget: the schedule's masks lose one flag per round
+(`maskCleared cs₁.toFinset`), so the budget must hold at the empty mask, and
+`0 ≤ _` is the only budget that does. -/
+theorem hflag_shape_true_zero (P : ℕ) :
+    ∀ mask' : ℕ → Bool, 0 ≤ (flagged P mask').card :=
+  fun _ => Nat.zero_le _
+
+/-- THE REPAIR'S RECEIPT (2 of 2): the mask that REFUTED the old conjunct
+satisfies the new one, so the old countermodel does not transfer. This is the
+whole of what was repaired: the bundle is no longer refuted, and it is not
+more than that — inhabitance is not witnessed here. -/
+theorem refuted_mask_now_satisfies (P : ℕ) :
+    0 ≤ (flagged P (fun _ => false)).card :=
+  Nat.zero_le _
 
 #print axioms routeA_copy_cost
 #print axioms routeA_overrun
@@ -242,6 +261,7 @@ theorem univBundle_false (stage : ℕ) (cacheProg restoreProg : Light.Program)
 #print axioms cachePost_reads
 #print axioms hflag_shape_false
 #print axioms xInst_pre
-#print axioms univBundle_false
+#print axioms hflag_shape_true_zero
+#print axioms refuted_mask_now_satisfies
 
 end ThinMatrix.CallerFill1Measure
