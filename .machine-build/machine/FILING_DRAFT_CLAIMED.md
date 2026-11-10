@@ -3,7 +3,9 @@
 Lane: `wip-summit-body` (apsp-l1), `/Volumes/Substrate-1/bigo/apsp-l1-work`.
 Bench: `.machine-build/machine`, Lean 4.33.1, mathlib `0df444a360eaa60`.
 Base of this draft: `9298c40` (the cache call landed end to end), plus the fifth
-pass on 2026-11-10 (the socket instantiated, the bundle un-over-named).
+pass on 2026-11-10 (the socket instantiated, the bundle un-over-named), plus the
+sixth pass (THE CLOCK TRANSFER: `hdom` is DERIVED, and the one name left in the
+class-(iii) slot is the cache solver's own clock budget).
 
 ## The label, stated first and honestly
 
@@ -23,7 +25,7 @@ Distinguish three things this lane can and cannot say:
 |---|---|
 | `(premises) → EndStatement.APSP.SolvedInTime (2994999/1000000)` is PROVED | **yes** — `ThinMatrix.CallerUniversalBody.twinUniv_of`, and at the one witness term `twinUniv_socket`; axioms `[propext, Classical.choice, Quot.sound]` only, 0 `sorry`, 0 `sorryAx` |
 | the premise bundle is INHABITED | **no** — not witnessed. Post-repair it is *consistent with* the premises (no longer refuted); inhabitance is unproved |
-| the row is `Verified` | **no** — four named premises remain, three of them D7's boundary |
+| the row is `Verified` | **no** — four named (i)/(ii) premises remain, three of them D7's boundary, plus ONE class-(iii) name: the cache solver's clock budget (`hcT`), which is a fact about the cache and not about this composition |
 
 The one thing that changed on 2026-11-10: the bundle is no longer
 **UNSATISFIABLE**. Before the repair its flag conjunct was false and the
@@ -49,17 +51,22 @@ theorem twinUniv_of (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Progr
     EndStatement.APSP.SolvedInTime ((2994999 : Rat) / 1000000)
 ```
 
-and the FILING form, with the socket instantiated at the one witness term:
+and the FILING form, with the socket instantiated at the one witness term AND the
+domination DERIVED from the cache's clock budget (`CallerUniversalHdom.lean`):
 
 ```lean
-theorem twinUniv_socket (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Program)
+theorem twinUniv_socket_clock (stage cacheProc : ℕ) (cacheProg restoreProg : Light.Program)
     (cs : Inst) (cacheTime : ℕ → ℕ → ℕ)
     (hb : UnivBundle stage cacheProc cacheProg restoreProg cs cacheTime univNeed)
-    (hdom : ∀ κ : Nat, ∃ (k : Nat) (C : Real), ∀ᶠ n : Nat in atTop,
-      Light.timeUpTo (Light.Sec3.apTime (univTn cacheTime)) n ((n : Real) ^ (κ : Real)) ≤
-        C * AsymptoticCosts.completeCost k n) :
+    (hcT : ∀ (n U : ℕ), 1 ≤ n →
+      univCallB + cacheTime (n * n) U ≤ (2 * Nat.log2 U + 6) * (770 * (n * n))) :
     EndStatement.APSP.SolvedInTime ((2994999 : Rat) / 1000000)
 ```
+
+`hdom` is no longer a hypothesis of the firing theorem: `univHdom` proves
+`CallerHdom (univTn cacheTime)` from `hcT`. `twinUniv_socket` (the `hdom` form)
+stays in the tree as the same theorem with the domination passed in, and
+`univHdom` is what closes the gap between them.
 
 `EndStatement.APSP.SolvedInTime` is the root Submission shape
 (`verified/Submission/EndStatement.lean`), the same statement class as the
@@ -83,8 +90,11 @@ The four, stated as the ONE theorem that fires (`twinUniv_socket`):
 4. `hident` — `MinPlusIdentity`, the head's delivery is every entry (bundle
    conjunct 5).
 
-Plus `hdom` (class (iii)): the `completeCost` domination for `univTn`. It is
-the fourth hypothesis of `twinUniv_socket` and is NOT a bundle conjunct.
+Plus ONE class-(iii) name, and it is not a bundle conjunct: **the cache solver's
+clock budget** `hcT` — `univCallB + cacheTime (n²) U ≤ (2·log₂U + 6)·(770·n²)`
+(for all `n ≥ 1`, all `U`). That is the entire remaining cost of the domination:
+`univHdom` turns it into `CallerHdom (univTn cacheTime)`, so the composite's
+domination is now a THEOREM rather than a premise.
 
 Everything else is closed: `NeedCovers` and `PolyNeed` are THEOREMS at the
 witness term, and the two resource sockets (`hokC`, `hokS`) and the flag budget
@@ -120,7 +130,7 @@ witness term, and the two resource sockets (`hokC`, `hokS`) and the flag budget
 
 | premise | state |
 |---|---|
-| `hdom` (completeCost domination for `univTn`) | `CallerHdom`/`callerHdom` are **landed** (`CallerStepCount.lean:524`) at `callerTn`. The transfer to `univTn` is the same asymptotics (`O(n² log U)`); **route (c) adds `cacheTime (n²) U`** to `univTn`, and the poly clock is absorbed by the existing `log^{k+R+10}·n²` arm |
+| **the cache solver's clock budget** — `hcT : univCallB + cacheTime (n·n) U ≤ (2·log₂U + 6)·(770·n·n)`, all `n ≥ 1`, all `U` | **CLOSED AS A TRANSFER; NAMED AS A CLOCK.** `univHdom` (`CallerUniversalHdom.lean`) proves `CallerHdom (univTn cacheTime)` from `hcT`; `apTime_univ_le_sq_log` is `CallerStepCount.apTime_le_sq_log` re-run at `univTn` (κ-linear constant, `O(n² log² n)`, `k := 0`), so the old `hdom` slot is now a theorem and this is the last name standing in class (iii). It CANNOT be derived in-tree: `Light.Solves` bounds a run ABOVE by its claimed clock, so nothing bounds `cacheTime`, and `univTn` carries `cacheTime (n²) U` as a free argument. **Disclosed, because it is easy to over-claim the other way:** `hcT` is uniform in `U` where `hdom` took a sup over `U ≤ n^κ`, so it is *stronger*; what it buys is justifiability — the party that lands the cache boundary knows its own clock, and nobody could justify a domination statement about a composite whose largest term belongs to that other party |
 
 ## The need witness
 
@@ -344,7 +354,11 @@ Verified signatures (read from the tree at `ea7e86d`, not assumed):
    `DenseRestartSelectionLoop.need` at `instanceSize = n² + 4n` (the
    `depth := 4` is what forces `need.depth = 5`, and the census's `depth = 1`
    was wrong), and that `NeedCovers` really is closed at `n = 0`.
-4. `hdom` under route (c)'s extra clock.
+4. `hcT` — the cache's clock budget. It is the ONLY remaining class-(iii) name,
+   and it is *stronger* than the `hdom` it replaces (uniform in `U`, not a sup
+   over `U ≤ n^κ`). The reviewer's question is whether the cache solver's owner
+   will state it; this lane cannot derive it — `Solves` bounds a run above by its
+   clock, never the clock by anything.
 5. That this file's label is not quietly upgraded to `Verified` on the way to
    the board. It is a Claimed row.
 

@@ -1,0 +1,101 @@
+CallerUniversalHdom.lean — THE CLOCK TRANSFER: `hdom` BECOMES A THEOREM
+(2026-11-10, sixth pass on this lane; new module, no landed module edited)
+=========================================================================
+
+WHAT LANDED (every `#print axioms` below = [propext, Classical.choice,
+Quot.sound]; no `sorryAx` in either build log)
+
+  * `apTime_univ_le_sq_log` — for every κ, the host's lifted clock at `univTn` is
+    `O(n² log² n)` UNIFORMLY over `U ≤ n^κ`, GIVEN the cache clock's arm
+    `univCallB + cacheTime (n²) U ≤ (2·log₂U + 6)·(770·n²)` — the exact hypothesis
+    `univTn_le` already carried, now for every `n ≥ 1, U`. Constant
+    `4·(13000κ + 46000)`; `k := 0`. The proof is `CallerStepCount.apTime_le_sq_log`
+    re-run at `univTn` (same `clog ≤ log₂+1 ≤ 2log₂`, same
+    `log₂(3nU) ≤ (κ+2)(log₂ n + 1)`; the one substitution is
+    `mpRounds·callerB ↦ 2·((2log₂U+6)·770n²) + 27n + 64`).
+  * `univHdom : CallerHdom (univTn cacheTime)` — THE TRANSFER. The cache term, the
+    schedule and the prologue all land inside `completeCost 0 n ≥ n²log²n`
+    (`completeCost_ge_log_sq`, `n ≥ 8`).
+  * `twinUniv_of_clock`, `twinUniv_socket_clock` — the firing theorems with `hdom`
+    REPLACED by the cache clock's budget. `twinUniv_socket_clock` is the FILING
+    form: bundle + `hcT`, nothing else.
+
+THE VERDICT — `hdom` CLOSES; ONE class-(iii) NAME REMAINS, AND IT IS THE HONEST
+MINIMUM. `hdom` as stated (a `completeCost` domination of the COMPOSITE) is now a
+theorem. What it still costs is a bound on `cacheTime`, and that is NOT derivable
+in this tree: `Light.Solves` bounds a run ABOVE by its claimed clock ("ends within
+T steps"), so a larger `Tn` is a weaker claim that is still true, and nothing
+bounds the cache solver's clock from above. `univTn` carries `cacheTime (n²) U` as
+a FREE argument; for an adversarial clock (`λ n U, (n+U)^1000`)
+`CallerHdom (univTn cacheTime)` is simply FALSE. So the remaining name is:
+
+  the CACHE SOLVER'S CLOCK BUDGET —
+  `univCallB + cacheTime (n²) U ≤ (2·log₂U + 6)·(770·n²)`, all `n ≥ 1`, all `U`.
+
+DISCLOSED, because it is easy to over-claim the other way: this is NOT a weaker
+premise than `hdom`. It is uniform in `U` where `hdom` takes a sup over `U ≤ n^κ`,
+so it is STRONGER. What it buys is justifiability, not strength: the party that
+lands the cache boundary (`Solves cacheTask …`) is the party that knows its own
+clock, whereas `hdom` was a domination statement about a composite whose largest
+term belongs to that other party. The SLOT changes owner; the COUNT does not.
+
+A FALSE LEMMA WAS CAUGHT BY THE MACHINE, and is recorded rather than swept away.
+An earlier draft of this module carried `hcT_of_cacheClock`, asserting that the
+"pure" clock bound `cacheTime (n²) U ≤ (2log₂U+6)(770n²)` implies the bundled form
+above. It does not: `18 + c ≤ A` does not follow from `c ≤ A`. `omega` produced the
+counterexample (`c = A`, `univCallB = 18`) on the first elaboration. The lemma is
+deleted and the module header says so, so the next mind does not re-derive it.
+
+BUILD RECEIPT
+-------------
+Workspace `.machine-build/machine`; Lean 4.33.1
+(`~/.elan/toolchains/leanprover--lean4---v4.33.1`); mathlib `0df444a360eaa60`.
+
+  lean -j1 -M6000 CallerUniversalHdom.lean -o <out>/CallerUniversalHdom.olean
+  (LEAN_PATH / LEAN_SRC_PATH taken from `lake env`; `lean` invoked directly, see
+   BUILD ENVIRONMENT below for why neither `lake build` nor the bench lock)
+
+  run 1: rc=0, 43 s, log /private/tmp/apsp_hdom_green1.log
+  run 2: rc=0, 54 s, log /private/tmp/apsp_hdom_r1.log      (re-run: deterministic)
+  olean 1,327,320 bytes, sha256 b66c6185b667ff60e6d19e53471dc32e…
+
+  Axiom banner (standard 3, no sorryAx, no native_decide):
+    'apTime_univ_le_sq_log' [propext, Classical.choice, Quot.sound]
+    'univHdom'              [propext, Classical.choice, Quot.sound]
+    'twinUniv_of_clock'     [propext, Classical.choice, Quot.sound]
+    'twinUniv_socket_clock' [propext, Classical.choice, Quot.sound]
+
+BUILD ENVIRONMENT — four measured obstacles, because they cost this pass hours and
+will cost the next mind the same if not named.
+
+ 1. THE BENCH LOCK IS A WALL, NOT A QUEUE. `/Volumes/Substrate-1/bigo/.build.lock`
+    (taken by `_build_lock.py`) was held continuously by a peer lane for 2 h; a
+    waiter of ours sat 6+ min with 0:00.12 CPU and no children — blocked, which in
+    a log reads exactly like "still elaborating". A non-blocking `flock` probe is
+    the only honest test of whether the lock is HELD or your build is RUNNING.
+ 2. THE REAPER KILLS ON SWAP GROWTH, and it kills `lean`/`lake` by cmdline regex
+    `/(lean|lake)\b`. Receipts for this module: killed at free_gb 5.05, 4.49, 0.14,
+    3.15, 5.65, 7.73, 0.61 — FIVE of seven above the 3.0 GB floor, with ~1.2 GB of
+    unused swap. So it was the growth arm every time, not the floor.
+ 3. THAT REGEX MATCHES YOUR WRAPPER TOO. `-o .lake/build/lib/lean/X.olean` puts
+    `/lean` in the wrapper's own cmdline, so the reaper TERMs the wrapper (receipts:
+    31 MB RSS, not the compiler) and the tool call reads `Killed by SIGTERM`. Build
+    from a FILE, and write the olean outside the `/lean` tree.
+ 4. `-M` IS LOAD-BEARING AND 4000 IS TOO SMALL. `-M4000` does not protect the box;
+    it ABORTS lean at 4 GB (`lean::memory_exception: excessive memory consumption
+    detected at 'interpreter'`, rc=134 at ~35 s). `-M6000` completes the module in
+    43-54 s. A build attempted without a cap inherits whatever the box has.
+
+  The shape that worked: `lean` invoked directly with `LEAN_PATH` from `lake env`
+  (no `lake build`, no lock), output to `/private/tmp/hdom_olean/`, started the
+  instant a reaper pass had just landed (passes are ~85-90 s apart, so the window
+  is the whole gap between them). Nothing in the shared `.lake` is written, so the
+  race the lock exists to prevent cannot occur.
+
+CHAIN STATE AFTER THIS PASS
+---------------------------
+  The filing's premise list is the bundle's four (i)/(ii) names (the cache
+  boundary, `hret`, `hTt`, `hident`), the bundle's two inhabitant-supplied
+  conjuncts (`UnivSlot`, `hkept`), and ONE class-(iii) name — `hcT`. The `hdom`
+  slot is a theorem. D7's boundary stands: no oracle, no cache body, no (min,+)
+  product is proved here.

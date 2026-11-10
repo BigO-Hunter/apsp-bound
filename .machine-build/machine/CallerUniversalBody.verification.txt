@@ -327,3 +327,37 @@ CHAIN STATE AFTER THIS PASS
   `hkept`) and `hdom`, and `twinUniv_socket` fires the filing bound. Nothing
   in the need/socket layer remains a hypothesis. D7's boundary stands: no
   oracle, no cache body, no (min,+) product is proved here.
+
+SIXTH PASS (2026-11-10) — THE CLOCK TRANSFER: `hdom` IS NO LONGER A PREMISE
+==========================================================================
+
+New module `CallerUniversalHdom.lean` (imports THIS module; nothing here is
+edited). Full receipt: `CallerUniversalHdom.verification.txt`.
+
+WHAT IT CLOSES. `twinUniv_of`/`twinUniv_socket` took `hdom` — a `completeCost`
+domination written at the COMPOSITE clock `univTn cacheTime`. That is now a
+THEOREM: `univHdom : CallerHdom (univTn cacheTime)`, from the cache clock's arm
+only. `twinUniv_socket_clock` is the filing form (bundle + `hcT`, nothing else).
+
+  'apTime_univ_le_sq_log' [propext, Classical.choice, Quot.sound]   (43 s, rc=0)
+  'univHdom'              [propext, Classical.choice, Quot.sound]   (log
+  'twinUniv_of_clock'     [propext, Classical.choice, Quot.sound]    /private/tmp/
+  'twinUniv_socket_clock' [propext, Classical.choice, Quot.sound]    apsp_hdom_green1.log)
+  olean 1,327,320 bytes; re-run rc=0 in 54 s (deterministic), log /private/tmp/apsp_hdom_r1.log
+
+WHAT IT DOES NOT CLOSE, stated exactly. ONE class-(iii) name survives, and it is
+the minimum: `univCallB + cacheTime (n²) U <= (2*log2 U + 6)*(770*(n*n))` for all
+`n >= 1, U`. It cannot be derived here — `Light.Solves` bounds a run ABOVE by its
+claimed clock, so nothing bounds `cacheTime`, and `univTn` carries it as a free
+argument (for an adversarial clock the domination is FALSE). Disclosed: that
+premise is STRONGER than the `hdom` it replaces (uniform in `U`, not a sup over
+`U <= n^kappa`); it buys justifiability, not strength. The slot changes owner; the
+count does not.
+
+A FALSE LEMMA, CAUGHT BY ELABORATION. A draft `hcT_of_cacheClock` claimed the pure
+clock bound implies the bundled one; `omega` refuted it (`18 + c <= A` does not
+follow from `c <= A`). Deleted, and recorded in the new module's header so no
+successor re-derives it.
+
+CHAIN STATE: the bundle's four (i)/(ii) names + `UnivSlot`/`hkept` + `hcT`.
+The `hdom` slot is a theorem. D7's boundary stands unchanged.
