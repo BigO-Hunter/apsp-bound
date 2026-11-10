@@ -77,19 +77,22 @@ absorb it (poly clock ⇒ absorbed by the existing `log^{k+R+10}·n²` arm).
 Classes: **(i)** derivable from the challenge's own quantification (close it);
 **(ii)** D7 oracle/cache-boundary shape — "upstream's own"; stays named;
 **(iii)** instance arithmetic / domination — the board's model may carry it.
+An (i) row states `landed` or `routed` — routed means the argument is given
+and the proof is not yet written; nothing here is claimed as proved unless it
+says landed.
 
 | # | premise | site | class | verdict |
 |---|---|---|---|---|
 | 1 | FILL 1 rows image | `:1752` | **(ii)** cache boundary | NOT Pre-derivable (measured, §1). Producer: route (c). |
-| 2 | `UnivSlot` (certified stage socket) | `:1753` | **(i)** | `stageSlot_any` is LANDED and is exactly this shape; its `hAR`/`hfl` follow from the prologue's two passes (`bit true = 1`), `hlay` from the layout ring, `hok` from `Ok`+`NeedCovers`. Its `hRR` IS premise 1. |
+| 2 | `UnivSlot` (certified stage socket) | `:1753` | **(i) landed** | `stageSlot_any` is LANDED and is exactly this shape; its `hAR`/`hfl` follow from the prologue's two passes (`bit true = 1`), `hlay` from the layout ring, `hok` from `Ok`+`NeedCovers`. Its `hRR` IS premise 1. |
 | 3 | `hret` (oracle return) | `:1756` | **(ii)** oracle boundary | stays named. |
 | 4 | `hflag : ∀ mask', x.n ≤ (flagged x.n mask').card` | `:1763` | **FALSE** | `(range n).filter` ⇒ card `0` at the all-false mask; `Pre.n_pos` ⇒ `1 ≤ x.n`. `hflag_shape_false` + `univBundle_false`. **Repair: the call site, not the wire** — the wire is generic in `k` and the schedule clears one flag per round, so a mask-generic budget forces `k = 0`; the bundle instantiates `k := x.n`. |
-| 5 | `hok` (`∀ mask kt`, the stage's own `need` fits the limits) | `:1764` | **(i)** | closes with the SAME witness `need` as rows 9/10, chosen with `word ≥ (n²+4n+1)(U+1)+1` (the stage's own need at `instanceSize = n²+4n`), `cells ≥ n²+4n+8`, `depth ≥ 1`; then `Need.Ok.mono`. |
+| 5 | `hok` (`∀ mask kt`, the stage's own `need` fits the limits) | `:1764` | **(i) routed** | closes with the SAME witness `need` as rows 9/10, chosen with `word ≥ (n²+4n+1)(U+1)+1` (the stage's own need at `instanceSize = n²+4n`), `cells ≥ n²+4n+8`, `depth ≥ 1`; then `Need.Ok.mono`. |
 | 6 | `hTt : Tt x.n ≤ callerTt x.n` | `:1773` | **(ii)** L5/L6(c) tight-clock wrapper | named; producer = the re-clocked selection round's `solvedIn`. Not derivable from `taskTime (instanceSize …)` (that is `~100n⁴ ≫ 25n²`). |
 | 7 | `hident` (`MinPlusIdentity`) | `:1774` | **(ii)** D7 construction identity | stays named. |
-| 8 | `hkept` (`KeptBut`) | `:1777` | **(i)** | derivable: write set `{x.c} ⊆ [x.c, x.c+n²)` by `Pre.belowC`, prologue writes at `ab = fr` and above (not `< fr`). Proof unlanded (`univRowPass_runs` frame + `KeptBut` composition). |
-| 9 | `NeedCovers need` | `:1783` | **(i)** | close by CHOOSING `need := ⟨(n²+4n+1)(U+1)+8, n²+4n+8, 1⟩` (one witness also closes rows 5 and 10): `2^signedLevels U ≤ 4U` from `pow_pred_signed_levels_le` + `two_mul_lt_pow_signed_levels` (landed `:1244`, `:1254`); `mpRounds U ≤ 4U+2`; `2U+1 ≤ word`; `4n + n² ≤ cells`. |
-| 10 | `hn : PolyNeed need` | `:1912` | **(i)** | `poly_need` at the same witness. |
+| 8 | `hkept` (`KeptBut`) | `:1777` | **(i) routed** | derivable: write set `{x.c} ⊆ [x.c, x.c+n²)` by `Pre.belowC`, prologue writes at `ab = fr` and above (not `< fr`). Proof unlanded (`univRowPass_runs` frame + `KeptBut` composition). |
+| 9 | `NeedCovers need` | `:1783` | **(i) routed** | close by CHOOSING `need := ⟨(n²+4n+1)(U+1)+8, n²+4n+8, 1⟩` (one witness also closes rows 5 and 10): `2^signedLevels U ≤ 4U` from `pow_pred_signed_levels_le` + `two_mul_lt_pow_signed_levels` (landed `:1244`, `:1254`); `mpRounds U ≤ 4U+2`; `2U+1 ≤ word`; `4n + n² ≤ cells`. |
+| 10 | `hn : PolyNeed need` | `:1912` | **(i) routed** | `poly_need` at the same witness. |
 | 11 | `hdom` (completeCost domination) | `:1913` | **(iii)** | `CallerHdom`/`callerHdom` landed at `callerTn`; the transfer to `univTn` is the same asymptotics (`O(n² log U)`), plus route (c)'s cache clock. |
 
 ### Result of the census
