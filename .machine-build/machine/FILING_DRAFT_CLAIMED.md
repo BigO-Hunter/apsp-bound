@@ -197,6 +197,18 @@ names and the shape the board's D7 vocabulary recognises. Callers of the
 bundle then owe `Light.Solves cacheTask …` rather than an
 `∀ p < n, ∀ i < n, μ (…) = rows p i` they could not justify.
 
+**LANDED SO FAR (2026-11-10, third pass — the swap itself is NOT landed).**
+Green in `CallerUniversalBody`, no `sorryAx`, each `#print axioms` =
+[propext, Classical.choice, Quot.sound]: `univCacheArgs` +
+`univCacheArgs_val` (the call's four frame values `[n, n, fr + n,
+fr + 4n + n²]`, evaluated and proved); `cacheSolves_composed` (the cache's
+`Solves` at `callerProgramUniv`, procedure `1 + cacheProc`, body shifted —
+`Solves` → `Ends.append` → `Ends.shift_append`); and the clock (`univTn`
+takes `cacheTime`; `univTn_le` carries the cache's share as a hypothesis,
+without which its conclusion is false). Not landed: the entry body's call,
+`UnivBundle`'s conjunct-1 swap, and the derived `hfill`. The obstruction and
+the cure are in `CallerUniversalBody.verification.txt`.
+
 Verified signatures (read from the tree at `ea7e86d`, not assumed):
 
 * `CacheFill.cacheTask` — `CacheFill.lean:106`; `Post`'s second conjunct is
@@ -219,10 +231,14 @@ Verified signatures (read from the tree at `ea7e86d`, not assumed):
 1. Inhabitance. Nobody has exhibited `tests, Tt, rows` discharging `hslot`,
    `hret`, `hident`, `hkept`. Until someone does, the twin is a conditional.
 2. Route (c)'s call. The rows image is the only premise with a *cheap
-   mechanical* producer left, and it is not wired yet. What is wired is its
-   precondition: the cache task's frame repair (`ea7e86d`), without which the
-   call would have renamed the premise rather than produced it. A reviewer
-   should check the frame, not just the call.
+   mechanical* producer left, and it is STILL not wired: `mpBodyUniv` does not
+   call the cache, `UnivBundle`'s conjunct 1 is still the flat image, and
+   `univSolves` still takes it from the bundle. What IS wired: the cache
+   task's frame repair (`ea7e86d`) — without which the call would have renamed
+   the premise rather than produced it — plus its three mechanical
+   prerequisites (`univCacheArgs_val`, `cacheSolves_composed`, and the clock in
+   `univTn`/`univTn_le`). A reviewer should check the frame and the clock's
+   hypothesis, and should NOT read the three landed pieces as the call.
 3. `hdom` under route (c)'s extra clock.
 4. That this file's label is not quietly upgraded to `Verified` on the way to
    the board. It is a Claimed row.

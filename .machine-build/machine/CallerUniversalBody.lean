@@ -227,6 +227,28 @@ certified round pair per level. Exactly `signedLevels W` iterations:
 def univWhile (stage : ℕ) : Light.Stmt :=
   .while (v Lvl ≤' v U2) (univLevelBody stage)
 
+/-- The cache call's arguments: `cacheTask.args` with the free pointer LAST
+(the task convention — `Task.args`, then `fr`). At the mpTask frame
+(`v 0 = n`, `v 5 = fr`) these evaluate to `[n, n, fr + n, LTop x fr]`: the
+cache's `rb` is the rows buffer, and its free pointer is the caller's stack
+top, so the rows region `[fr + n, fr + n + n²)` and the whole buffer stack
+lie below it (`cacheTask.Pre` is `rb + P·I ≤ fr`, i.e. `n ≤ 4n`). -/
+def univCacheArgs : List Expr :=
+  [v 0, v 0, v 5 +' v 0, v 5 +' k 4 *' v 0 +' (v 0 *' v 0)]
+
+/-- The cache call's FOUR frame values, evaluated at the entry frame
+(`l 0 = n`, `l 5 = fr`): `[n, n, fr + n, fr + 4n + n²]` — `cacheTask.args`
+(`P, I, rb`), then the free pointer the call runs at, LAST (`Task.args`,
+`fr` last — `Solves`'s frame convention). `fr + 4n + n²` is the caller's
+stack top (`LTop`), so the rows region `[fr + n, fr + n + n²)` and every
+buffer lie below the cache's free pointer. -/
+theorem univCacheArgs_val {x : MatInst} {fr : ℕ} {l : ℕ → ℤ} {μ : ℕ → ℤ}
+    (h0 : l 0 = (x.n : ℤ)) (h5 : l 5 = (fr : ℤ)) :
+    univCacheArgs.map (·.val ⟨l, μ⟩) =
+      [(x.n : ℤ), (x.n : ℤ), (fr : ℤ) + (x.n : ℤ),
+        (fr : ℤ) + 4 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ)] := by
+  simp [univCacheArgs, Expr.val, Op.eval, h0, h5]
+
 /-- THE UNIVERSAL BODY: the prologue then the while-controlled schedule —
 the entry procedure's fixed statement, one text over all instances. -/
 def mpBodyUniv (stage : ℕ) : Light.Stmt :=
@@ -249,7 +271,55 @@ def callerProgramUniv (stage : ℕ) (cacheProg restoreProg : Light.Program)
   Program.behind [mpBodyUniv stage]
     (Program.behind cacheProg (Program.behind restoreProg (program cs)))
 
-/-- The entry procedure IS the universal body. -/
+/-- The cache procedure's index in the composed program: the entry body is
+procedure 0, so the cache that sits at `cacheProc` of `cacheProg` sits at
+`1 + cacheProc` of `callerProgramUniv` (the same arithmetic as the landed
+`CallerBody.cacheProcIn`). -/
+def cacheProcInP (cacheProc : ℕ) : ℕ := 1 + cacheProc
+
+/-- THE CACHE SLOT AT THE COMPOSED PROGRAM — route (c)'s renumbering step,
+PROVED: `Solves cacheTask cacheProg cacheProc` survives the entry body being
+placed in front of it, with the procedure at `1 + cacheProc` and the body
+shifted by one (`Solves` → `Ends.append` → `Ends.shift_append`, i.e. the
+`stageMeets_behind` route). The entry body consumes exactly this: the cache
+call it makes is at a composed index, and the contract it needs is this one.
+
+`Solves` is at the program `callerProgramUniv` builds, so nothing below has
+to carry a renumbering argument of its own. -/
+theorem cacheSolves_composed (stage cacheProc : ℕ)
+    (cacheProg restoreProg : Light.Program) (cs : Inst) (R : Light.Program)
+    (cacheTime : ℕ → ℕ → ℕ) (cacheNeed : ℕ → ℕ → Light.Need)
+    (hcache : Light.Solves cacheTask cacheProg cacheProc cacheTime cacheNeed) :
+    Light.Solves cacheTask (callerProgramUniv stage cacheProg restoreProg cs ++ R)
+      (cacheProcInP cacheProc) cacheTime cacheNeed := by
+  obtain ⟨body, hb, hE⟩ := hcache
+  refine ⟨body.shift 1, ?_, ?_⟩
+  · -- the body's index: procedure `cacheProc` of `cacheProg`, one layer deeper
+    rw [cacheProcInP, Nat.add_comm]
+    have h1 : (Program.behind [mpBodyUniv stage] cacheProg)[cacheProc + 1]? =
+        some (body.shift 1) := by
+      simpa using Program.getElem?_behind_right [mpBodyUniv stage] hb
+    have h2 : callerProgramUniv stage cacheProg restoreProg cs
+        = Program.behind [mpBodyUniv stage] cacheProg
+          ++ ((Program.behind restoreProg (program cs)).map
+              (Stmt.shift cacheProg.length)).map (Stmt.shift 1) := by
+      simp [callerProgramUniv, Program.behind, List.map_append, List.append_assoc]
+    rw [h2, List.append_assoc]
+    exact getElem?_append_of_eq_some h1 _
+  · -- the run: `Ends.shift_append` at the procedure's own program, then the
+    -- composed program is `callerProgramUniv` by definition
+    intro R' lim d x μ fr hpre hok
+    have hP : Ends lim
+        (cacheProg ++ (Program.behind restoreProg (program cs)).map (Stmt.shift cacheProg.length))
+        d body ⟨frame (cacheTask.args x ++ [(fr : ℤ)]), μ⟩
+        (cacheTime (cacheTask.size x) (cacheTask.bound x))
+        (fun σ' => cacheTask.Post x μ fr (σ'.loc 0) σ'.mem) :=
+      hE ((Program.behind restoreProg (program cs)).map (Stmt.shift cacheProg.length))
+        lim d x μ fr hpre hok
+    have hsh := Ends.shift_append (Q := [mpBodyUniv stage]) (R := R ++ R') hP
+    rw [List.append_assoc]
+    exact hsh
+
 theorem callerProgramUniv_entry (stage : ℕ) (cacheProg restoreProg : Light.Program)
     (cs : Inst) :
     (callerProgramUniv stage cacheProg restoreProg cs)[0]? = some (mpBodyUniv stage) := by
@@ -385,10 +455,21 @@ def univTestB : ℕ := 6
 counter updates, and the while's per-iteration test overhead. -/
 def univUnitB (n : ℕ) : ℕ := univRoundB n + univLevelB n + univTestB
 
-/-- THE UNIVERSAL CLOCK: `mpRounds U` rounds at the per-round unit
-budget, plus the prologue. -/
-def univTn (n U : ℕ) : ℕ :=
-  mpRounds U * univUnitB n + univProB n
+/-- The cache call's own step count: its four argument expressions
+(`v 0`, `v 0`, `v 5 +' v 0`, `v 5 +' k 4 *' v 0 +' (v 0 *' v 0)` cost
+`1 + 1 + 3 + 9 = 14`) plus the call rule's 2. Constant in `n`, like
+`univRowB`. -/
+def univCallB : ℕ := 16
+
+/-- THE UNIVERSAL CLOCK: the cache call at the entry, `mpRounds U` rounds at
+the per-round unit budget, plus the prologue.
+
+The cache term is `cacheTime (n²) U`: `cacheTask.size` is `P·I = n²` and
+`cacheTask.bound` is the word bound `U`, so the call's clock is the cache
+solver's own clock at the instance the entry body builds. It is carried as
+an ARGUMENT (the cache's clock is abstract — route (c)'s disclosed cost). -/
+def univTn (cacheTime : ℕ → ℕ → ℕ) (n U : ℕ) : ℕ :=
+  univCallB + cacheTime (n * n) U + (univProB n + mpRounds U * univUnitB n)
 
 /-- The schedule's factor: `mpRounds W = 2 · signedLevels W`. -/
 theorem mpRounds_eq_signed (W : ℕ) : mpRounds W = 2 * signedLevels W := by
@@ -453,31 +534,33 @@ theorem univUnitB_le (n : ℕ) (hn : 1 ≤ n) : univUnitB n ≤ 770 * (n * n) :=
 
 /-- The whole universal budget is the schedule at the unit budget plus
 the prologue (the definition, re-stated). -/
-theorem univTn_eq (n U : ℕ) :
-    univTn n U = mpRounds U * univUnitB n + univProB n := rfl
+theorem univTn_eq (cacheTime : ℕ → ℕ → ℕ) (n U : ℕ) :
+    univTn cacheTime n U =
+      univCallB + cacheTime (n * n) U + (univProB n + mpRounds U * univUnitB n) := rfl
 
-/-- The universal budget, bounded: `univTn n U ≤ (2·log₂U + 6)·770·n² +
-27n + 64`. -/
-theorem univTn_le (n U : ℕ) (hn : 1 ≤ n) :
-    univTn n U ≤ (2 * Nat.log2 U + 6) * (770 * (n * n)) + 27 * n + 64 := by
+/-- The universal budget, bounded: the cache's clock and the two loop
+terms each fit one `(2·log₂U + 6)·770·n²` arm, so `univTn ≤ 2·(that) +
+27n + 64`. The cache's own clock is NOT derivable from the schedule —
+`cacheTime` is abstract — so its budget is a HYPOTHESIS, and without it this
+statement is false. -/
+theorem univTn_le (cacheTime : ℕ → ℕ → ℕ) (n U : ℕ) (hn : 1 ≤ n)
+    (hcT : univCallB + cacheTime (n * n) U ≤ (2 * Nat.log2 U + 6) * (770 * (n * n))) :
+    univTn cacheTime n U ≤ 2 * ((2 * Nat.log2 U + 6) * (770 * (n * n))) + 27 * n + 64 := by
   have hmp : mpRounds U ≤ 2 * Nat.log2 U + 6 := mpRounds_le_two_log_succ U
   have hU := univUnitB_le n hn
-  have hAC : mpRounds U * univUnitB n ≤ (2 * Nat.log2 U + 6) * univUnitB n :=
-    Nat.mul_le_mul_right _ hmp
-  have hCB : (2 * Nat.log2 U + 6) * univUnitB n
-      ≤ (2 * Nat.log2 U + 6) * (770 * (n * n)) :=
-    Nat.mul_le_mul_left (2 * Nat.log2 U + 6) hU
-  calc univTn n U
-      = mpRounds U * univUnitB n + 27 * n + 64 := by
-        unfold univTn univProB; ring
-    _ ≤ (2 * Nat.log2 U + 6) * univUnitB n + 27 * n + 64 := by omega
-    _ ≤ (2 * Nat.log2 U + 6) * (770 * (n * n)) + 27 * n + 64 := by omega
+  have h1 : mpRounds U * univUnitB n ≤ (2 * Nat.log2 U + 6) * (770 * (n * n)) :=
+    le_trans (Nat.mul_le_mul_right _ hmp) (Nat.mul_le_mul_left _ hU)
+  have h2 : univProB n = 27 * n + 64 := rfl
+  simp only [univTn, univCallB] at hcT ⊢
+  omega
 
 #print axioms scratch_facts
 #print axioms shift_shift
 #print axioms callerProgramUniv_entry
 #print axioms callerProgramUniv_behind
 #print axioms callerProgramUniv_stage
+#print axioms univCacheArgs_val
+#print axioms cacheSolves_composed
 #print axioms UnivPins_update
 #print axioms UnivPins_congr
 #print axioms mpRounds_eq_signed
@@ -1803,11 +1886,11 @@ with `fr` the stage's free pointer, and the prologue produces
 therefore `univProloguePins_eq_argsOf` read right-to-left — the brick restored
 and corrected this session for exactly this consumer. -/
 theorem univSolves (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
-    (need : ℕ → ℕ → Light.Need)
+    (need : ℕ → ℕ → Light.Need) (cacheTime : ℕ → ℕ → ℕ)
     (hb : UnivBundle stage cacheProg restoreProg cs need)
     (hcov : NeedCovers need) :
     Light.Solves Light.mpTask (callerProgramUniv stage cacheProg restoreProg cs) 0
-      univTn need := by
+      (univTn cacheTime) need := by
   refine ⟨mpBodyUniv stage, callerProgramUniv_entry stage cacheProg restoreProg cs, ?_⟩
   intro R lim d x μ fr hpre hok
   obtain ⟨tests, Tt, rows, hfill, hslot, hret, hflag, hokS, hTt, hident, hkept⟩ :=
@@ -1894,7 +1977,7 @@ theorem univSolves (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : I
     (fr := LTop x fr) (frC := fr)
     stage cacheProg restoreProg cs R Tt x x.U tests (univProloguePins x fr)
     (([(x.n : ℤ), (x.U : ℤ), (x.a : ℤ), (x.b : ℤ), (x.c : ℤ)] : List ℤ) ++ [(fr : ℤ)]) μ
-    (hpro := hpro) (hwire := hwire)).mono (by rw [univTn_eq]; exact le_of_eq (Nat.add_comm _ _)) ?_
+    (hpro := hpro) (hwire := hwire)).mono (by unfold univTn; exact Nat.le_add_left _ _) ?_
   intro σ' hσ'
   obtain ⟨hpins, hhead, _⟩ := hσ'
   exact ⟨seg_of_entries (hident σ' hpins hhead), hkept σ' hpins hhead⟩
@@ -1907,18 +1990,18 @@ the need and domination sockets IS the conservative `Race.bound` form —
 body's `twin_of_CallerTarget`: when the bundle's premises are supplied, the
 filing theorem is THIS one, with no further composition. -/
 theorem twinUniv_of (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
-    (need : ℕ → ℕ → Light.Need)
+    (need : ℕ → ℕ → Light.Need) (cacheTime : ℕ → ℕ → ℕ)
     (hb : UnivBundle stage cacheProg restoreProg cs need)
     (hcov : NeedCovers need)
     (hn : Light.PolyNeed need)
     (hdom : ∀ κ : Nat, ∃ (k : Nat) (C : Real), ∀ᶠ n : Nat in atTop,
-      Light.timeUpTo (Light.Sec3.apTime univTn) n
+      Light.timeUpTo (Light.Sec3.apTime (univTn cacheTime)) n
         ((n : Real) ^ (κ : Real)) ≤
         C * AsymptoticCosts.completeCost k n) :
     EndStatement.APSP.SolvedInTime ((2994999 : Rat) / 1000000) :=
   ThinMatrix.Twin.race_bound (P := callerProgramUniv stage cacheProg restoreProg cs)
-    (p := 0) (Tn := univTn) (need := need)
-    (univSolves stage cacheProg restoreProg cs need hb hcov) hn hdom
+    (p := 0) (Tn := univTn cacheTime) (need := need)
+    (univSolves stage cacheProg restoreProg cs need cacheTime hb hcov) hn hdom
 
 #print axioms twinUniv_of
 

@@ -98,6 +98,23 @@ call: `P, I, rb`) instead of copying anything:
 Disclosed cost of route (c): `univTn` gains `cacheTime (n²) U` and `hdom` must
 absorb it (poly clock ⇒ absorbed by the existing `log^{k+R+10}·n²` arm).
 
+**PROGRESS 2026-11-10 (third pass) — route (c)'s MECHANICAL PREREQUISITES ARE
+LANDED; THE CALL IS NOT.** Landed in `CallerUniversalBody` (green, no `sorryAx`,
+each `#print axioms` = [propext, Classical.choice, Quot.sound]):
+`univCacheArgs` + `univCacheArgs_val` — the call's frame EVALUATED, proved to be
+`[n, n, fr + n, fr + 4n + n²]` (`P, I, rb, LTop` with the free pointer last);
+`cacheSolves_composed` — `Solves cacheTask cacheProg cacheProc …` at
+`callerProgramUniv`, procedure `1 + cacheProc`, body shifted, by `Solves` →
+`Ends.append` → `Ends.shift_append`; and the clock — `univTn` takes
+`cacheTime` as an ARGUMENT and `univTn_le` carries the cache's share as a
+HYPOTHESIS (without it the bound is false). What is NOT done: `mpBodyUniv` does
+not call the cache, so row 1 below is still the flat image, `UnivBundle`'s
+conjunct 1 is unswapped, and `univSolves` still takes `hfill` from the bundle.
+The obstruction (the prologue runs at the cache's END memory) and the cure for
+the remaining step are written out in
+`CallerUniversalBody.verification.txt` §"ROUTE (c)'s MECHANICAL
+PREREQUISITES LANDED", items (a)–(d).
+
 ## 2. The premise census — every hypothesis of `twinUniv_of` (`:1909`)
 
 Classes: **(i)** derivable from the challenge's own quantification (close it);
@@ -109,7 +126,7 @@ says landed.
 
 | # | premise | site | class | verdict |
 |---|---|---|---|---|
-| 1 | FILL 1 rows image | `:1752` | **(ii)** cache boundary | NOT Pre-derivable (measured, §1). Producer: route (c) — **gated on the cache task's frame repair (`ea7e86d`); with the frame shape first carried, route (c) renamed this premise instead of producing it.** |
+| 1 | FILL 1 rows image | `:1752` | **(ii)** cache boundary | NOT Pre-derivable (measured, §1). Producer: route (c) — **gated on the cache task's frame repair (`ea7e86d`); with the frame shape first carried, route (c) renamed this premise instead of producing it.** *Status 2026-11-10: the cache slot at the COMPOSED program (`cacheSolves_composed`) and the cache clock (`univTn`/`univTn_le`) are LANDED; the entry-body call, the `UnivBundle` shape swap and the derived `hfill` are NOT.* |
 | 2 | `UnivSlot` (certified stage socket) | `:1753` | **(i) landed** | `stageSlot_any` is LANDED and is exactly this shape; its `hAR`/`hfl` follow from the prologue's two passes (`bit true = 1`), `hlay` from the layout ring, `hok` from `Ok`+`NeedCovers`. Its `hRR` IS premise 1. |
 | 3 | `hret` (oracle return) | `:1756` | **(ii)** oracle boundary | stays named. |
 | 4 | `hflag : ∀ mask', x.n ≤ (flagged x.n mask').card` | `:1763` | **FALSE — REPAIRED 2026-11-10** | `(range n).filter` ⇒ card `0` at the all-false mask; `Pre.n_pos` ⇒ `1 ≤ x.n`. `hflag_shape_false` (kept) records it. **The repair is at the CALL SITE, not the wire** — the wire is generic in `k` and the schedule clears one flag per round, so a mask-generic budget forces `k = 0`; the bundle instantiates `k := x.n`. Applied at `:1753` (slot), `:1759` (hret call site), `:1763` (conjunct), `:1773` (`hTt`) + six `univSolves` instantiations. **The conjunct is now a tautology** (`hflag_shape_true_zero`, `refuted_mask_now_satisfies`), so this premise LEAVES the list. |

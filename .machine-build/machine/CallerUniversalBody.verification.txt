@@ -1,3 +1,92 @@
+CallerUniversalBody.lean — ROUTE (c)'s MECHANICAL PREREQUISITES LANDED
+(2026-11-10, third pass on this module; THE CALL ITSELF IS NOT WIRED)
+=====================================================================
+
+WHAT IS GREEN (every `#print axioms` below = [propext, Classical.choice,
+Quot.sound]; no `sorryAx` anywhere in the build log. Receipt
+/private/tmp/apsp_univ6.log: rc=0, attempts=1, olean 3,970,048 bytes):
+
+1. `univCacheArgs` — the cache call's argument list: `cacheTask.args` with the
+   free pointer LAST (`Task.args`, then `fr`), i.e.
+   `[v 0, v 0, v 5 +' v 0, v 5 +' k 4 *' v 0 +' (v 0 *' v 0)]`.
+   `univCacheArgs_val` EVALUATES it — proved, not asserted: at `l 0 = n`,
+   `l 5 = fr` the four values are `[n, n, fr + n, fr + 4n + n²]`, i.e.
+   `[P, I, rb, LTop x fr]` at the mpTask frame. Arg-expression cost 14
+   (`1 + 1 + 3 + 9`), plus the call rule's 2 = 16 = `univCallB`.
+2. `cacheSolves_composed` — route (c)'s RENUMBERING STEP, proved:
+   `Solves cacheTask cacheProg cacheProc …` lifts to
+   `Solves cacheTask (callerProgramUniv stage cacheProg restoreProg cs ++ R)
+   (1 + cacheProc) …` with the body shifted by one, by `Solves` →
+   `Ends.append` → `Ends.shift_append` (the `stageMeets_behind` route,
+   `Program.getElem?_behind_right` for the index). `cacheProcInP` names the
+   `1 +`. The entry body's call needs exactly this contract at exactly this
+   index, so nothing below has to carry a renumbering argument of its own.
+3. The CLOCK, and its HYPOTHESIS. `univTn` carries the cache term as an
+   ARGUMENT (the cache's clock is abstract — route (c)'s disclosed cost):
+     `univTn cacheTime n U = univCallB + cacheTime (n·n) U
+        + (univProB n + mpRounds U * univUnitB n)`
+   `univTn_le` states the cache's share as a hypothesis, because without it
+   the bound is FALSE:
+     `univCallB + cacheTime (n·n) U ≤ (2·log₂U + 6)·(770·n²)`
+     `⇒ univTn cacheTime n U ≤ 2·((2·log₂U + 6)·(770·n²)) + 27n + 64`.
+   `univSolves` and `twinUniv_of` thread `cacheTime`; `hdom`'s statement now
+   names `univTn cacheTime`, so the domination socket moves with the clock.
+
+WHAT IS NOT DONE, and why it is ONE atomic step rather than three items.
+`mpBodyUniv` is UNCHANGED (`univPrologue ;; univWhile stage`). The entry body
+does not call the cache, so `entryAssembly`, `UnivBundle` and the census's
+row 1 are unchanged, and `univSolves` still takes the rows image from the
+bundle. The call cannot land green by itself: `entryAssembly` splits
+`mpBodyUniv` with `Ends.seq` at the PROLOGUE's start memory `μ₀`, and a
+prepended `call … Tmp` runs the prologue at the CACHE's end memory instead.
+The cure, worked out against the actual defs (not guessed):
+
+  (a) `PrologueTarget` gains a start memory `ν` and keeps `μ₀` as the
+      reference: the invariant's only `μ₀` reads are the cell `x.c` and the
+      `KeptBut` base, and both survive `KeptBut μ₀ ν (LTop x fr) rb (n·n)`
+      because `x.c + n² ≤ fr < rb` (so the exception region cannot reach
+      either).
+  (b) `prologue_runs` generalizes by ~6 line edits: `μ₁ := wrote ν fr …`,
+      `μ₂ := wrote μ₁ mb …`, the two `wrote_done (μ := μ₀)` → `(μ := ν)`
+      renames, then the two transports at the end (`ν x.c = μ₀ x.c`, and
+      `KeptBut μ₀ (μ₂ …)` from `KeptBut ν` + `hν`).
+  (c) the call leaves its result in a register (`Function.update loc Tmp r`), so
+      the prologue's start frame is no longer `frame frameVals`. The device that
+      keeps `prologue_runs`' FRAME half untouched: follow the call with
+      `.set Tmp (k 0)`; the start frame is then
+      `frame (setLocal (setLocal frameVals Tmp r) Tmp 0)` = `frame frameVals`
+      by `frame_setLocal` + `frameVals.getD Tmp 0 = 0` (needs
+      `frameVals.length ≤ Tmp`). Cost 2 steps, folded into `univCallB`.
+  (d) `UnivBundle`'s conjunct 1 becomes
+      `Light.Solves cacheTask cacheProg cacheProc cacheTime cacheNeed` (shape
+      swaps, count unchanged — the corrected census), `univSolves` gains
+      `hcache`, and `prologue_runs`' `hrows` is derived from the cache's post
+      instead of taken from the bundle.
+
+WHY THE PASS STOPS HERE (measured, not a preference). (a)–(d) thread
+`cacheProc` through ~16 declaration sites (`callerProgramUniv`,
+`callerProgramUniv_entry/behind/stage`, `WireUnivTarget`, `PrologueTarget`,
+`univLevel_runs`, `wireUnivTarget_of`, `prologue_runs`, `entryAssembly`,
+`UnivBundle`, `univSolves`, `twinUniv_of`, plus the six `univSolves`
+instantiations) and add one `Ends.seq`/`Ends.callTo` composition with an
+argument-safety side goal (`light_side` against the stack-top fit
+`fr + 4n + n² ≤ space`). A probe confirmed the signature ripple is small (6
+error sites when `mpBodyUniv` gained the extra parameter and the prepend), but
+each iteration on this 2078-line module measures 50–120 s at load ~90, and
+landing (a)–(d) half-done leaves the module RED — worse than landing none.
+The green boundary is where this pass stopped.
+
+BUILD ENVIRONMENT (measured; it CONTRADICTS the incoming brief, so record it).
+Builds ran DETACHED, not inside tmux: `subprocess.Popen(..., start_new_session
+=True)` from the MCP shell with `_run_module.sh` doing the retry. Receipts:
+/private/tmp/apsp_univ{1..6}.log + .exit. One attempt DID die as a transport
+death (`univ4` attempt 1, rc ≥ 128) and the script's retry went green on
+attempt 2: the kill is real, detachment alone does not stop it, and
+RETRY-ON-TRANSPORT-DEATH is the mechanism that survives it. The tmux session
+the previous pass used (`leanbench`) was reaped by the godot monitor daemon
+mid-pass, and `tmux new-session` is blocked by the pane-management guard, so
+tmux is not addressable from a shell tool at all.
+
 CallerUniversalBody.lean — THE ENTRY ASSEMBLY LANDED (2026-11-10)
 ==================================================================
 
