@@ -823,33 +823,10 @@ def UnivInv (lim : Limits) (vals : List ℤ) (x : MatInst) (W : ℕ)
     ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ.mem) ∧
   σ.mem x.c = (if ell = 0 then μ₀ x.c else bracketAccumulate (μ₀ x.c) tests (mpRounds W))
 
-/-- The level-loop wire target — STATED, the induction is the next
-session's core (the while-form of the landed per-round wire induction).
-The loop rule is `Ends.while` at `signedLevels W` iterations with the
-constant per-iteration budget `univTestB + univLevelB n`; the invariant
-is `UnivInv`; the per-iteration body decomposes into two `univRound_runs`
-rounds (the round counter 2·ℓ and 2·ℓ+1, the second at the first's
-evolved mask) plus three counter `.set`s (Rt twice, Lvl doubling — each
-pin-preserving by `UnivPins_set`, each word-safe by `hword`); the exit
-needs `2^signedLevels W > 2·U` (`Nat.lt_pow_succ_log_self` at the
-instance's positive bound) and yields the fold identity at cell (0,0).
-The per-iteration cost is `univWhile_cost`-bounded by the schedule's
-unit budget; the total is `univTn`-shaped. -/
-def WireUnivTarget
-    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
-    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr : ℕ}
-    (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
-    (R : Light.Program) (Tt : ℕ → ℕ)
-    (x : MatInst) (W : ℕ) (tests : ℕ → Bool × Bool)
-    (vals : List ℤ) (μ₀ : ℕ → ℤ) : Prop :=
-  ∀ (l : ℕ → ℤ),
-    UnivInv lim vals x W P I active rows ab rb mb μ₀ tests 0 ⟨l, μ₀⟩ →
-    Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d (univWhile stage)
-      ⟨l, μ₀⟩ (mpRounds W * univUnitB x.n)
-      (fun σ' => UnivPins lim vals x W σ' ∧
-        σ'.mem x.c = bracketAccumulate (μ₀ x.c) tests (mpRounds W) ∧
-        (∃ mask' : ℕ → Bool,
-          ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ'.mem))
+/- (`WireUnivTarget` is DEFINED BELOW, immediately after `UnivInvAll` — see the
+note there. Its hypothesis is the strengthened invariant `UnivInvAll`, which
+cannot be referenced before that def exists, so the target moved rather than
+being restated with a hypothesis the induction cannot close on.) -/
 
 /-! ## The row pass's run, strengthened (the full row + the kept cells) -/
 
@@ -1255,6 +1232,41 @@ def UnivInvAll (lim : Limits) (vals : List ℤ) (x : MatInst) (W : ℕ)
     σ.mem (x.c + t * x.n + u) = μ₀ (x.c + t * x.n + u)) ∧
   KeptBut μ₀ σ.mem frC x.c (x.n * x.n)
 
+/-- The level-loop wire target, STATED — now at the hypothesis the induction
+actually closes on. The loop rule is `Ends.while` at `signedLevels W`
+iterations with the constant per-iteration budget `univTestB + univLevelB n`;
+the invariant is `UnivInvAll`; the per-iteration body is `univLevelBody`
+(two certified rounds at levels `2ℓ`, `2ℓ+1` — the second at the first's
+evolved mask — plus the three pin-preserving counter `.set`s, brick
+`univLevel_runs`); the exit needs `2^signedLevels W > 2·U`
+(`Nat.lt_pow_succ_log_self` at the instance relation `x.U = W`) and yields
+the fold identity at cell (0,0). The per-iteration cost is
+`univWhile_cost`-bounded by the schedule's unit budget; the total is
+`mpRounds W * univUnitB n`, i.e. `univTn`-shaped up to the prologue.
+
+AMENDED HYPOTHESIS (disclosed, not silently weakened): as first stated this
+carried `UnivInv … 0`. That is too weak for the induction — the loop's
+all-cells tracking (other rows unchanged, and `KeptBut` below the free
+pointer) is load-bearing for every later round's row pass and for the
+cell-(0,0) fold's survival, and only the PROLOGUE establishes it. The
+hypothesis is therefore the strengthened invariant, and supplying it is the
+entry assembly's obligation. -/
+def WireUnivTarget
+    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr frC : ℕ}
+    (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
+    (R : Light.Program) (Tt : ℕ → ℕ)
+    (x : MatInst) (W : ℕ) (tests : ℕ → Bool × Bool)
+    (vals : List ℤ) (μ₀ : ℕ → ℤ) : Prop :=
+  ∀ (l : ℕ → ℤ),
+    UnivInvAll lim vals x W P I active rows ab rb mb μ₀ tests frC 0 ⟨l, μ₀⟩ →
+    Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d (univWhile stage)
+      ⟨l, μ₀⟩ (mpRounds W * univUnitB x.n)
+      (fun σ' => UnivPins lim vals x W σ' ∧
+        σ'.mem x.c = bracketAccumulate (μ₀ x.c) tests (mpRounds W) ∧
+        (∃ mask' : ℕ → Bool,
+          ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ'.mem))
+
 /-- THE LEVEL BODY'S RUN: from the strengthened invariant at level `ell`,
 the level body — two certified rounds (rounds `2·ell`, `2·ell+1`, the
 second at the first's evolved mask) plus the three counter `.set`s —
@@ -1591,6 +1603,171 @@ theorem univLevel_runs
           exact h1.trans (h2.trans h3)
 
 #print axioms univLevel_runs
+
+/-! ## The level bound's arithmetic (the loop's two sides) -/
+
+/-- Below the top level the doubling fits the loop bound: the level at
+`i < signedLevels W` is at most `2^(signedLevels W - 1) = 2^(log₂(2W)) ≤ 2W`
+(`Nat.pow_log_le_self`). This is the HOLDS side of the while test. -/
+theorem pow_pred_signed_levels_le (W : ℕ) (hW : W ≠ 0) :
+    2 ^ (signedLevels W - 1) ≤ 2 * W := by
+  have h1 : signedLevels W - 1 = Nat.log2 (2 * W) := by
+    unfold signedLevels
+    omega
+  rw [h1, Nat.log2_eq_log_two]
+  exact Nat.pow_log_le_self 2 (by omega)
+
+/-- At the top level the doubling EXCEEDS the loop bound
+(`Nat.lt_pow_succ_log_self`). This is the ¬HOLDS side — the while's exit. -/
+theorem two_mul_lt_pow_signed_levels (W : ℕ) : 2 * W < 2 ^ signedLevels W := by
+  have h := Nat.lt_pow_succ_log_self (b := 2) (by norm_num) (2 * W)
+  have h1 : Nat.log2 (2 * W) = Nat.log 2 (2 * W) := Nat.log2_eq_log_two
+  unfold signedLevels
+  rw [h1]
+  simpa [Nat.succ_eq_add_one] using h
+
+/-- THE WIRE'S DISCHARGE (PRODUCT_BODY.md §5 — the lane's last named seam):
+`WireUnivTarget`, by `Ends.while` at `signedLevels W` iterations, invariant
+`UnivInvAll`, constant per-iteration budget `univLevelB n`, body
+`univLevelBody` (the two-round-plus-three-sets brick `univLevel_runs`).
+Exit `2^signedLevels W > 2·U`; total `univWhile_cost`-bounded by the
+schedule's unit budget, i.e. exactly the target's `mpRounds W * univUnitB n`.
+
+THE HYPOTHESES THE TARGET-DEF DOES NOT CARRY, named here rather than
+silently assumed:
+- `hWU : x.U = W` — the instance's word bound IS the schedule's. It cannot
+  be weakened to `≤`: BOTH sides of the test move with it, so `≤` breaks
+  the exit while `≥` breaks the entry. At the packaging call site they are
+  the same number.
+- `hWpos : 0 < W` — a nonzero schedule (at `W = 0` the level register's
+  initial `1` already exceeds `2·0`).
+- `hwordU2`, `hword1` — the loop bound and the constant `1` fit a word, so
+  the test `v Lvl ≤' v U2` (cost 5, i.e. `univTestB - 1`) is safe. -/
+theorem wireUnivTarget_of
+    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr frC : ℕ}
+    (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
+    (R : Light.Program) (Tt : ℕ → ℕ)
+    (x : MatInst) (W : ℕ) (tests : ℕ → Bool × Bool)
+    (vals : List ℤ) (μ₀ : ℕ → ℤ)
+    (hxn : 1 ≤ x.n)
+    (hvals : vals = argsOf (callSite P k I h active remaining rows ab rb sb mb bb)
+      ++ [(fr : ℤ)])
+    (hslot : @UnivSlot lim d P k I h active rows ab rb sb mb bb fr
+      stage cacheProg restoreProg cs R Tt)
+    (hret : ∀ (t' : ℕ) (mask' : ℕ → Bool) (μ' μ'' : ℕ → ℤ) (r' : ℤ),
+      t' < mpRounds W →
+      Light.DenseRestartSelectionLoop.Post
+        (callSite P k I h active mask' rows ab rb sb mb bb) μ' μ'' →
+      r' = bracketAccumulate (μ' (x.c + t' * x.n)) tests (mpRounds W))
+    (hflag : ∀ mask' : ℕ → Bool, k ≤ (flagged P mask').card)
+    (hok : ∀ (mask' : ℕ → Bool) (kt : ℕ),
+      (Light.DenseRestartSelectionLoop.need
+        (instanceSize (callSite P kt I h active mask' rows ab rb sb mb bb))
+        (callSite P kt I h active mask' rows ab rb sb mb bb).height).Ok lim fr (d + 1))
+    (hlay : InOrder fr [(ab, I), (rb, P * I), (sb, P), (bb, I), (mb, P)])
+    (hfrCle : frC ≤ ab)
+    (haway : (x.c < sb ∨ sb + P ≤ x.c) ∧
+      (x.c < bb ∨ bb + I ≤ x.c) ∧
+      (x.c < mb ∨ mb + P ≤ x.c))
+    (hbelow : (x.c + x.n * x.n : ℕ) ≤ ab)
+    (hspace : (lim.space : ℤ) ≤ lim.word)
+    (hregion : mpRounds W ≤ x.n)
+    (hdim : d < lim.depth)
+    (hTtk : Tt k ≤ callerTt x.n)
+    (hwordRt : ((mpRounds W : ℕ) : ℤ) ≤ lim.word)
+    (hwordLvl : ((2 ^ signedLevels W : ℕ) : ℤ) ≤ lim.word)
+    (hwordU2 : |2 * (x.U : ℤ) + 1| ≤ lim.word)
+    (hword1 : (1 : ℤ) ≤ lim.word)
+    (hWU : x.U = W)
+    (hWpos : 0 < W) :
+    WireUnivTarget (lim := lim) (d := d) (P := P) (k := k) (I := I) (h := h)
+      (active := active) (remaining := remaining) (rows := rows)
+      (ab := ab) (rb := rb) (sb := sb) (mb := mb) (bb := bb) (fr := fr) (frC := frC)
+      stage cacheProg restoreProg cs R Tt x W tests vals μ₀ := by
+  intro l h0
+  have hWne : W ≠ 0 := by omega
+  have hPowLe : 2 ^ (signedLevels W - 1) ≤ 2 * W := pow_pred_signed_levels_le W hWne
+  have hPowGt : 2 * W < 2 ^ signedLevels W := two_mul_lt_pow_signed_levels W
+  have hsum : (∑ i ∈ Finset.range (signedLevels W), (5 + 1 + univLevelB x.n)) + (5 + 1)
+      = signedLevels W * (univTestB + univLevelB x.n) + univTestB := by
+    simp only [univTestB]
+    rw [Finset.sum_const, Finset.card_range]
+    simp
+  have hwhile : Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d
+      (.while (v Lvl ≤' v U2) (univLevelBody stage)) ⟨l, μ₀⟩
+      ((∑ i ∈ Finset.range (signedLevels W), (5 + 1 + univLevelB x.n)) + (5 + 1))
+      (fun σ' => UnivPins lim vals x W σ' ∧
+        σ'.mem x.c = bracketAccumulate (μ₀ x.c) tests (mpRounds W) ∧
+        (∃ mask' : ℕ → Bool,
+          ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ'.mem)) := by
+    refine Ends.while
+      (I := fun ell σ => UnivInvAll lim vals x W P I active rows ab rb mb μ₀ tests frC ell σ)
+      (n := signedLevels W) (b := fun _ => univLevelB x.n)
+      (c := (v Lvl ≤' v U2)) (s := univLevelBody stage) (σ := ⟨l, μ₀⟩) h0 ?_ ?_
+    · -- the body at level i < signedLevels W
+      intro i σ hi hinvAll
+      obtain ⟨hpins, hLvl, hRt, hreads, hcell⟩ := hinvAll.1
+      obtain ⟨hframe, hOut, hNreg, hU2, haddr⟩ := hpins
+      refine ⟨?_, ?_, ?_⟩
+      · -- the test is safe: the loop bound and 1 fit a word
+        simp only [Cond.le, Cond.Safe, Expr.Safe, Expr.val, Op.eval]
+        exact ⟨trivial, trivial, hword1, by rw [hU2]; exact hwordU2⟩
+      · -- the test holds: 2^i ≤ 2·U
+        rw [Cond.holds_le]
+        simp only [Expr.val]
+        rw [hLvl, hU2, hWU]
+        have h2 : 2 ^ i ≤ 2 ^ (signedLevels W - 1) :=
+          Nat.pow_le_pow_right (by norm_num) (by omega)
+        have hcast : ((2 ^ i : ℕ) : ℤ) ≤ ((2 ^ (signedLevels W - 1) : ℕ) : ℤ) := by
+          exact_mod_cast h2
+        have hcast2 : ((2 ^ (signedLevels W - 1) : ℕ) : ℤ) ≤ ((2 * W : ℕ) : ℤ) := by
+          exact_mod_cast hPowLe
+        push_cast at hcast2
+        omega
+      · -- the level body's run: two certified rounds + three counter sets
+        exact univLevel_runs (lim := lim) (d := d) (P := P) (k := k) (I := I) (h := h)
+          (active := active) (remaining := remaining) (rows := rows)
+          (ab := ab) (rb := rb) (sb := sb) (mb := mb) (bb := bb) (fr := fr) (frC := frC)
+          (cacheProg := cacheProg) (restoreProg := restoreProg) (cs := cs) (stage := stage)
+          (Tt := Tt) (R := R) (x := x) (W := W) (tests := tests) (vals := vals) (μ₀ := μ₀)
+          hxn hvals hslot hret hflag hok hlay hfrCle haway hbelow hspace hregion hdim hTtk
+          hwordRt hwordLvl (ℓ := i) (ll := σ.loc) (μ := σ.mem) (T := univLevelB x.n)
+          hi (by simpa using hinvAll) (le_refl _)
+    · -- the exit: the level bound is exceeded, and the target's conclusion holds
+      intro σ hinvAll
+      have hpinsE : UnivPins lim vals x W σ := hinvAll.1.1
+      have hLvlE : σ.loc Lvl = ((2 ^ signedLevels W : ℕ) : ℤ) := hinvAll.1.2.1
+      have hreadsE : ∃ mask' : ℕ → Bool,
+          ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ.mem :=
+        hinvAll.1.2.2.2.1
+      have hcellE : σ.mem x.c = (if signedLevels W = 0 then μ₀ x.c
+          else bracketAccumulate (μ₀ x.c) tests (mpRounds W)) := hinvAll.1.2.2.2.2
+      have hU2E : σ.loc U2 = (2 * (x.U : ℤ)) := hpinsE.2.2.2.1
+      refine ⟨?_, ?_, ?_⟩
+      · simp only [Cond.le, Cond.Safe, Expr.Safe, Expr.val, Op.eval]
+        exact ⟨trivial, trivial, hword1, by rw [hU2E]; exact hwordU2⟩
+      · -- ¬ (2^signedLevels W ≤ 2·U)
+        rw [Cond.holds_le]
+        simp only [Expr.val]
+        rw [hLvlE, hU2E, hWU]
+        intro hle
+        have hcast : ((2 * W : ℕ) : ℤ) < ((2 ^ signedLevels W : ℕ) : ℤ) := by
+          exact_mod_cast hPowGt
+        push_cast at hcast
+        omega
+      · refine ⟨hpinsE, ?_, hreadsE⟩
+        rw [if_neg (by have := signedLevels_pos W; omega)] at hcellE
+        exact hcellE
+  refine hwhile.mono ?_ (fun _ h => h)
+  rw [hsum]
+  exact univWhile_cost x.n W hxn
+
+#print axioms pow_pred_signed_levels_le
+
+#print axioms two_mul_lt_pow_signed_levels
+
+#print axioms wireUnivTarget_of
 
 #print axioms UnivPins_set
 
