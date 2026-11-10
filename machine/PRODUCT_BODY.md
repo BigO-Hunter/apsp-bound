@@ -178,17 +178,42 @@ disclosed at the def (the buffer order is active, rows, scores, base,
 remaining — so `baseBase = fr+2n+n²`, `remainingBase = fr+3n+n²` — and
 the entry frame is `frameVals`, separate from the pins).
 
-STILL OPEN (and this is now a DESIGN finding): the `Light.Solves`
-packaging's `hregion : mpRounds W <= n` does NOT follow from
-`mpTask.Pre` + a polynomial `Need.Ok`. The row pass writes round `t`'s
-row at `x.c + t‧n`, so `mpRounds U > n` puts those stores above
-`x.c + n²`, inside the buffers the stage reads — the certified stage post
-and the final `KeptBut` both fail (`n = 1, U = 100` gives
-`mpRounds 100 = 16 > 1`). Two cures, named, neither faked: (a) restrict
-the task (`mpTaskRounds`) and re-wire the twin; (b) drop the per-round
-row write (accumulate the bracket value in registers). Until one lands,
-`summitSlotUniv_of` / `twinUniv_of` cannot fire `Race.bound`
-2994999/1000000 for `mpTask` as stated.
+RESOLVED 2026-11-10 — CURE (b) LANDED. `hregion : mpRounds W <= n` does
+NOT follow from `mpTask.Pre` + a polynomial `Need.Ok`, because the row pass
+wrote round `t`'s row at `x.c + t‧n`, so `mpRounds U > n` put those stores
+above `x.c + n²`, inside the buffers the stage reads (counterexample
+`n = 1, U = 100`: `mpRounds 100 = 16 > 1`). Cure (a) restricted the task
+(`mpTaskRounds`, commit 7b6ac0b) and was then measured to be UNCONSUMABLE:
+the filing chain needs `IsHost mpTask apTask`, and Host.lean instantiates
+the lower solver at bounds ~3nU where `mpRounds U' <= n'` fails pointwise.
+
+So cure (b) is the cure, and it is now landed. The row pass was an
+implementation choice, not mathematics: only the product's head `x.c`
+reaches any proved fact (`MinPlusIdentity` takes `bracketCell x 0 0 = x.c`
+as its hypothesis and concludes every cell). `univRowPass` therefore writes
+ONE cell, guarded to round 0:
+
+    univRowPass := .ite (v Rt =' k 0) (.store (v Out) (v Tmp)) .skip
+
+The write set is `{x.c}` for EVERY instance, inside `[x.c, x.c + n²)` for
+every `n >= 1`, so the certified stage post and `KeptBut` hold for ALL
+instances, `hregion` is gone, and the task stays UNRESTRICTED (`mpTask`,
+not `mpTaskRounds`). Carrying the fold in a register and storing once after
+the loop is the same program — nothing between round 0 and the loop's exit
+reads or writes the head — and that equivalence is disclosed at the def.
+
+Knock-on: `UnivPins`'s address clause collapsed to `x.c < lim.space`;
+`UnivInvAll` lost both all-cells clauses; `univRowPass_runs'` and
+`row_disjoint` deleted; `univRound_runs`/`univRound_runs'` merged;
+`univLevel_runs` rewritten (327 -> 216 lines); `univRowB` is the constant 7
+where the row pass cost `13n + 16`.
+
+STILL TO ASSEMBLE for the filing (nothing here is faked): the entry
+assembly composing `WireUnivTarget` (`wireUnivTarget_of`) with
+`PrologueTarget` (`prologue_runs`) into `CallerTarget`; the `Solves mpTask`
+bundle (hslot, hret, hflag, hok, hrows = FILL 1, hidentU, hkeptU); and
+`twinUniv_of` lifting `CallerPost.twin_of_CallerTarget` to the universal
+body. Filing bound 2994999/1000000 assembles at the firing commit.
 
 ## 6. The step count (landed this session)
 

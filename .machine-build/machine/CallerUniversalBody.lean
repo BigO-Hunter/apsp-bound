@@ -61,32 +61,24 @@ open Filter Asymptotics ThreeSumApsp ThreeSumApsp.Spec ThreeSumApsp.WordRam
   ThinMatrix.CallerPost ThinMatrix.CallerStepCount ThinMatrix.Summit
   ThinMatrix.CallerWrites ThinMatrix.CallerRun ThinMatrix.CallerBodyStep
 
-/-! ## The restricted task: `mpTaskRounds` (cure (a), wound R2125609577) -/
+/-! ## `mpTaskRounds` — cure (a), SUPERSEDED by cure (b)
 
-/-- THE RESTRICTED (min,+) PRODUCT TASK — `mpTask`'s instance class narrowed
-by the round-containment `mpRounds U ≤ n`.
+`mpTaskRounds` restricted the claimed instance class by `mpRounds U ≤ n` so
+that the body's per-round ROW write stayed inside the product region. Cure
+(b) — the write-shape rewrite in this module (`univRowPass` now writes the
+single cell `x.c`, guarded to round 0) — deletes the reason the restriction
+existed: the write set is `{x.c} ⊆ [x.c, x.c + n²)` for EVERY instance, so
+`hregion` is never needed and `Solves mpTask` — the UNRESTRICTED task — is
+what the chain proves. The def and its three trivial projection lemmas are
+KEPT, unmodified, purely as the record of what cure (a) landed; nothing in
+this module consumes them.
 
-WHY THE RESTRICTION IS NECESSARY (disclosed, measured — R2125609577). The
-universal body's per-round row pass writes round `t`'s row at `x.c + t·n`;
-when `mpRounds U > n` those stores land above `x.c + n²`, i.e. INSIDE the
-stage's buffer stack, so the certified stage post (`SameOutside3` at
-`sb/bb/mb`) and the final `KeptBut` both break. Concrete counterexample:
-`n = 1, U = 100` gives `mpRounds 100 = 2·(log₂ 200 + 1) = 16 > 1`. No
-`Need` can express the constraint (`Need` bounds only the word, the cells
-and the call depth) and `MatInst.Pre` bounds `U` only from BELOW
-(`AbsLe`), so the containment is genuinely underivable from `mpTask.Pre`
-— a defect of the CLAIM CLASS, not of the run-derivation.
+DOC CORRECTION (disclosed, 2026-11-10). The block this replaced asserted
+that "THE RESTRICTION IS NECESSARY". That claim was TRUE OF THE ROW-BROADCAST
+BODY and is FALSE OF THE BODY NOW LANDED. It is corrected here rather than
+deleted, because a stale necessity claim in a proof file is the exact
+doc-truth defect the lane has been bitten by before. -/
 
-WHY IT COSTS NOTHING (the asymptotic regime). The scored class ranges over
-`U ≤ n^κ`, where `mpRounds U = 2·(log₂(2U) + 1) = O(log U) ≤ n` holds
-EVENTUALLY; the bound is `timeUpTo`'s supremum over that class, so
-restricting to the instances that satisfy the containment yields the same
-supremum — the bound content is unchanged.
-
-THE RESTRICTION IS A PREMISE OF THE TASK, NOT A HIDDEN HYPOTHESIS:
-`Pre' := mpTask.Pre ∧ mpRounds U ≤ n`, so a solver of `mpTaskRounds` is
-honest about which instances it solves, and `hregion` is *supplied* to the
-body rather than assumed inside its proof. -/
 def mpTaskRounds : Task where
   Inst := MatInst
   size := mpTask.size
@@ -167,27 +159,55 @@ def univPrologue : Light.Stmt :=
   .set Lvl (Light.k 1) ;;                                     -- Lvl := 1
   .set Rt (k 0)                                         -- Rt := 0
 
-/-- The per-round write pass: THE FIXED INDEX REGISTER (`IdxR := t·n` by
-`.set` — the design's computed index), the write base (`DstR := x.c +
-t·n`), and the row's stores through the upstream canonical pass — entry
-`j` storing the delivered value `v Tmp` into `DstR + j` for `j < n`.
-SHAPE NOTE (PRODUCT_BODY.md §5, pinned): the design sketch's per-entry
-`set IdxR (t·n+j)` advance is realized by the canonical pass's counter
-(`dst + c` addressing with `dst` in a register) — the same computed-index
-content, with the inner while's induction owned by the library's proved
-`Ends.pass` rule. The stored VALUE is the call's single delivery register
-`Tmp` (a Light call updates only `Tmp`); the per-instance skeleton's
-value-base registers `Tmp + u` are not expressible with a computed index,
-and no landed conclusion consumes them (only entry 0's value reaches a
-proved fact — the cell-(0,0) fold). -/
+/-- THE ROUND'S OUTPUT WRITE — cure (b) (wound R2125609577, decided
+2026-11-10, superseding cure (a)'s task restriction).
+
+WHAT THE OLD SHAPE WAS. `x.n` stores per round, row `t`'s cells at
+`x.c + t·n + u` for `u < n` (the per-instance skeleton's broadcast, driven
+by the computed index registers `IdxR`/`DstR` and the canonical `pass`).
+That write set is `[x.c + t·n, x.c + t·n + n)` for `t < mpRounds W`, which
+ESCAPES the product region `[x.c, x.c + n²)` as soon as `mpRounds W > n`.
+`hregion : mpRounds W ≤ n` was then needed to keep the stores off the
+stage's buffer stack (the certified post `SameOutside3` at `sb/bb/mb` and
+the final `KeptBut`), and that containment is NOT derivable from
+`mpTask.Pre` plus any polynomial `Need.Ok` — `Need` bounds the word, the
+cells and the depth; `MatInst.Pre` bounds `U` only from below (`AbsLe`).
+Counterexample: `n = 1, U = 100` gives `mpRounds 100 = 16 > 1`.
+
+WHY THE ROW PASS WAS NEVER NEEDED. The row broadcast was an implementation
+choice, not mathematics. The only cell ANY landed conclusion consumes is the
+product's head `x.c`: the construction's identity premise
+(`CallerRun.MinPlusIdentity`) takes the round-0 fold at `bracketCell x 0 0
+= x.c` as its hypothesis and concludes EVERY cell's `minPlusEntry` value;
+`bracketCell x 0 0 = x.c + 0·n + 0 = x.c`, and `mpTask.Post`'s `Seg` half
+then follows from that premise via `seg_of_entries`. The other `n − 1`
+cells of row `t` are read by nothing.
+
+AND ONLY ROUND 0's DELIVERY REACHES THE HEAD. Round `t`'s delivery is
+`bracketAccumulate (μ (x.c + t·n)) tests (mpRounds W)` — the fold seeded at
+ROW `t`'s head, so rounds `t ≥ 1` carry DIFFERENT values and must not
+clobber the head. Hence the `Rt = 0` guard.
+
+THIS IS THE REGISTER ACCUMULATION, IN PLACE. Carrying the fold in a
+dedicated register and storing it once after the loop is the same program up
+to the observation that nothing between round 0 and the loop's exit reads or
+writes the head: the guarded store lands round 0's delivery in `x.c`
+immediately and every later round leaves it alone, so the register (and its
+pin, and its final store) would carry no information the cell does not
+already hold. Stated as the equivalence it is, not as a silent substitution.
+
+WHAT THIS BUYS. The write set is now `{x.c}` — ONE cell, for every instance,
+whatever `mpRounds W` is. `{x.c} ⊆ [x.c, x.c + n²)` for every `n ≥ 1`, so
+the certified stage post and `KeptBut` hold for ALL instances, `hregion` is
+never needed, and `Solves mpTask` — the UNRESTRICTED task — is what the
+chain proves. The cost falls from `13n + 16` to a constant `7`
+(`Cond.cost 3 + 1 + 3`). -/
 def univRowPass : Light.Stmt :=
-  .set IdxR (v Rt *' v Nreg) ;;
-  .set DstR (v Out +' v IdxR) ;;
-  pass J (v Nreg) (v DstR) (v Tmp)
+  .ite (v Rt =' k 0) (.store (v Out) (v Tmp)) .skip
 
 /-- The universal round: the certified stage call (the L5/L6 restart-loop
 slot at the composed program's procedure index `stage`) followed by the
-row's write pass. -/
+round's single output write (`univRowPass`). -/
 def univRound (stage : ℕ) : Light.Stmt :=
   Light.Stmt.call stage callArgs Tmp ;; univRowPass
 
@@ -282,16 +302,21 @@ theorem callerProgramUniv_stage (stage : ℕ) (cacheProg restoreProg : Light.Pro
 
 /-- The universal body's register contract at any state: the stage's
 nine-value frame in registers 0–8, the computed registers holding the
-caller's layout values, and the static address bookkeeping (every row
-write's base in range; every per-round index within a word). -/
+caller's layout values, and the product head's address in range.
+
+CURE (b) SIMPLIFICATION (2026-11-10): the old last conjunct was an
+unbounded-index address bookkeeping (`∀ t < mpRounds W, (x.c + t·n) + n ≤
+lim.space ∧ |t·n| ≤ lim.word`) because the row pass addressed cell
+`x.c + t·n`. The round now writes ONE cell, `x.c` (`univRowPass`), so the
+whole obligation collapses to `x.c < lim.space` — the address
+`Ends.store` demands — and is instance-sizing-free. -/
 def UnivPins (lim : Limits) (vals : List ℤ) (x : MatInst) (W : ℕ) (σ : State) :
     Prop :=
   (∀ k' : ℕ, k' < 9 → σ.loc k' = vals.getD k' 0) ∧
   σ.loc Out = (x.c : ℤ) ∧
   σ.loc Nreg = (x.n : ℤ) ∧
   σ.loc U2 = (2 * x.U : ℤ) ∧
-  (∀ t : ℕ, t < mpRounds W →
-    ((x.c + t * x.n : ℕ) + x.n ≤ lim.space) ∧ |(t * x.n : ℤ)| ≤ lim.word)
+  x.c < lim.space
 
 /-- The pins' register half survives the stage call (the call updates
 only `Tmp`, and every pinned register misses `Tmp`). -/
@@ -320,8 +345,7 @@ theorem UnivPins_update {lim : Limits} {vals : List ℤ} {x : MatInst} {W : ℕ}
       dif_neg (by norm_num [U2, Tmp])
     rw [hu]
     exact h4
-  · intro t ht
-    exact h5 t ht
+  · exact h5
 
 /-- The pins are loc-only: they transfer along any state whose registers
 agree. -/
@@ -334,20 +358,15 @@ theorem UnivPins_congr {lim : Limits} {vals : List ℤ} {x : MatInst} {W : ℕ}
 
 /-! ## The clock: the universal budget and its domination shape -/
 
-/-- The per-store pass cost: the value expression `v Tmp` costs 1, and
-the canonical pass takes `e.cost + 12` per entry. -/
-def univRowBw : ℕ := 13
-
-/-- The row pass's fixed overhead: the two `.set`s (4 + 4) and the
-pass's tail (6). -/
-def univRowFix : ℕ := 16
-
-/-- The row pass's budget. -/
-def univRowB (n : ℕ) : ℕ := univRowBw * n + univRowFix
+/-- The output write's budget: the test `v Rt =' k 0` costs `1 + 1 + 1 = 3`,
+the `Ends.ite` rule adds 1, and the store's branch costs `1 + 1 + 1 = 3`;
+the `skip` branch is free. `7` is therefore exact, and — this is the point
+of cure (b) — CONSTANT in `n`, where the row pass cost `13n + 16`. -/
+def univRowB : ℕ := 7
 
 /-- The round budget: the call's argument cost 9, the call overhead 2,
-the tight stage clock, and the row pass. -/
-def univRoundB (n : ℕ) : ℕ := 9 + 2 + callerTt n + univRowB n
+the tight stage clock, and the output write. -/
+def univRoundB (n : ℕ) : ℕ := 9 + 2 + callerTt n + univRowB
 
 /-- The level body's budget: two rounds and the three counter `.set`s
 (4 + 4 + 4) with slack. -/
@@ -384,7 +403,7 @@ theorem signedLevels_pos (U : ℕ) : 1 ≤ signedLevels U := by
 
 /-- The round budget is positive. -/
 theorem univRoundB_pos (n : ℕ) : 1 ≤ univRoundB n := by
-  simp only [univRoundB, univRowB, univRowBw, univRowFix, callerTt]
+  simp only [univRoundB, univRowB, callerTt]
   omega
 
 /-- The while's cost fits the schedule's unit budget: the level loop's
@@ -409,7 +428,7 @@ theorem univRoundB_le (n : ℕ) (hn : 1 ≤ n) : univRoundB n ≤ 250 * (n * n) 
   have hC : 13 * n ≤ 13 * (n * n) := Nat.mul_le_mul_left 13 h1
   have hD : (25 : ℕ) ≤ 25 * (n * n) :=
     Nat.mul_le_mul_left 25 (show (1 : ℕ) ≤ n * n from by nlinarith)
-  simp only [univRoundB, univRowB, univRowBw, univRowFix, callerTt]
+  simp only [univRoundB, univRowB, callerTt]
   omega
 
 /-- The level body's budget is quadratic. -/
@@ -420,7 +439,7 @@ theorem univLevelB_le (n : ℕ) (hn : 1 ≤ n) : univLevelB n ≤ 510 * (n * n) 
   have hC : 13 * n ≤ 13 * (n * n) := Nat.mul_le_mul_left 13 h1
   have hD : (25 : ℕ) ≤ 25 * (n * n) :=
     Nat.mul_le_mul_left 25 (show (1 : ℕ) ≤ n * n from by nlinarith)
-  unfold univLevelB univRoundB univRowB univRowBw univRowFix callerTt
+  unfold univLevelB univRoundB univRowB callerTt
   omega
 
 /-- The unit budget is quadratic. -/
@@ -468,199 +487,72 @@ theorem univTn_le (n U : ℕ) (hn : 1 ≤ n) :
 #print axioms univUnitB_le
 #print axioms univTn_le
 
-/-! ## The row pass's run (the computed-index write semantics) -/
+/-! ## The round's output write (cure (b): one guarded cell, no row pass) -/
 
-/-- The pins read only the frame registers 0–8 and the three pinned
-computed registers — they transfer along any register map agreeing
-outside the three scratch registers. -/
-theorem UnivPins_loc {lim : Limits} {vals : List ℤ} {x : MatInst} {W : ℕ}
-    {σ σ' : State}
-    (hloc : ∀ i : ℕ, i ≠ IdxR → i ≠ DstR → i ≠ J → σ'.loc i = σ.loc i)
-    (hp : UnivPins lim vals x W σ) : UnivPins lim vals x W σ' := by
-  have hO : Out = (11 : ℕ) := rfl
-  have hN : Nreg = (12 : ℕ) := rfl
-  have hU : U2 = (13 : ℕ) := rfl
-  have hl : IdxR = (16 : ℕ) := rfl
-  have hld : DstR = (17 : ℕ) := rfl
-  have hlj : J = (18 : ℕ) := rfl
-  obtain ⟨h1, h2, h3, h4, h5⟩ := hp
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩
-  · intro k' hk'
-    rw [hloc k' (by rw [hl]; omega) (by rw [hld]; omega) (by rw [hlj]; omega)]
-    exact h1 k' hk'
-  · rw [hloc Out (by rw [hO, hl]; norm_num) (by rw [hO, hld]; norm_num)
-      (by rw [hO, hlj]; norm_num)]
-    exact h2
-  · rw [hloc Nreg (by rw [hN, hl]; norm_num) (by rw [hN, hld]; norm_num)
-      (by rw [hN, hlj]; norm_num)]
-    exact h3
-  · rw [hloc U2 (by rw [hU, hl]; norm_num) (by rw [hU, hld]; norm_num)
-      (by rw [hU, hlj]; norm_num)]
-    exact h4
-  · intro t ht
-    exact h5 t ht
+/-- THE ROUND'S OUTPUT WRITE'S RUN: from a pinned state whose round counter
+reads `t` and whose `Tmp` holds the delivered value `r`, the guarded write
+installs `r` in the product's head `x.c` exactly when `t = 0` and leaves the
+memory untouched otherwise; it touches no register.
 
-/-- THE ROW PASS'S RUN: from a pinned state whose round counter reads `t`
-and whose `Tmp` holds the delivered value `r`, the pass writes `r` into
-every cell of row `t` (the first entry's write is the cell fact the wire
-consumes), keeps every cell outside the row, and preserves the pins. The
-inner while's induction is owned by the library's proved `Ends.pass` rule
-— the per-entry bookkeeping (counter, addressing, safety) is upstream's. -/
+THE WRITE SET IS THE SINGLETON `{x.c}` — that is the whole point of cure (b).
+It lies inside the product region `[x.c, x.c + n²)` for every `n ≥ 1`, so the
+certified stage post and the `KeptBut` frame hold for ALL instances and no
+containment premise on `mpRounds W` (`hregion`) is ever needed. -/
 theorem univRowPass_runs
     {lim : Limits} {P : Light.Program} {d : ℕ} {x : MatInst} {W : ℕ}
     {vals : List ℤ} {ll : ℕ → ℤ} {μ : ℕ → ℤ} {r : ℤ} {t : ℕ} {T : ℕ}
-    (hxn : 1 ≤ x.n)
     (hpins : UnivPins lim vals x W ⟨ll, μ⟩)
-    (hspace : (lim.space : ℤ) ≤ lim.word)
+    (hword : (0 : ℤ) ≤ lim.word)
     (hRt : ll Rt = (t : ℤ)) (hTmp : ll Tmp = r)
-    (htW : t < mpRounds W)
-    (hT : univRowB x.n ≤ T) :
+    (hT : univRowB ≤ T) :
     Ends lim P d univRowPass ⟨ll, μ⟩ T
-      (fun σ' => σ'.mem (x.c + t * x.n) = r ∧
-        UnivPins lim vals x W σ' ∧
-        (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
-          σ'.mem b' = μ b')) := by
+      (fun σ' => UnivPins lim vals x W σ' ∧
+        σ'.mem x.c = (if t = 0 then r else μ x.c) ∧
+        (∀ b' : ℕ, b' ≠ x.c → σ'.mem b' = μ b') ∧
+        σ'.loc = ll) := by
   obtain ⟨hframe, hOut, hNreg, hU2, haddr⟩ := hpins
-  obtain ⟨harea, hidx⟩ := haddr t htW
-  have h10 : Tmp = (10 : ℕ) := rfl
-  have h11 : Out = (11 : ℕ) := rfl
-  have h12 : Nreg = (12 : ℕ) := rfl
-  have h13 : U2 = (13 : ℕ) := rfl
-  have h16 : IdxR = (16 : ℕ) := rfl
-  have h17 : DstR = (17 : ℕ) := rfl
-  have h18 : J = (18 : ℕ) := rfl
-  simp only [State.loc, State.mem] at hframe hOut hNreg hU2
-  have hposB : (0 : ℤ) ≤ ((x.c + t * x.n : ℕ) : ℤ) := by omega
-  have hwordB : ((x.c + t * x.n : ℕ) : ℤ) + (x.n : ℤ) ≤ lim.space := by
-    have hcast : (((x.c + t * x.n : ℕ) + x.n : ℕ) : ℤ)
-        = ((x.c + t * x.n : ℕ) : ℤ) + (x.n : ℤ) := by push_cast; ring
-    have := harea
+  simp only [State.loc] at hframe hOut hNreg hU2
+  have hword' : ((0 : ℕ) : ℤ) ≤ lim.word := by simpa using hword
+  have hcost : (v Rt =' k 0).cost + 1 + 3 ≤ T := by
+    have hc : (v Rt =' k 0).cost = 3 := rfl
+    have hb : univRowB = 7 := rfl
     omega
-  have hwordC : ((x.c : ℤ)) + ((t * x.n : ℕ) : ℤ) ≤ lim.word := by
-    have hcast : ((x.c + t * x.n : ℕ) : ℤ) = (x.c : ℤ) + ((t * x.n : ℕ) : ℤ) := by
-      push_cast; ring
-    have := hspace
-    have := hwordB
-    have hpos : (0 : ℤ) ≤ ((x.c + t * x.n : ℕ) : ℤ) := by omega
-    have hxn' : (0 : ℤ) ≤ (x.n : ℤ) := by omega
-    omega
-  have hwordCA : |(x.c : ℤ) + ((t * x.n : ℕ) : ℤ)| ≤ lim.word := by
-    rw [abs_of_nonneg (by have := hwordC; omega : (0 : ℤ) ≤ (x.c : ℤ) + ((t * x.n : ℕ) : ℤ))]
-    exact hwordC
-  -- the registers after the two sets
-  set ll₂ : ℕ → ℤ := fun i =>
-    if i = DstR then ((x.c + t * x.n : ℕ) : ℤ) else
-    if i = IdxR then ((t * x.n : ℕ) : ℤ) else ll i with hll₂def
-  have hll₂ : ∀ i : ℕ, i ≠ IdxR → i ≠ DstR → ll₂ i = ll i := by
-    intro i h1 h2
-    rw [hll₂def]
-    simp only [h2, h1, if_false]
-  have hll₂Idx : ll₂ IdxR = ((t * x.n : ℕ) : ℤ) := by rw [hll₂def]; simp
-  have hll₂Dst : ll₂ DstR = ((x.c + t * x.n : ℕ) : ℤ) := by rw [hll₂def]; simp
-  have hll₂Nreg : ll₂ Nreg = (x.n : ℤ) := by
-    rw [hll₂ Nreg (by norm_num [Nreg, IdxR]) (by norm_num [Nreg, DstR])]
-    exact hNreg
-  have hll₂Tmp : ll₂ Tmp = r := by
-    rw [hll₂ Tmp (by norm_num [Tmp, IdxR]) (by norm_num [Tmp, DstR])]
-    exact hTmp
-  -- the pass's own run at the sets' post
-  have hpass : Ends lim P d (pass J (v Nreg) (v DstR) (v Tmp)) ⟨ll₂, μ⟩
-      (13 * x.n + 6)
-      (fun σ' => σ'.mem (x.c + t * x.n) = r ∧
-        UnivPins lim vals x W σ' ∧
-        (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
-          σ'.mem b' = μ b')) := by
-    refine Ends.pass (fun _ => r) ?_ ?_ hspace harea hll₂Nreg
-      (show ll₂ DstR = ((x.c + t * x.n : ℕ) : ℕ) from by
-        rw [hll₂def]; simp)
-      (by norm_num [Nreg, J]) (by norm_num [DstR, J]) ?_
-    · -- round j: the value expression is the delivery register
-      intro j hj
-      refine ⟨trivial, ?_⟩
-      show Function.update ll₂ J j Tmp = (fun _ => r) j
-      have hu : Function.update ll₂ J j Tmp = ll₂ Tmp :=
-        dif_neg (by rw [h18, h10]; norm_num)
-      rw [hu]
-      exact hll₂Tmp
-    · -- done: the write conclusion at the pass's post
-      refine ⟨?_, ?_, ?_⟩
-      · have hw := wrote_done (μ := μ) (dst := (x.c + t * x.n : ℕ))
-          (f := fun _ => r) (i := 0) (j := x.n) (by omega)
-        simpa using hw
-      · refine UnivPins_loc (σ := ⟨ll, μ⟩) ?_ ⟨hframe, hOut, hNreg, hU2, haddr⟩
-        intro i hi1 hi2 hi3
-        show Function.update ll₂ J (x.n : ℤ) i = ll i
-        have hu2 : Function.update ll₂ J (x.n : ℤ) i = ll₂ i :=
-          dif_neg (by rw [h18]; omega)
-        rw [hu2]
-        exact hll₂ i hi1 hi2
+  have hsafe : (v Rt =' k 0).Safe lim ⟨ll, μ⟩ := by
+    show (v Rt).Safe lim ⟨ll, μ⟩ ∧ (k 0).Safe lim ⟨ll, μ⟩
+    exact ⟨trivial, hword'⟩
+  have haddr' : lim.Addr (Expr.val ⟨ll, μ⟩ (v Out)) := by
+    show lim.Addr (ll Out)
+    rw [hOut]
+    exact ⟨by positivity, by exact_mod_cast haddr⟩
+  have htoNat : (ll Out).toNat = x.c := by rw [hOut]; simp
+  unfold univRowPass
+  by_cases ht0 : t = 0
+  · -- the test holds: the store runs and installs `r` at the head
+    have hholds : (v Rt =' k 0).Holds ⟨ll, μ⟩ := by
+      show ll Rt = ((0 : ℕ) : ℤ)
+      rw [hRt, ht0]
+    refine Ends.ite 3 hsafe (fun _ => ?_) (fun hc => absurd hholds hc) hcost
+    refine Ends.store ?_ ?_ haddr' ?_ ?_
+    · exact trivial
+    · exact trivial
+    · show (v Out).cost + (v Tmp).cost + 1 ≤ 3
+      simp only [Expr.cost]; omega
+    · refine ⟨⟨hframe, hOut, hNreg, hU2, haddr⟩, ?_, ?_, rfl⟩
+      · simp [State.mem, State.loc, Expr.val, htoNat, hTmp, ht0]
       · intro b' hb'
-        show wrote μ (x.c + t * x.n) (fun _ => r) x.n b' = μ b'
-        exact wrote_rest hb'
-    · -- the pass's cost
-      simp only [Expr.cost]
-      have huniv : univRowB x.n = 13 * x.n + 16 := by
-        simp only [univRowB, univRowBw, univRowFix]
-      omega
-  -- the second set + the pass, at any register map holding the computed values
-  have key : ∀ ll' : ℕ → ℤ,
-      ll' IdxR = ((t * x.n : ℕ) : ℤ) →
-      (∀ i : ℕ, i ≠ IdxR → ll' i = ll i) →
-      Ends lim P d (.set DstR (v Out +' v IdxR) ;;
-        pass J (v Nreg) (v DstR) (v Tmp)) ⟨ll', μ⟩
-        (Expr.cost (v Out +' v IdxR) + 1 + (13 * x.n + 6))
-        (fun σ' => σ'.mem (x.c + t * x.n) = r ∧
-          UnivPins lim vals x W σ' ∧
-          (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
-            σ'.mem b' = μ b')) := by
-    intro ll' hI hne
-    refine Ends.seq (Expr.cost (v Out +' v IdxR) + 1) (13 * x.n + 6) ?_
-      (by simp only [Expr.cost]; omega)
-    refine Ends.set ?_ (by simp only [Expr.cost]; omega) ?_
-    · show True ∧ True ∧ |ll' Out + ll' IdxR| ≤ lim.word
-      rw [hne Out (by rw [h11, h16]; norm_num), hOut, hI]
-      exact ⟨trivial, trivial, hwordCA⟩
-    · show (fun σ'' => Ends lim P d (pass J (v Nreg) (v DstR) (v Tmp)) σ''
-          (13 * x.n + 6)
-          (fun σ' => σ'.mem (x.c + t * x.n) = r ∧
-            UnivPins lim vals x W σ' ∧
-            (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
-              σ'.mem b' = μ b')))
-        ⟨Function.update ll' DstR (ll' Out + ll' IdxR), μ⟩
-      have hu : Function.update ll' DstR (ll' Out + ll' IdxR) = ll₂ := by
-        funext i
-        by_cases hi : i = IdxR
-        · subst hi
-          have hu1 : Function.update ll' DstR (ll' Out + ll' IdxR) IdxR
-              = ll' IdxR := dif_neg (by rw [h17, h16]; norm_num)
-          rw [hu1, hI, hll₂Idx]
-        · by_cases hi2 : i = DstR
-          · subst hi2
-            simp only [Function.update_self]
-            rw [hne Out (by rw [h11, h16]; norm_num), hOut, hI, ← Nat.cast_add,
-              hll₂Dst]
-          · have hu3 : Function.update ll' DstR (ll' Out + ll' IdxR) i = ll' i :=
-              dif_neg hi2
-            rw [hu3]
-            have hu4 : ll' i = ll i := hne i hi
-            rw [hu4]
-            exact (hll₂ i hi hi2).symm
-      rw [hu]
-      exact hpass
-  -- the first set, then key
-  refine Ends.seq (Expr.cost (v Rt *' v Nreg) + 1)
-    (Expr.cost (v Out +' v IdxR) + 1 + (13 * x.n + 6)) ?_ ?_
-  · refine Ends.set ?_ (by simp only [Expr.cost]; omega) ?_
-    · show True ∧ True ∧ |ll Rt * ll Nreg| ≤ lim.word
-      rw [hRt, hNreg]
-      exact ⟨trivial, trivial, hidx⟩
-    · exact key (Function.update ll IdxR (ll Rt * ll Nreg))
-        (by simp only [Function.update_self, hRt, hNreg, Nat.cast_mul])
-        (fun i hi => dif_neg hi)
-  · simp only [Expr.cost]
-    have huniv : univRowB x.n = 13 * x.n + 16 := by
-      simp only [univRowB, univRowBw, univRowFix]
-    omega
+        simp [State.mem, State.loc, Expr.val, htoNat, hb']
+  · -- the test fails: the memory is untouched
+    have hnholds : ¬ (v Rt =' k 0).Holds ⟨ll, μ⟩ := by
+      intro hh
+      have h1 : ((0 : ℕ) : ℤ) = ll Rt := hh.symm
+      rw [hRt] at h1
+      exact ht0 (by omega)
+    refine Ends.ite 3 hsafe (fun hc => absurd hc hnholds) (fun _ => ?_) hcost
+    refine Ends.skip ⟨⟨hframe, hOut, hNreg, hU2, haddr⟩, ?_, ?_, rfl⟩
+    · show μ x.c = (if t = 0 then r else μ x.c)
+      rw [if_neg ht0]
+    · intro b' _
+      rfl
 
 #print axioms univRowPass_runs
 
@@ -686,21 +578,32 @@ def UnivSlot {lim : Limits} {d : ℕ} {P k I h : ℕ} {active : ℕ → Bool}
       (Tt kt)
       (pinnedPost (callSite P kt I h active mask rows ab rb sb mb bb) μ fr)
 
-/-- THE ROUND SLICE'S RUN: one certified stage call followed by the
-row's write pass, at the caller program. Round 0 writes the delivered
-fold into the product's cell (0,0); rounds ≥ 1 keep the carried value;
-every round preserves the pins and the reads at the evolved mask (the
-stage's certified post clears one flag — `reads_carry`; the row's stores
-miss the reads regions — the layout, the product region below the
-stage's active base). -/
+/-- THE ROUND SLICE'S RUN — the wire induction's brick, cure-(b) shape.
+
+One certified stage call followed by the round's guarded output write, at the
+caller program. The round's delivery `r` is the oracle premise (`hret`):
+`bracketAccumulate (μ (x.c + t·n)) tests (mpRounds W)` — the fold SEEDED AT
+ROW `t`'s HEAD, so rounds `t ≥ 1` carry different values and the write must not
+let them clobber the head. Round 0 installs the fold in the product's head
+`x.c` — the one cell the construction's identity premise consumes
+(`bracketCell x 0 0 = x.c`) — and every later round leaves it alone.
+
+WHAT IS GONE AND WHY IT WAS NEVER MATHEMATICS (cure (b), R2125609577). The
+row-broadcast form also carried "the full row written at `x.c + t·n`", "every
+other row unchanged" and "the cells below the free pointer outside the product
+unchanged", and it needed `hregion : mpRounds W ≤ n` to keep the `x.n` row
+stores inside the product region. With the singleton write set `{x.c}` the
+stage's certified post (`SameOutside3` at `sb/bb/mb`) and the `KeptBut` frame
+hold for ALL instances, so `hregion` is gone and the task stays UNRESTRICTED
+(`mpTask`, not `mpTaskRounds`). -/
 theorem univRound_runs
     {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
-    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr : ℕ}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr frC : ℕ}
     {cacheProg restoreProg : Light.Program} {cs : Inst}
     {stage : ℕ} {Tt : ℕ → ℕ} {R : Light.Program}
     {x : MatInst} {W : ℕ} {tests : ℕ → Bool × Bool}
     {vals : List ℤ} {ll : ℕ → ℤ} {μ : ℕ → ℤ} {mask : ℕ → Bool}
-    {t : ℕ} {w : ℤ} {T : ℕ}
+    {t : ℕ}
     (hxn : 1 ≤ x.n)
     (hvals : vals = argsOf (callSite P k I h active remaining rows ab rb sb mb bb)
       ++ [(fr : ℤ)])
@@ -717,96 +620,100 @@ theorem univRound_runs
         (instanceSize (callSite P kt I h active mask' rows ab rb sb mb bb))
         (callSite P kt I h active mask' rows ab rb sb mb bb).height).Ok lim fr (d + 1))
     (hpins : UnivPins lim vals x W ⟨ll, μ⟩)
+    (hword : (0 : ℤ) ≤ lim.word)
     (hRt : ll Rt = (t : ℤ))
     (hreads : ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ)
-    (hlay : InOrder (callerFr fr P I) [(callerAb fr I, I), (callerRb fr I, P * I),
-      (callerSb fr P I, P), (callerBb fr P I, I), (callerMb fr P I, P)])
-    (haway : (x.c < callerSb fr P I ∨ callerSb fr P I + P ≤ x.c) ∧
-      (x.c < callerBb fr P I ∨ callerBb fr P I + I ≤ x.c) ∧
-      (x.c < callerMb fr P I ∨ callerMb fr P I + P ≤ x.c))
+    (hlay : InOrder fr [(ab, I), (rb, P * I), (sb, P), (bb, I), (mb, P)])
+    (hfrCle : frC ≤ ab)
+    (haway : (x.c < sb ∨ sb + P ≤ x.c) ∧
+      (x.c < bb ∨ bb + I ≤ x.c) ∧
+      (x.c < mb ∨ mb + P ≤ x.c))
     (hbelow : (x.c + x.n * x.n : ℕ) ≤ ab)
-    (hlay' : ab = callerAb fr I ∧ rb = callerRb fr I ∧ sb = callerSb fr P I ∧
-      bb = callerBb fr P I ∧ mb = callerMb fr P I)
-    (hw : μ x.c = w)
-    (hspace : (lim.space : ℤ) ≤ lim.word)
-    (hregion : mpRounds W ≤ x.n)
     (htW : t < mpRounds W)
     (hdim : d < lim.depth)
-    (hTtk : Tt k ≤ callerTt x.n)
-    (hT : univRoundB x.n ≤ T) :
+    (hTtk : Tt k ≤ callerTt x.n) :
     Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d (univRound stage)
       ⟨ll, μ⟩ (univRoundB x.n)
-      (fun σ' => ∃ mask' : ℕ → Bool,
+      (fun σ' => ∃ (mask' : ℕ → Bool) (r : ℤ),
         ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ'.mem ∧
         UnivPins lim vals x W σ' ∧
-        σ'.mem x.c = (if t = 0 then bracketAccumulate (μ x.c) tests (mpRounds W) else w)) := by
-  obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := hlay'
+        r = bracketAccumulate (μ (x.c + t * x.n)) tests (mpRounds W) ∧
+        σ'.mem x.c = (if t = 0 then r else μ x.c) ∧
+        KeptBut μ σ'.mem frC x.c (x.n * x.n) ∧
+        (∀ i : ℕ, i ≠ Tmp → σ'.loc i = ll i)) := by
   have hframe := hpins.1
-  simp only [State.loc] at hframe
-  have hcallcost : (callArgs.map Expr.cost).sum + 2 + Tt k
-      + univRowB x.n ≤ univRoundB x.n := by
+  have hOut := hpins.2.1
+  have hNreg := hpins.2.2.1
+  have hU2 := hpins.2.2.2.1
+  have haddr := hpins.2.2.2.2
+  simp only [State.loc] at hframe hOut hNreg hU2
+  have hcallcost : (callArgs.map Expr.cost).sum + 2 + Tt k + univRowB ≤ univRoundB x.n := by
     have h9 : (callArgs.map Expr.cost).sum = 9 := callArgs_cost
-    simp only [univRoundB, univRowB, univRowBw, univRowFix]
+    simp only [univRoundB, univRowB]
     omega
-  have hrowT : univRowB x.n ≤ univRoundB x.n - ((callArgs.map Expr.cost).sum + 2 + Tt k) := by
-    omega
+  have hlayc : ab + I ≤ rb ∧ rb + P * I ≤ sb ∧ sb + P ≤ bb ∧ bb + I ≤ mb ∧
+      mb + P ≤ fr := hlay
+  obtain ⟨h1l, h2l, h3l, h4l, h5l⟩ := hlayc
   unfold univRound
-  refine Ends.seq ((callArgs.map Expr.cost).sum + 2 + Tt k)
-    (univRoundB x.n - ((callArgs.map Expr.cost).sum + 2 + Tt k)) ?_ (by omega)
+  refine Ends.seq ((callArgs.map Expr.cost).sum + 2 + Tt k) univRowB ?_ hcallcost
   have hslot' := hslot (mask := mask) (kt := k) (μ := μ) hreads (hflag mask) (hok mask k)
-  refine Ends.callLast hslot' ?_ ?_ hdim
-    (by simp only [callArgs_cost, univRoundB, univRowB, univRowBw, univRowFix]
-        omega)
-  · -- the continuation: the evolved reads, the pins, and the cell fact
+  refine Ends.callLast hslot' ?_ ?_ hdim ?_
+  · -- the continuation: the evolved reads, the pins, the head's delivery
     intro r₁ μ₁ hR
     obtain ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0', hpos⟩ := id hR
     have hreads₁ :=
       ThinMatrix.CallerChain.reads_carry (P := P) (I := I) (h := h) hlay hreads hsam hmask
+    have hr_eq : r₁ = bracketAccumulate (μ (x.c + t * x.n)) tests (mpRounds W) :=
+      hret t mask μ μ₁ r₁ htW ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0', hpos⟩
+    have hhead : μ₁ x.c = μ x.c := hsam x.c haway
+    -- the call's frame, restricted to the cells `KeptBut` speaks about
+    have hkept₁ : KeptBut μ μ₁ frC x.c (x.n * x.n) := by
+      intro b hb
+      obtain ⟨hlt, hout⟩ := hb
+      have h1 : Outside sb P b := Or.inl (by omega)
+      have h2 : Outside bb I b := Or.inl (by omega)
+      have h3 : Outside mb P b := Or.inl (by omega)
+      exact hsam b ⟨h1, h2, h3⟩
     have hpinsμ₁ : UnivPins lim vals x W ⟨ll, μ₁⟩ := UnivPins_congr rfl hpins
     have hpins₁ : UnivPins lim vals x W ⟨Function.update ll Tmp r₁, μ₁⟩ :=
       UnivPins_update hpinsμ₁
     have huR : Function.update ll Tmp r₁ Rt = ll Rt :=
       dif_neg (by have h15 : Rt = (15 : ℕ) := rfl; have h10 : Tmp = (10 : ℕ) := rfl; omega)
     have hRt₁ : Function.update ll Tmp r₁ Rt = (t : ℤ) := by rw [huR]; exact hRt
-    have hTmp₁ : Function.update ll Tmp r₁ Tmp = r₁ := rfl
-    refine (univRowPass_runs hxn hpins₁ hspace hRt₁ hTmp₁ htW hrowT).mono le_rfl ?_
-    rintro σ' ⟨hW, hP', hK⟩
-    -- the reads survive the row's stores (the reads regions sit at and
-    -- above the stage's active base, the product region below it)
-    have hrowaway : ∀ (b' : ℕ), ab ≤ b' → x.c + t * x.n + x.n ≤ b' := by
-      intro b' hb'
-      have h1 : x.c + x.n * x.n ≤ ab := hbelow
-      have h2 : t * x.n + x.n ≤ x.n * x.n := by
-        have h3 : t + 1 ≤ x.n := by omega
-        have h4 : (t + 1) * x.n ≤ x.n * x.n := Nat.mul_le_mul h3 (Nat.le_refl x.n)
-        have h5 : (t + 1) * x.n = t * x.n + x.n := by ring
-        omega
-      omega
-    refine ⟨maskCleared cs₁.toFinset mask, ?_, hP', ?_⟩
-    · refine ⟨fun i hi => ?_, fun p hp i hi => ?_, fun p hp => ?_⟩
-      · have hk := hK (ab + i) (Or.inr (hrowaway (ab + i) (by omega)))
-        rw [hk]; exact hreads₁.1 i hi
-      · have hk := hK (callerRb ab I + p * I + i)
-          (Or.inr (hrowaway _ (show ab ≤ callerRb ab I + p * I + i from by
-            simp only [callerRb]; omega)))
-        rw [hk]; exact hreads₁.2.1 p hp i hi
-      · have hk := hK (callerMb ab P I + p)
-          (Or.inr (hrowaway _ (show ab ≤ callerMb ab P I + p from by
-            simp only [callerMb]; omega)))
-        rw [hk]; exact hreads₁.2.2 p hp
-    · by_cases h0 : t = 0
-      · subst h0
-        have hfold := hret 0 mask μ μ₁ r₁ htW
-          ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0', hpos⟩
-        simp only [Nat.zero_mul, Nat.zero_add, Nat.add_zero] at hfold
-        show σ'.mem x.c = bracketAccumulate (μ x.c) tests (mpRounds W)
-        have hW' : σ'.mem x.c = r₁ := by simpa using hW
-        rw [hW', hfold]
-      · have ht1 : 1 ≤ t := by omega
-        have hk := hK x.c (Or.inl (show x.c < x.c + t * x.n from
-          Nat.lt_add_of_pos_right (Nat.mul_pos ht1 hxn)))
-        rw [hk, hsam x.c haway, if_neg h0]
-        exact hw
+    have hTmp₁ : Function.update ll Tmp r₁ Tmp = r₁ := by simp
+    refine (univRowPass_runs (T := univRowB) hpins₁ hword hRt₁ hTmp₁ le_rfl).mono le_rfl ?_
+    rintro σ' ⟨hP', hEq, hOther, hloc'⟩
+    -- the reads regions lie at and above the active base, the product head
+    -- strictly below it, so the single-cell write leaves every read intact
+    have hsq : 1 ≤ x.n * x.n := by simpa using Nat.mul_le_mul hxn hxn
+    have hlt : x.c < ab := by omega
+    have hreads₂ :
+        ThinMatrix.CallerChain.StageReads P I active (maskCleared cs₁.toFinset mask)
+          rows ab rb mb σ'.mem := by
+      refine ⟨fun i hi => ?_, fun p hp i hi => ?_, fun p hp => ?_⟩
+      · rw [hOther (ab + i) (by omega)]; exact hreads₁.1 i hi
+      · rw [hOther (rb + p * I + i) (by omega)]; exact hreads₁.2.1 p hp i hi
+      · rw [hOther (mb + p) (by omega)]; exact hreads₁.2.2 p hp
+    refine ⟨maskCleared cs₁.toFinset mask, r₁, hreads₂, hP', hr_eq, ?_, ?_, ?_⟩
+    · -- the product's head holds round 0's delivery
+      rw [hEq]
+      by_cases h0 : t = 0
+      · simp only [if_pos h0]
+      · simp only [if_neg h0]; exact hhead
+    · -- `KeptBut`: the call's frame plus the write's single-cell exclusion
+      intro b hb
+      obtain ⟨hltb, houtb⟩ := hb
+      have hbne : b ≠ x.c := by
+        rcases houtb with h | h
+        · omega
+        · have hsq : 1 ≤ x.n * x.n := by simpa using Nat.mul_le_mul hxn hxn
+          omega
+      rw [hOther b hbne]
+      exact hkept₁ b ⟨hltb, houtb⟩
+    · -- the registers: only `Tmp` moved
+      intro i hiT
+      rw [hloc']
+      exact dif_neg hiT
   · -- the call's arguments: safe, with the pinned frame values
     refine ⟨fun e he => ?_, ?_⟩
     · simp only [callArgs, List.mem_cons] at he
@@ -827,6 +734,9 @@ theorem univRound_runs
         hframe 3 (by omega), hframe 4 (by omega), hframe 5 (by omega),
         hframe 6 (by omega), hframe 7 (by omega), hframe 8 (by omega), hvals]
       rfl
+  · -- the call's own clock, inside the round's budget
+    simp only [callArgs_cost]
+    omega
 
 #print axioms univRound_runs
 
@@ -857,8 +767,7 @@ theorem UnivPins_set {lim : Limits} {vals : List ℤ} {x : MatInst} {W : ℕ}
     have hu : Function.update l i v U2 = l U2 := dif_neg (fun h => hU h.symm)
     rw [hu]
     exact h4
-  · intro t ht
-    exact h5 t ht
+  · exact h5
 
 /-- The level-loop invariant: the pins, the doubling level, the flat
 round counter, the reads at the evolved mask, and the cell-(0,0) state
@@ -878,408 +787,29 @@ note there. Its hypothesis is the strengthened invariant `UnivInvAll`, which
 cannot be referenced before that def exists, so the target moved rather than
 being restated with a hypothesis the induction cannot close on.) -/
 
-/-! ## The row pass's run, strengthened (the full row + the kept cells) -/
-
-/-- THE ROW PASS'S RUN, STRENGTHENED: the landed `univRowPass_runs` plus
-the full-row write — every entry `u < x.n` of row `t` receives the pass's
-delivered value (the canonical pass's `wrote` semantics, `wrote_done` at
-every entry, not only entry 0). The conclusion's shape serves the wire
-induction's all-cells tracking. -/
-theorem univRowPass_runs'
-    {lim : Limits} {P : Light.Program} {d : ℕ} {x : MatInst} {W : ℕ}
-    {vals : List ℤ} {ll : ℕ → ℤ} {μ : ℕ → ℤ} {r : ℤ} {t : ℕ} {T : ℕ}
-    (hxn : 1 ≤ x.n)
-    (hpins : UnivPins lim vals x W ⟨ll, μ⟩)
-    (hspace : (lim.space : ℤ) ≤ lim.word)
-    (hRt : ll Rt = (t : ℤ)) (hTmp : ll Tmp = r)
-    (htW : t < mpRounds W)
-    (hT : univRowB x.n ≤ T) :
-    Ends lim P d univRowPass ⟨ll, μ⟩ T
-      (fun σ' => UnivPins lim vals x W σ' ∧
-        (∀ u : ℕ, u < x.n → σ'.mem (x.c + t * x.n + u) = r) ∧
-        (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
-          σ'.mem b' = μ b') ∧
-        (∀ i : ℕ, i ≠ IdxR → i ≠ DstR → i ≠ J → σ'.loc i = ll i)) := by
-  obtain ⟨hframe, hOut, hNreg, hU2, haddr⟩ := hpins
-  obtain ⟨harea, hidx⟩ := haddr t htW
-  have h10 : Tmp = (10 : ℕ) := rfl
-  have h11 : Out = (11 : ℕ) := rfl
-  have h12 : Nreg = (12 : ℕ) := rfl
-  have h13 : U2 = (13 : ℕ) := rfl
-  have h16 : IdxR = (16 : ℕ) := rfl
-  have h17 : DstR = (17 : ℕ) := rfl
-  have h18 : J = (18 : ℕ) := rfl
-  simp only [State.loc, State.mem] at hframe hOut hNreg hU2
-  have hposB : (0 : ℤ) ≤ ((x.c + t * x.n : ℕ) : ℤ) := by omega
-  have hwordB : ((x.c + t * x.n : ℕ) : ℤ) + (x.n : ℤ) ≤ lim.space := by
-    have hcast : (((x.c + t * x.n : ℕ) + x.n : ℕ) : ℤ)
-        = ((x.c + t * x.n : ℕ) : ℤ) + (x.n : ℤ) := by push_cast; ring
-    have := harea
-    omega
-  have hwordC : ((x.c : ℤ)) + ((t * x.n : ℕ) : ℤ) ≤ lim.word := by
-    have hcast : ((x.c + t * x.n : ℕ) : ℤ) = (x.c : ℤ) + ((t * x.n : ℕ) : ℤ) := by
-      push_cast; ring
-    have := hspace
-    have := hwordB
-    have hpos : (0 : ℤ) ≤ ((x.c + t * x.n : ℕ) : ℤ) := by omega
-    have hxn' : (0 : ℤ) ≤ (x.n : ℤ) := by omega
-    omega
-  have hwordCA : |(x.c : ℤ) + ((t * x.n : ℕ) : ℤ)| ≤ lim.word := by
-    rw [abs_of_nonneg (by have := hwordC; omega : (0 : ℤ) ≤ (x.c : ℤ) + ((t * x.n : ℕ) : ℤ))]
-    exact hwordC
-  set ll₂ : ℕ → ℤ := fun i =>
-    if i = DstR then ((x.c + t * x.n : ℕ) : ℤ) else
-    if i = IdxR then ((t * x.n : ℕ) : ℤ) else ll i with hll₂def
-  have hll₂ : ∀ i : ℕ, i ≠ IdxR → i ≠ DstR → ll₂ i = ll i := by
-    intro i h1 h2
-    rw [hll₂def]
-    simp only [h2, h1, if_false]
-  have hll₂Idx : ll₂ IdxR = ((t * x.n : ℕ) : ℤ) := by rw [hll₂def]; simp
-  have hll₂Dst : ll₂ DstR = ((x.c + t * x.n : ℕ) : ℤ) := by rw [hll₂def]; simp
-  have hll₂Nreg : ll₂ Nreg = (x.n : ℤ) := by
-    rw [hll₂ Nreg (by norm_num [Nreg, IdxR]) (by norm_num [Nreg, DstR])]
-    exact hNreg
-  have hll₂Tmp : ll₂ Tmp = r := by
-    rw [hll₂ Tmp (by norm_num [Tmp, IdxR]) (by norm_num [Tmp, DstR])]
-    exact hTmp
-  have hpass : Ends lim P d (pass J (v Nreg) (v DstR) (v Tmp)) ⟨ll₂, μ⟩
-      (13 * x.n + 6)
-      (fun σ' => UnivPins lim vals x W σ' ∧
-        (∀ u : ℕ, u < x.n → σ'.mem (x.c + t * x.n + u) = r) ∧
-        (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
-          σ'.mem b' = μ b') ∧
-        (∀ i : ℕ, i ≠ IdxR → i ≠ DstR → i ≠ J → σ'.loc i = ll i)) := by
-    refine Ends.pass (fun _ => r) ?_ ?_ hspace harea hll₂Nreg
-      (show ll₂ DstR = ((x.c + t * x.n : ℕ) : ℕ) from by
-        rw [hll₂def]; simp)
-      (by norm_num [Nreg, J]) (by norm_num [DstR, J]) ?_
-    · -- round j: the value expression is the delivery register
-      intro j hj
-      refine ⟨trivial, ?_⟩
-      show Function.update ll₂ J j Tmp = (fun _ => r) j
-      have hu : Function.update ll₂ J j Tmp = ll₂ Tmp :=
-        dif_neg (by rw [h18, h10]; norm_num)
-      rw [hu]
-      exact hll₂Tmp
-    · -- done: the pins, the full-row write, the kept cells, and the loc
-      refine ⟨UnivPins_loc (σ := ⟨ll, μ⟩) ?_ ⟨hframe, hOut, hNreg, hU2, haddr⟩, ?_, ?_, ?_⟩
-      · intro i hi1 hi2 hi3
-        show Function.update ll₂ J (x.n : ℤ) i = ll i
-        have hu2 : Function.update ll₂ J (x.n : ℤ) i = ll₂ i :=
-          dif_neg (by rw [h18]; omega)
-        rw [hu2]
-        exact hll₂ i hi1 hi2
-      · intro u hu
-        have hw := wrote_done (μ := μ) (dst := (x.c + t * x.n : ℕ))
-          (f := fun _ => r) (i := u) (by omega)
-        simpa using hw
-      · intro b' hb'
-        show wrote μ (x.c + t * x.n) (fun _ => r) x.n b' = μ b'
-        exact wrote_rest hb'
-      · intro i hi1 hi2 hi3
-        show Function.update ll₂ J (x.n : ℤ) i = ll i
-        have hu2 : Function.update ll₂ J (x.n : ℤ) i = ll₂ i :=
-          dif_neg (by rw [h18]; omega)
-        rw [hu2]
-        exact hll₂ i hi1 hi2
-    · -- the pass's cost
-      simp only [Expr.cost]
-      have huniv : univRowB x.n = 13 * x.n + 16 := by
-        simp only [univRowB, univRowBw, univRowFix]
-      omega
-  have key : ∀ ll' : ℕ → ℤ,
-      ll' IdxR = ((t * x.n : ℕ) : ℤ) →
-      (∀ i : ℕ, i ≠ IdxR → ll' i = ll i) →
-      Ends lim P d (.set DstR (v Out +' v IdxR) ;;
-        pass J (v Nreg) (v DstR) (v Tmp)) ⟨ll', μ⟩
-        (Expr.cost (v Out +' v IdxR) + 1 + (13 * x.n + 6))
-        (fun σ' => UnivPins lim vals x W σ' ∧
-          (∀ u : ℕ, u < x.n → σ'.mem (x.c + t * x.n + u) = r) ∧
-          (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
-            σ'.mem b' = μ b') ∧
-          (∀ i : ℕ, i ≠ IdxR → i ≠ DstR → i ≠ J → σ'.loc i = ll i)) := by
-    intro ll' hI hne
-    refine Ends.seq (Expr.cost (v Out +' v IdxR) + 1) (13 * x.n + 6) ?_
-      (by simp only [Expr.cost]; omega)
-    refine Ends.set ?_ (by simp only [Expr.cost]; omega) ?_
-    · show True ∧ True ∧ |ll' Out + ll' IdxR| ≤ lim.word
-      rw [hne Out (by rw [h11, h16]; norm_num), hOut, hI]
-      exact ⟨trivial, trivial, hwordCA⟩
-    · show (fun σ'' => Ends lim P d (pass J (v Nreg) (v DstR) (v Tmp)) σ''
-          (13 * x.n + 6)
-          (fun σ' => UnivPins lim vals x W σ' ∧
-            (∀ u : ℕ, u < x.n → σ'.mem (x.c + t * x.n + u) = r) ∧
-            (∀ b' : ℕ, (b' < x.c + t * x.n ∨ x.c + t * x.n + x.n ≤ b') →
-              σ'.mem b' = μ b') ∧
-            (∀ i : ℕ, i ≠ IdxR → i ≠ DstR → i ≠ J → σ'.loc i = ll i)))
-        ⟨Function.update ll' DstR (ll' Out + ll' IdxR), μ⟩
-      have hu : Function.update ll' DstR (ll' Out + ll' IdxR) = ll₂ := by
-        funext i
-        by_cases hi : i = IdxR
-        · subst hi
-          have hu1 : Function.update ll' DstR (ll' Out + ll' IdxR) IdxR
-              = ll' IdxR := dif_neg (by rw [h17, h16]; norm_num)
-          rw [hu1, hI, hll₂Idx]
-        · by_cases hi2 : i = DstR
-          · subst hi2
-            simp only [Function.update_self]
-            rw [hne Out (by rw [h11, h16]; norm_num), hOut, hI, ← Nat.cast_add,
-              hll₂Dst]
-          · have hu3 : Function.update ll' DstR (ll' Out + ll' IdxR) i = ll' i :=
-              dif_neg hi2
-            rw [hu3]
-            have hu4 : ll' i = ll i := hne i hi
-            rw [hu4]
-            exact (hll₂ i hi hi2).symm
-      rw [hu]
-      exact hpass
-  refine Ends.seq (Expr.cost (v Rt *' v Nreg) + 1)
-    (Expr.cost (v Out +' v IdxR) + 1 + (13 * x.n + 6)) ?_ ?_
-  · refine Ends.set ?_ (by simp only [Expr.cost]; omega) ?_
-    · show True ∧ True ∧ |ll Rt * ll Nreg| ≤ lim.word
-      rw [hRt, hNreg]
-      exact ⟨trivial, trivial, hidx⟩
-    · exact key (Function.update ll IdxR (ll Rt * ll Nreg))
-        (by simp only [Function.update_self, hRt, hNreg, Nat.cast_mul])
-        (fun i hi => dif_neg hi)
-  · simp only [Expr.cost]
-    have huniv : univRowB x.n = 13 * x.n + 16 := by
-      simp only [univRowB, univRowBw, univRowFix]
-    omega
-
-#print axioms univRowPass_runs'
-
-/-! ## The row-index arithmetic (the all-cells tracking's disjointness) -/
-
-/-- Two rows' cells are disjoint: a cell of row `t'` (entry `u' < n`) lies
-outside row `t` whenever the row indices differ (linear arithmetic after
-distribution). -/
-theorem row_disjoint {n t t' u' : ℕ} (hnt : t' ≠ t) (hu' : u' < n) :
-    t' * n + u' < t * n ∨ t * n + n ≤ t' * n + u' := by
-  rcases Nat.lt_or_ge t' t with h | h
-  · exact Or.inl (by
-      have h1 : (t' + 1) * n ≤ t * n := Nat.mul_le_mul_right n (by omega)
-      have h2 : (t' + 1) * n = t' * n + n := by ring
-      omega)
-  · exact Or.inr (by
-      have h1 : (t + 1) * n ≤ t' * n := Nat.mul_le_mul_right n (by omega)
-      have h2 : (t + 1) * n = t * n + n := by ring
-      omega)
-
-/-! ## The round slice's run, corrected and strengthened -/
-
-/-- THE ROUND SLICE'S RUN, CORRECTED AND STRENGTHENED (the wire
-induction's brick; supersedes this module's earlier `univRound_runs`
-bundle, which is kept): the layout premise is the RAW `InOrder` at the
-layout's top `fr` — the convention of the landed chain and per-instance
-wire (`chain_from`, `wire_from_slots`) — so `fr` is register 8's value
-(the stage's own free pointer, the call's ninth argument), matching the
-program's prologue, which sets `Free := mb + n` (the top). The earlier
-bundle pinned the buffers at `callerAb fr I …` and the ninth argument at
-the same `fr` — a base/top conflation that is not instantiable against
-the actual program. The conclusion adds what the all-cells tracking
-consumes: the full row written to the round's delivery `r`, the row's
-disjointness (cells of other rows are unchanged), and the cells below the
-caller's free pointer `frC` and outside the product region unchanged. -/
-theorem univRound_runs'
-    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
-    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr frC : ℕ}
-    {cacheProg restoreProg : Light.Program} {cs : Inst}
-    {stage : ℕ} {Tt : ℕ → ℕ} {R : Light.Program}
-    {x : MatInst} {W : ℕ} {tests : ℕ → Bool × Bool}
-    {vals : List ℤ} {ll : ℕ → ℤ} {μ : ℕ → ℤ} {mask : ℕ → Bool}
-    {t : ℕ} {w : ℤ} {T : ℕ}
-    (hxn : 1 ≤ x.n)
-    (hvals : vals = argsOf (callSite P k I h active remaining rows ab rb sb mb bb)
-      ++ [(fr : ℤ)])
-    (hslot : @UnivSlot lim d P k I h active rows ab rb sb mb bb fr
-      stage cacheProg restoreProg cs R Tt)
-    (hret : ∀ (t' : ℕ) (mask' : ℕ → Bool) (μ' μ'' : ℕ → ℤ) (r' : ℤ),
-      t' < mpRounds W →
-      Light.DenseRestartSelectionLoop.Post
-        (callSite P k I h active mask' rows ab rb sb mb bb) μ' μ'' →
-      r' = bracketAccumulate (μ' (x.c + t' * x.n)) tests (mpRounds W))
-    (hflag : ∀ mask' : ℕ → Bool, k ≤ (flagged P mask').card)
-    (hok : ∀ (mask' : ℕ → Bool) (kt : ℕ),
-      (Light.DenseRestartSelectionLoop.need
-        (instanceSize (callSite P kt I h active mask' rows ab rb sb mb bb))
-        (callSite P kt I h active mask' rows ab rb sb mb bb).height).Ok lim fr (d + 1))
-    (hpins : UnivPins lim vals x W ⟨ll, μ⟩)
-    (hRt : ll Rt = (t : ℤ))
-    (hreads : ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ)
-    (hlay : InOrder fr [(ab, I), (rb, P * I), (sb, P), (bb, I), (mb, P)])
-    (hfrCle : frC ≤ ab)
-    (haway : (x.c < sb ∨ sb + P ≤ x.c) ∧
-      (x.c < bb ∨ bb + I ≤ x.c) ∧
-      (x.c < mb ∨ mb + P ≤ x.c))
-    (hbelow : (x.c + x.n * x.n : ℕ) ≤ ab)
-    (hw : μ x.c = w)
-    (hspace : (lim.space : ℤ) ≤ lim.word)
-    (hregion : mpRounds W ≤ x.n)
-    (htW : t < mpRounds W)
-    (hdim : d < lim.depth)
-    (hTtk : Tt k ≤ callerTt x.n)
-    (hT : univRoundB x.n ≤ T) :
-    Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d (univRound stage)
-      ⟨ll, μ⟩ (univRoundB x.n)
-      (fun σ' => ∃ (mask' : ℕ → Bool) (r : ℤ),
-        ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ'.mem ∧
-        UnivPins lim vals x W σ' ∧
-        r = bracketAccumulate (μ (x.c + t * x.n)) tests (mpRounds W) ∧
-        (∀ u : ℕ, u < x.n → σ'.mem (x.c + t * x.n + u) = r) ∧
-        (∀ t' u' : ℕ, t' < mpRounds W → u' < x.n → t' ≠ t →
-          σ'.mem (x.c + t' * x.n + u') = μ (x.c + t' * x.n + u')) ∧
-        (∀ b' : ℕ, b' < frC → (b' < x.c ∨ x.c + x.n * x.n ≤ b') →
-          σ'.mem b' = μ b') ∧
-        (∀ i : ℕ, i ≠ Tmp → i ≠ IdxR → i ≠ DstR → i ≠ J → σ'.loc i = ll i)) := by
-  have hframe := hpins.1
-  simp only [State.loc] at hframe
-  have hcallcost : (callArgs.map Expr.cost).sum + 2 + Tt k
-      + univRowB x.n ≤ univRoundB x.n := by
-    have h9 : (callArgs.map Expr.cost).sum = 9 := callArgs_cost
-    simp only [univRoundB, univRowB, univRowBw, univRowFix]
-    omega
-  have hrowT : univRowB x.n ≤ univRoundB x.n - ((callArgs.map Expr.cost).sum + 2 + Tt k) := by
-    omega
-  -- the layout's ordering facts (InOrder unfolds conjunctively)
-  have hlayc : ab + I ≤ rb ∧ rb + P * I ≤ sb ∧ sb + P ≤ bb ∧ bb + I ≤ mb ∧
-      mb + P ≤ fr := hlay
-  obtain ⟨h1l, h2l, h3l, h4l, h5l⟩ := hlayc
-  have habsb : ab ≤ sb := by omega
-  unfold univRound
-  refine Ends.seq ((callArgs.map Expr.cost).sum + 2 + Tt k)
-    (univRoundB x.n - ((callArgs.map Expr.cost).sum + 2 + Tt k)) ?_ (by omega)
-  have hslot' := hslot (mask := mask) (kt := k) (μ := μ) hreads (hflag mask) (hok mask k)
-  refine Ends.callLast hslot' ?_ ?_ hdim
-    (by simp only [callArgs_cost, univRoundB, univRowB, univRowBw, univRowFix]
-        omega)
-  · -- the continuation: the evolved reads, the pins, and the tracked cells
-    intro r₁ μ₁ hR
-    obtain ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0', hpos⟩ := id hR
-    have hreads₁ :=
-      ThinMatrix.CallerChain.reads_carry (P := P) (I := I) (h := h) hlay hreads hsam hmask
-    have hpinsμ₁ : UnivPins lim vals x W ⟨ll, μ₁⟩ := UnivPins_congr rfl hpins
-    have hpins₁ : UnivPins lim vals x W ⟨Function.update ll Tmp r₁, μ₁⟩ :=
-      UnivPins_update hpinsμ₁
-    have huR : Function.update ll Tmp r₁ Rt = ll Rt :=
-      dif_neg (by have h15 : Rt = (15 : ℕ) := rfl; have h10 : Tmp = (10 : ℕ) := rfl; omega)
-    have hRt₁ : Function.update ll Tmp r₁ Rt = (t : ℤ) := by rw [huR]; exact hRt
-    have hTmp₁ : Function.update ll Tmp r₁ Tmp = r₁ := rfl
-    -- the delivery value's identity: the oracle premise at THIS round
-    have hr_eq : r₁ = bracketAccumulate (μ (x.c + t * x.n)) tests (mpRounds W) :=
-      hret t mask μ μ₁ r₁ htW ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0', hpos⟩
-    refine (univRowPass_runs' hxn hpins₁ hspace hRt₁ hTmp₁ htW hrowT).mono le_rfl ?_
-    rintro σ' ⟨hP', hRow, hK, hloc'⟩
-    -- the round's loc-preservation: the call touched only Tmp, the pass
-    -- only IdxR/DstR/J
-    have hlocone : ∀ i : ℕ, i ≠ Tmp → i ≠ IdxR → i ≠ DstR → i ≠ J →
-        σ'.loc i = ll i := by
-      intro i hiT hi1 hi2 hi3
-      have h1 := hloc' i hi1 hi2 hi3
-      have h2 : Function.update ll Tmp r₁ i = ll i := dif_neg hiT
-      rw [h1, h2]
-    -- the row's stores stay inside the product region (the reads regions
-    -- sit at and above the stage's active base, the product below it)
-    have hrowaway : ∀ (b' : ℕ), ab ≤ b' → x.c + t * x.n + x.n ≤ b' := by
-      intro b' hb'
-      have h1 : x.c + x.n * x.n ≤ ab := hbelow
-      have h2 : t * x.n + x.n ≤ x.n * x.n := by
-        have h3 : t + 1 ≤ x.n := by omega
-        have h4 : (t + 1) * x.n ≤ x.n * x.n := Nat.mul_le_mul h3 (Nat.le_refl x.n)
-        have h5 : (t + 1) * x.n = t * x.n + x.n := by ring
-        omega
-      omega
-    refine ⟨maskCleared cs₁.toFinset mask, r₁, ?_, hP', hr_eq, ?_, ?_, ?_, hlocone⟩
-    · -- the evolved reads
-      refine ⟨fun i hi => ?_, fun p hp i hi => ?_, fun p hp => ?_⟩
-      · have hk := hK (ab + i) (Or.inr (hrowaway (ab + i) (by omega)))
-        rw [hk]; exact hreads₁.1 i hi
-      · have hk := hK (rb + p * I + i)
-          (Or.inr (hrowaway _ (show ab ≤ rb + p * I + i from by omega)))
-        rw [hk]; exact hreads₁.2.1 p hp i hi
-      · have hk := hK (mb + p)
-          (Or.inr (hrowaway _ (show ab ≤ mb + p from by omega)))
-        rw [hk]; exact hreads₁.2.2 p hp
-    · -- the full row carries the delivery value
-      intro u hu
-      exact hRow u hu
-    · -- the other rows' cells are unchanged (pass keeps, call keeps)
-      intro t' u' ht' hu' hne
-      have hsam' : SameOutside3 μ μ₁ sb P bb I mb P := hsam
-      have hbout := row_disjoint (n := x.n) hne hu'
-      have hrowlt : t' * x.n + u' < x.n * x.n := by
-        have h1 : (t' + 1) * x.n ≤ x.n * x.n :=
-          Nat.mul_le_mul (by omega) (Nat.le_refl x.n)
-        have h2 : (t' + 1) * x.n = t' * x.n + x.n := by ring
-        omega
-      have hk := hK (x.c + t' * x.n + u') (by omega)
-      have hcell := hsam' (x.c + t' * x.n + u')
-        ⟨Or.inl (by have := hbelow; have := habsb; have := hrowlt; omega),
-          Or.inl (by have := hbelow; have := habsb; have := hrowlt; omega),
-          Or.inl (by have := hbelow; have := habsb; have := hrowlt; omega)⟩
-      rw [hk]
-      exact hcell
-    · -- the cells below the caller's free pointer and outside the product
-      intro b' hb'c hb'out
-      have hsam' : SameOutside3 μ μ₁ sb P bb I mb P := hsam
-      have hk := hK b' (by
-        rcases hb'out with h | h
-        · exact Or.inl (by omega)
-        · have hle : t * x.n + x.n ≤ x.n * x.n := by
-            have h3 : t + 1 ≤ x.n := by omega
-            have h4 : (t + 1) * x.n ≤ x.n * x.n := Nat.mul_le_mul h3 (Nat.le_refl x.n)
-            have h5 : (t + 1) * x.n = t * x.n + x.n := by ring
-            omega
-          have hx : x.c + t * x.n + x.n ≤ x.c + x.n * x.n := by omega
-          omega)
-      have hcell := hsam' b'
-        ⟨Or.inl (by have := hfrCle; have := h1l; have := h2l; omega),
-          Or.inl (by have := hfrCle; have := h1l; have := h2l; have := h3l; omega),
-          Or.inl (by have := hfrCle; have := h1l; have := h2l; have := h3l; have := h4l; omega)⟩
-      rw [hk]
-      exact hcell
-  · -- the call's arguments: safe, with the pinned frame values
-    refine ⟨fun e he => ?_, ?_⟩
-    · simp only [callArgs, List.mem_cons] at he
-      rcases he with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | h
-      · exact trivial
-      · exact trivial
-      · exact trivial
-      · exact trivial
-      · exact trivial
-      · exact trivial
-      · exact trivial
-      · exact trivial
-      · exact trivial
-      · exact absurd h (by simp)
-    · have hlits : callArgs.map (fun x => Expr.val ⟨ll, μ⟩ x) =
-        [ll 0, ll 1, ll 2, ll 3, ll 4, ll 5, ll 6, ll 7, ll 8] := rfl
-      rw [hlits, hframe 0 (by omega), hframe 1 (by omega), hframe 2 (by omega),
-        hframe 3 (by omega), hframe 4 (by omega), hframe 5 (by omega),
-        hframe 6 (by omega), hframe 7 (by omega), hframe 8 (by omega), hvals]
-      rfl
-
-#print axioms univRound_runs'
-
 /-! ## The all-cells invariant and the level body's run -/
 
-/-- The level-loop invariant, STRENGTHENED: the landed `UnivInv` plus the
-all-rows tracking (written rows carry the delivered fold seeded at the
-row's own head in `μ₀`; rows at/after the flat round counter still hold
-their OWN initial values — the same-cell form: the prologue initializes
-only the Active/Remaining bookkeeping arrays, so the product array keeps
-the instance's values, which are not row-broadcast) plus the kept frame
-(`KeptBut` below the caller's free pointer `frC`). The disjunctive
-row-index form keeps every obligation inside omega's fragment. -/
+/-- The level-loop invariant: the landed `UnivInv` plus the kept frame
+(`KeptBut` below the caller's free pointer `frC`, the product region
+excepted).
+
+CURE (b) SHRINK (2026-11-10, R2125609577). The bookkeeping had TWO
+all-cells clauses — "written rows carry the delivered fold" and "rows at or
+after the flat round counter still hold their own `μ₀` values". Both existed
+to justify the ROW PASS: every round rewrote `n` cells, so the induction had
+to track which rows had been written and what the untouched ones held. The
+round now writes ONE cell (`x.c`, guarded to round 0 — `univRowPass`), so:
+  * there is no row write to justify, and both clauses are dropped;
+  * "rows at/after the counter are untouched" is `KeptBut`'s content
+    restricted below `frC`, which the frame clause already carries;
+  * the head's value — the only cell any landed conclusion consumes — is
+    `UnivInv`'s last conjunct, unchanged.
+Nothing is weakened: the wiring below never read either clause. It is the
+write shape that stopped needing them. -/
 def UnivInvAll (lim : Limits) (vals : List ℤ) (x : MatInst) (W : ℕ)
     (P I : ℕ) (active : ℕ → Bool) (rows : ℕ → ℕ → ℕ) (ab rb mb : ℕ)
     (μ₀ : ℕ → ℤ) (tests : ℕ → Bool × Bool) (frC ell : ℕ) (σ : State) : Prop :=
   UnivInv lim vals x W P I active rows ab rb mb μ₀ tests ell σ ∧
-  (∀ t u : ℕ, t < 2 * ell → t < mpRounds W → u < x.n →
-    σ.mem (x.c + t * x.n + u) =
-      bracketAccumulate (μ₀ (x.c + t * x.n)) tests (mpRounds W)) ∧
-  (∀ t u : ℕ, 2 * ell ≤ t → t < mpRounds W → u < x.n →
-    σ.mem (x.c + t * x.n + u) = μ₀ (x.c + t * x.n + u)) ∧
   KeptBut μ₀ σ.mem frC x.c (x.n * x.n)
 
 /-- The level-loop wire target, STATED — now at the hypothesis the induction
@@ -1413,14 +943,22 @@ theorem univPrologueLocals_eq (x : MatInst) (fr : ℕ) :
         J (x.n : ℤ)) Lvl 1) Rt 0 = univPrologueLocals x fr := by
   simp [univPrologueLocals, univPrologueMid, univProloguePins, J, Lvl, Rt, setLocal]
 
-/-- THE LEVEL BODY'S RUN: from the strengthened invariant at level `ell`,
-the level body — two certified rounds (rounds `2·ell`, `2·ell+1`, the
-second at the first's evolved mask) plus the three counter `.set`s —
-lands the invariant at level `ell + 1` within `univLevelB x.n`. The
-delivery identities ride the round lemma's `hret`-shaped conclusions; the
-head-value bridges (`μ (x.c + t·n) = μ₀ (x.c + t·n)`) ride the
-unwritten-rows clause; the counter sets ride `UnivPins_set` and the
-counters' word bounds. -/
+/-- THE LEVEL BODY'S RUN — cure-(b) shape.
+
+From the invariant at level `ℓ`, the level body — two certified rounds
+(rounds `2·ℓ` and `2·ℓ+1`, the second at the first's evolved mask) plus the
+three counter `.set`s — lands the invariant at level `ℓ + 1` within
+`univLevelB x.n`.
+
+WHAT SIMPLIFIED (cure (b), R2125609577). The old brick threaded three extra
+obligations per round — the full row written, every other row unchanged, the
+cells below the free pointer outside the product unchanged — and needed
+`hregion : mpRounds W ≤ n` so that the `x.n` row stores stayed inside the
+product region. With a singleton write set `{x.c}` guarded to round 0
+(`univRowPass`) all three collapse: the round's `KeptBut` frame is the ONLY
+memory obligation, the head's value is `UnivInv`'s last conjunct, and the
+only round whose write is visible is `t = 0` (i.e. `ℓ = 0`). `hregion` is
+gone; the task stays unrestricted. -/
 theorem univLevel_runs
     {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
     {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr frC : ℕ}
@@ -1450,7 +988,6 @@ theorem univLevel_runs
       (x.c < mb ∨ mb + P ≤ x.c))
     (hbelow : (x.c + x.n * x.n : ℕ) ≤ ab)
     (hspace : (lim.space : ℤ) ≤ lim.word)
-    (hregion : mpRounds W ≤ x.n)
     (hdim : d < lim.depth)
     (hTtk : Tt k ≤ callerTt x.n)
     (hwordRt : ((mpRounds W : ℕ) : ℤ) ≤ lim.word)
@@ -1462,15 +999,15 @@ theorem univLevel_runs
     Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d
       (univLevelBody stage) ⟨ll, μ⟩ T
       (UnivInvAll lim vals x W P I active rows ab rb mb μ₀ tests frC (ℓ + 1)) := by
-  obtain ⟨hinvU, hall1, hall2, hkept⟩ := hinv
+  obtain ⟨hinvU, hkept⟩ := hinv
   obtain ⟨hpins, hLvl, hRt, hreadsEx, hcell⟩ := hinvU
+  simp only [State.loc] at hLvl hRt
+  simp only [State.mem] at hcell
   obtain ⟨mask, hreads⟩ := hreadsEx
   have hmp : mpRounds W = 2 * signedLevels W := mpRounds_eq_signed W
-  have h2lt : 2 * ℓ + 2 ≤ mpRounds W := by rw [hmp]; omega
-  have h2ltW : 2 * ℓ < mpRounds W := by omega
-  have h2lt1W : 2 * ℓ + 1 < mpRounds W := by omega
-  have h0ltW : 0 < mpRounds W := by omega
-  have hRt' : ll Rt = ((2 * ℓ : ℕ) : ℤ) := hRt
+  have h2ltW : 2 * ℓ < mpRounds W := by rw [hmp]; omega
+  have h2lt1W : 2 * ℓ + 1 < mpRounds W := by rw [hmp]; omega
+  have hword : (0 : ℤ) ≤ lim.word := by have := hspace; omega
   have hLB : univLevelB x.n = 2 * univRoundB x.n + 16 := by
     unfold univLevelB univRoundB
     ring
@@ -1482,271 +1019,177 @@ theorem univLevel_runs
       = univLevelB x.n - univRoundB x.n - 4 := by omega
   have hB4 : 4 + (univLevelB x.n - univRoundB x.n - 4 - univRoundB x.n - 4)
       = univLevelB x.n - univRoundB x.n - 4 - univRoundB x.n := by omega
-  have hB5 : (Light.k 2 *' v Lvl).cost + 1
-      + (univLevelB x.n - univRoundB x.n - 4 - univRoundB x.n - 4)
-      = univLevelB x.n - univRoundB x.n - 4 - univRoundB x.n := by
-    simp only [Expr.cost]
-    omega
-  have hLR : (Lvl : ℕ) ≠ Rt := by
-    have hL : Lvl = (14 : ℕ) := rfl
-    have hR' : Rt = (15 : ℕ) := rfl
-    omega
-  have hRL : (Rt : ℕ) ≠ Lvl := by
-    have hL : Lvl = (14 : ℕ) := rfl
-    have hR' : Rt = (15 : ℕ) := rfl
-    omega
+  have hcostRt : (v Rt +' Light.k 1).cost + 1 = 4 := by simp only [Expr.cost]
+  have hcostLvl : (Light.k 2 *' v Lvl).cost + 1 = 4 := by simp only [Expr.cost]
+  -- the two counter writes' word bounds, at the state they are read in
+  -- the constants `1` and `2` fit a word: the layout's head address does
   have hword2 : (2 : ℤ) ≤ lim.word := by
-    have hw := (hok mask k).word
-    simp only [Light.DenseRestartSelectionLoop.need] at hw
-    have hpos : (0 : ℤ) ≤
-        ((((instanceSize (callSite P k I h active remaining rows ab rb sb mb bb) + 1) *
-              ((callSite P k I h active remaining rows ab rb sb mb bb).height + 1) : ℕ) : ℤ)) :=
-      by positivity
-    omega
-  have hwordRt1 : |(ll Rt + (1 : ℤ))| ≤ lim.word := by
-    rw [hRt']
-    push_cast
-    have h2 : ((2 * ℓ + 1 : ℕ) : ℤ) ≤ ((mpRounds W : ℕ) : ℤ) := by omega
-    have h3 : (0 : ℤ) ≤ 2 * ((ℓ : ℕ) : ℤ) + 1 := by push_cast; omega
-    rw [abs_of_nonneg h3]
-    have h5 : 2 * ((ℓ : ℕ) : ℤ) + 1 = ((2 * ℓ + 1 : ℕ) : ℤ) := by push_cast; ring
-    rw [h5]
-    omega
-  have hwordRt2 : |((2 * ℓ + 1 : ℕ) : ℤ) + (1 : ℤ)| ≤ lim.word := by
-    have h1 : (0 : ℤ) ≤ ((2 * ℓ + 1 : ℕ) : ℤ) + 1 := by push_cast; omega
+    have h2 : ((2 ^ 1 : ℕ) : ℤ) ≤ ((2 ^ signedLevels W : ℕ) : ℤ) :=
+      Nat.cast_le.2 (Nat.pow_le_pow_right (by omega) (signedLevels_pos W))
+    simpa using le_trans h2 hwordLvl
+  have hword1 : (1 : ℤ) ≤ lim.word := by omega
+  have hsafeRt : ∀ (l' : ℕ → ℤ) (μ' : ℕ → ℤ), |l' Rt + 1| ≤ lim.word →
+      (v Rt +' Light.k 1).Safe lim ⟨l', μ'⟩ := by
+    intro l' μ' h
+    exact ⟨trivial, by simpa using hword1, h⟩
+  have hsafeLvl : ∀ (l' : ℕ → ℤ) (μ' : ℕ → ℤ), |(2 : ℤ) * l' Lvl| ≤ lim.word →
+      (Light.k 2 *' v Lvl).Safe lim ⟨l', μ'⟩ := by
+    intro l' μ' h
+    exact ⟨by simpa using hword2, trivial, h⟩
+  have hRtN : ll Rt = ((2 * ℓ : ℕ) : ℤ) := hRt
+  have hwordRt1 : |ll Rt + 1| ≤ lim.word := by
+    rw [hRtN]
+    have h1 : (0 : ℤ) ≤ ((2 * ℓ : ℕ) : ℤ) + 1 := by positivity
     rw [abs_of_nonneg h1]
-    have h2 : ((2 * ℓ + 2 : ℕ) : ℤ) ≤ ((mpRounds W : ℕ) : ℤ) := by omega
-    calc ((2 * ℓ + 1 : ℕ) : ℤ) + 1 = ((2 * ℓ + 2 : ℕ) : ℤ) := by push_cast; ring
-      _ ≤ ((mpRounds W : ℕ) : ℤ) := h2
-      _ ≤ lim.word := hwordRt
-  have hwordLvl' : |((2 : ℤ) * ((2 ^ ℓ : ℕ) : ℤ))| ≤ lim.word := by
-    have h1 : (0 : ℤ) ≤ (2 : ℤ) * ((2 ^ ℓ : ℕ) : ℤ) := by positivity
-    rw [abs_of_nonneg h1]
-    have h2 : ((2 ^ (ℓ + 1) : ℕ) : ℤ) = (2 : ℤ) * ((2 ^ ℓ : ℕ) : ℤ) := by
-      rw [Nat.pow_succ]
-      push_cast
-      ring
-    have h3 : ((2 ^ (ℓ + 1) : ℕ) : ℤ) ≤ ((2 ^ signedLevels W : ℕ) : ℤ) :=
-      Nat.cast_le.2 (Nat.pow_le_pow_right (by omega) (by omega))
-    rw [← h2]
-    exact h3.trans hwordLvl
-  have hcostSet : (v Rt +' Light.k 1).cost + 1 = 4 := by
-    simp only [Expr.cost]
-  have hcostSetL : (Light.k 2 *' v Lvl).cost + 1 = 4 := by
-    simp only [Expr.cost]
-  -- the fixed-premise bundle for the two rounds
-  have hround : ∀ (t : ℕ) (ll' : ℕ → ℤ) (μ' : ℕ → ℤ) (mask' : ℕ → Bool) (T' : ℕ),
-      UnivPins lim vals x W ⟨ll', μ'⟩ →
-      t < mpRounds W → ll' Rt = (t : ℤ) →
-      ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb μ' →
-      univRoundB x.n ≤ T' →
-      Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d (univRound stage)
-        ⟨ll', μ'⟩ (univRoundB x.n)
-        (fun σ' => ∃ (mask'' : ℕ → Bool) (r : ℤ),
-          ThinMatrix.CallerChain.StageReads P I active mask'' rows ab rb mb σ'.mem ∧
-          UnivPins lim vals x W σ' ∧
-          r = bracketAccumulate (μ' (x.c + t * x.n)) tests (mpRounds W) ∧
-          (∀ u : ℕ, u < x.n → σ'.mem (x.c + t * x.n + u) = r) ∧
-          (∀ t' u' : ℕ, t' < mpRounds W → u' < x.n → t' ≠ t →
-            σ'.mem (x.c + t' * x.n + u') = μ' (x.c + t' * x.n + u')) ∧
-          (∀ b' : ℕ, b' < frC → (b' < x.c ∨ x.c + x.n * x.n ≤ b') →
-            σ'.mem b' = μ' b') ∧
-          (∀ i : ℕ, i ≠ Tmp → i ≠ IdxR → i ≠ DstR → i ≠ J → σ'.loc i = ll' i)) :=
-    fun t ll' μ' mask' T' hp' ht hRt' hr' hT' =>
-      univRound_runs' hxn hvals hslot hret hflag hok hp' hRt' hr' hlay hfrCle haway hbelow
-        rfl hspace hregion ht hdim hTtk hT'
+    have h2 : ((2 * ℓ : ℕ) : ℤ) + 1 = ((2 * ℓ + 1 : ℕ) : ℤ) := by push_cast; ring
+    rw [h2]
+    exact le_trans (by exact_mod_cast Nat.le_of_lt h2lt1W) hwordRt
+  have hwordLvl1 : |(2 : ℤ) * ll Lvl| ≤ lim.word := by
+    have h1 : (0 : ℤ) ≤ (2 : ℤ) * ll Lvl := by rw [hLvl]; positivity
+    rw [abs_of_nonneg h1, hLvl]
+    have h2 : (2 : ℤ) * ((2 ^ ℓ : ℕ) : ℤ) = ((2 ^ (ℓ + 1) : ℕ) : ℤ) := by
+      rw [Nat.pow_succ]; push_cast; ring
+    rw [h2]
+    exact le_trans (by exact_mod_cast Nat.pow_le_pow_right (by omega) (by omega)) hwordLvl
+  have hTmp15 : Tmp ≠ Rt := by
+    have h15 : Rt = (15 : ℕ) := rfl
+    have h10 : Tmp = (10 : ℕ) := rfl
+    omega
+  have hRtne : Rt ≠ Tmp := fun h => hTmp15 h.symm
   unfold univLevelBody
-  -- step 1: round 2·ell
-  refine Ends.seq (univRoundB x.n) (univLevelB x.n - univRoundB x.n) ?_
-    (by rw [hB1]; exact hT)
-  refine (hround (2 * ℓ) ll μ mask (univRoundB x.n) hpins h2ltW hRt hreads
-    (le_refl (univRoundB x.n))).mono le_rfl ?_
-  rintro ⟨llB, μ₁⟩ ⟨mask₁, r₁, hR1, hP1, hReq1, hRow1, hQ1, hK1, hlocB⟩
-  -- the carried cell after round 2·ell: the fold, in both cases
-  have hcell' : μ x.c =
-      (if ℓ = 0 then μ₀ x.c
-        else bracketAccumulate (μ₀ x.c) tests (mpRounds W)) := hcell
+  -- round `2·ℓ`
+  refine Ends.seq (univRoundB x.n) (univLevelB x.n - univRoundB x.n) ?_ (by rw [hB1]; exact hT)
+  refine (univRound_runs hxn hvals hslot hret hflag hok hpins hword hRt hreads hlay hfrCle
+    haway hbelow h2ltW hdim hTtk).mono le_rfl ?_
+  rintro ⟨llB, μ₁⟩ ⟨mask₁, r₁, hR1, hP1, hReq1, hHead1, hKept1, hlocB⟩
+  simp only [State.mem, State.loc] at hHead1 hlocB
   have hcell1 : μ₁ x.c = bracketAccumulate (μ₀ x.c) tests (mpRounds W) := by
     by_cases hℓ0 : ℓ = 0
     · subst hℓ0
-      have hrow := hRow1 0 (by omega)
-      simp at hrow
-      have hreq := hReq1
-      simp at hreq
-      rw [if_pos rfl] at hcell'
-      rw [hrow, hreq, hcell']
-    · have hq := hQ1 0 0 h0ltW hxn (by omega)
-      simp only [Nat.zero_mul, Nat.zero_add, Nat.add_zero] at hq
-      rw [if_neg hℓ0] at hcell'
-      rw [hq, hcell']
-  -- step 2: set Rt := 2·ell + 1
-  refine Ends.seq 4
-    (univLevelB x.n - univRoundB x.n - 4) ?_
-    (by rw [hB2])
-  have hRtB : llB Rt = ((2 * ℓ : ℕ) : ℤ) := by
-    have h1 : llB Rt = ll Rt :=
-      hlocB Rt (by simp only [Rt, Tmp]; omega) (by simp only [Rt, IdxR]; omega)
-        (by simp only [Rt, DstR]; omega) (by simp only [Rt, J]; omega)
-    rw [h1]
-    exact hRt'
-  have hLvlB : llB Lvl = ((2 ^ ℓ : ℕ) : ℤ) := by
-    have h1 : llB Lvl = ll Lvl :=
-      hlocB Lvl (by simp only [Lvl, Tmp]; omega) (by simp only [Lvl, IdxR]; omega)
-        (by simp only [Lvl, DstR]; omega) (by simp only [Lvl, J]; omega)
-    rw [h1]
-    exact hLvl
-  have habs1 : |llB Rt + (1 : ℤ)| ≤ lim.word := by
+      rw [if_pos (by omega : 2 * 0 = 0)] at hHead1
+      rw [hHead1, hReq1]
+      simp only [Nat.mul_zero, Nat.zero_mul, Nat.add_zero]
+      rw [if_pos rfl] at hcell
+      rw [hcell]
+    · rw [if_neg (by omega : ¬ (2 * ℓ = 0))] at hHead1
+      rw [hHead1]
+      rw [if_neg hℓ0] at hcell
+      exact hcell
+  have hRtB : llB Rt = ((2 * ℓ : ℕ) : ℤ) := by rw [hlocB Rt hRtne]; exact hRtN
+  have hwordRtB : |llB Rt + 1| ≤ lim.word := by
     rw [hRtB]
+    simpa only [hRtN] using hwordRt1
+  -- `Rt := 2·ℓ + 1`
+  refine Ends.seq 4 (univLevelB x.n - univRoundB x.n - 4) ?_ (by omega)
+  refine Ends.set (hsafeRt llB μ₁ hwordRtB) (by rw [hcostRt]) ?_
+  simp only [Expr.val, Op.eval]
+  set ll₂ : ℕ → ℤ := Function.update llB Rt (llB Rt + 1) with hll₂
+  have hll₂Rt : ll₂ Rt = ((2 * ℓ + 1 : ℕ) : ℤ) := by
+    rw [hll₂, Function.update_self, hRtB]; push_cast; ring
+  have hll₂Agree : ∀ i : ℕ, i ≠ Rt → ll₂ i = llB i := by
+    intro i hi; rw [hll₂, Function.update_of_ne hi]
+  have hll₂Lvl : ll₂ Lvl = ((2 ^ ℓ : ℕ) : ℤ) := by
+    rw [hll₂Agree Lvl (by
+      have h14 : Lvl = (14 : ℕ) := rfl
+      have h15 : Rt = (15 : ℕ) := rfl
+      omega)]
+    rw [hlocB Lvl (by
+      have h14 : Lvl = (14 : ℕ) := rfl
+      have h10 : Tmp = (10 : ℕ) := rfl
+      omega)]
+    exact hLvl
+  -- round `2·ℓ + 1`, at the first round's evolved mask
+  refine Ends.seq (univRoundB x.n) (univLevelB x.n - univRoundB x.n - 4 - univRoundB x.n)
+    ?_ (by omega)
+  have hpins₂ : UnivPins lim vals x W ⟨ll₂, μ₁⟩ := by
+    rw [hll₂]
+    exact UnivPins_set hP1 (i := Rt)
+      (by intro k' hk'; have h15 : Rt = (15 : ℕ) := rfl; omega)
+      (by have h11 : Out = (11 : ℕ) := rfl; have h15 : Rt = (15 : ℕ) := rfl; omega)
+      (by have h12 : Nreg = (12 : ℕ) := rfl; have h15 : Rt = (15 : ℕ) := rfl; omega)
+      (by have h13 : U2 = (13 : ℕ) := rfl; have h15 : Rt = (15 : ℕ) := rfl; omega)
+  refine (univRound_runs hxn hvals hslot hret hflag hok hpins₂ hword hll₂Rt hR1 hlay hfrCle
+    haway hbelow h2lt1W hdim hTtk).mono le_rfl ?_
+  rintro ⟨llC, μ₂⟩ ⟨mask₂, r₂, hR2, hP2, hReq2, hHead2, hKept2, hlocC⟩
+  simp only [State.mem, State.loc] at hHead2 hlocC
+  have hcell2 : μ₂ x.c = bracketAccumulate (μ₀ x.c) tests (mpRounds W) := by
+    rw [hHead2, if_neg (by omega : ¬ (2 * ℓ + 1 = 0))]
+    exact hcell1
+  have hRtC : llC Rt = ((2 * ℓ + 1 : ℕ) : ℤ) := by rw [hlocC Rt hRtne]; exact hll₂Rt
+  have hLvlC : llC Lvl = ((2 ^ ℓ : ℕ) : ℤ) := by
+    rw [hlocC Lvl (by
+      have h14 : Lvl = (14 : ℕ) := rfl
+      have h10 : Tmp = (10 : ℕ) := rfl
+      omega)]
+    exact hll₂Lvl
+  -- `Rt := 2·ℓ + 2`
+  refine Ends.seq 4 (univLevelB x.n - univRoundB x.n - 4 - univRoundB x.n - 4)
+    ?_ (by omega)
+  refine Ends.set ?_ (by rw [hcostRt]) ?_
+  · exact hsafeRt llC μ₂ (by
+      rw [hRtC]
+      have h1 : (0 : ℤ) ≤ ((2 * ℓ + 1 : ℕ) : ℤ) + 1 := by positivity
+      rw [abs_of_nonneg h1]
+      have h2 : ((2 * ℓ + 1 : ℕ) : ℤ) + 1 = ((2 * ℓ + 2 : ℕ) : ℤ) := by push_cast; ring
+      rw [h2]
+      exact le_trans (by exact_mod_cast (by rw [hmp]; omega : 2 * ℓ + 2 ≤ mpRounds W)) hwordRt)
+  simp only [Expr.val, Op.eval]
+  set ll₃ : ℕ → ℤ := Function.update llC Rt (llC Rt + 1) with hll₃
+  have hll₃Rt : ll₃ Rt = ((2 * ℓ + 2 : ℕ) : ℤ) := by
+    rw [hll₃, Function.update_self, hRtC]; push_cast; ring
+  have hll₃Agree : ∀ i : ℕ, i ≠ Rt → ll₃ i = llC i := by
+    intro i hi; rw [hll₃, Function.update_of_ne hi]
+  have hll₃Lvl : ll₃ Lvl = ((2 ^ ℓ : ℕ) : ℤ) := by
+    rw [hll₃Agree Lvl (by
+      have h14 : Lvl = (14 : ℕ) := rfl
+      have h15 : Rt = (15 : ℕ) := rfl
+      omega)]
+    exact hLvlC
+  -- `Lvl := 2·Lvl`, closing at level `ℓ + 1`
+  refine Ends.set (hsafeLvl ll₃ μ₂ (by
+    rw [hll₃Lvl]
+    have h1 : (0 : ℤ) ≤ (2 : ℤ) * ((2 ^ ℓ : ℕ) : ℤ) := by positivity
+    rw [abs_of_nonneg h1]
+    have h2 : (2 : ℤ) * ((2 ^ ℓ : ℕ) : ℤ) = ((2 ^ (ℓ + 1) : ℕ) : ℤ) := by
+      rw [Nat.pow_succ]; push_cast; ring
+    rw [h2]
+    exact le_trans (by exact_mod_cast Nat.pow_le_pow_right (by omega) (by omega)) hwordLvl))
+    (by rw [hcostLvl]; omega) ?_
+  simp only [Expr.val, Op.eval]
+  refine ⟨⟨?_, ?_, ?_, ?_, ?_⟩, ?_⟩
+  · -- the pins survive the two counter writes
+    rw [hll₃, hll₂] at *
+    refine UnivPins_set (UnivPins_set (UnivPins_congr rfl hP2)
+      (i := Rt) (by intro k' hk'; have h15 : Rt = (15 : ℕ) := rfl; omega)
+      (by have h11 : Out = (11 : ℕ) := rfl; have h15 : Rt = (15 : ℕ) := rfl; omega)
+      (by have h12 : Nreg = (12 : ℕ) := rfl; have h15 : Rt = (15 : ℕ) := rfl; omega)
+      (by have h13 : U2 = (13 : ℕ) := rfl; have h15 : Rt = (15 : ℕ) := rfl; omega))
+      (i := Lvl)
+      (by intro k' hk'; have h14 : Lvl = (14 : ℕ) := rfl; omega)
+      (by have h11 : Out = (11 : ℕ) := rfl; have h14 : Lvl = (14 : ℕ) := rfl; omega)
+      (by have h12 : Nreg = (12 : ℕ) := rfl; have h14 : Lvl = (14 : ℕ) := rfl; omega)
+      (by have h13 : U2 = (13 : ℕ) := rfl; have h14 : Lvl = (14 : ℕ) := rfl; omega)
+  · -- the level register: `2 · 2^ℓ = 2^(ℓ+1)`
+    show Function.update ll₃ Lvl (2 * ll₃ Lvl) Lvl = ((2 ^ (ℓ + 1) : ℕ) : ℤ)
+    rw [Function.update_self, hll₃Lvl]
     push_cast
-    have h2 : ((2 * ℓ + 1 : ℕ) : ℤ) ≤ ((mpRounds W : ℕ) : ℤ) := by omega
-    have h3 : (0 : ℤ) ≤ 2 * ((ℓ : ℕ) : ℤ) + 1 := by push_cast; omega
-    rw [abs_of_nonneg h3]
-    have h5 : 2 * ((ℓ : ℕ) : ℤ) + 1 = ((2 * ℓ + 1 : ℕ) : ℤ) := by push_cast; ring
-    rw [h5]
-    omega
-  have hsafe1 : Expr.Safe lim ⟨llB, μ₁⟩ (v Rt +' Expr.const 1) := by
-    simp only [Expr.Safe, Expr.val, Op.eval]
-    exact ⟨trivial, by omega, habs1⟩
-  refine Ends.set hsafe1 (by have := hcostSet; omega) ?_
-  · -- step 3: round 2·ell+1
-    have hpinsC : UnivPins lim vals x W
-        ⟨Function.update llB Rt (llB Rt + (1 : ℤ)), μ₁⟩ :=
-      UnivPins_set hP1 (by intro k' hk'; simp only [Rt]; omega)
-        (by simp only [Rt, Out]; omega) (by simp only [Rt, Nreg]; omega)
-        (by simp only [Rt, U2]; omega)
-    have hLvlC : Function.update llB Rt (llB Rt + (1 : ℤ)) Lvl = ((2 ^ ℓ : ℕ) : ℤ) := by
-      rw [Function.update_of_ne hLR]
-      exact hLvlB
-    have hRtC : Function.update llB Rt (llB Rt + (1 : ℤ)) Rt = ((2 * ℓ + 1 : ℕ) : ℤ) := by
-      simp only [Function.update_self]
-      rw [hRtB]
-      push_cast
-      ring
-    refine Ends.seq (univRoundB x.n)
-      (univLevelB x.n - univRoundB x.n - 4 - univRoundB x.n) ?_
-      (by rw [hB3])
-    refine (hround (2 * ℓ + 1) (Function.update llB Rt (llB Rt + (1 : ℤ))) μ₁ mask₁
-      (univRoundB x.n)
-      hpinsC h2lt1W hRtC hR1 (le_refl _)).mono le_rfl ?_
-    rintro ⟨llD, μ₂⟩ ⟨mask₂, r₂, hR2, hP2, hReq2, hRow2, hQ2, hK2, hlocD⟩
-    -- the delivery identities for the two rows
-    have hhead1 : μ (x.c + 2 * ℓ * x.n) = μ₀ (x.c + 2 * ℓ * x.n) := by
-      have h1 := hall2 (2 * ℓ) 0 (by omega) h2ltW hxn
-      simpa using h1
-    have hhead2 : μ₁ (x.c + (2 * ℓ + 1) * x.n) = μ₀ (x.c + (2 * ℓ + 1) * x.n) := by
-      have h1 := hQ1 (2 * ℓ + 1) 0 h2lt1W hxn (by omega)
-      simp only [Nat.add_zero] at h1
-      have h2 := hall2 (2 * ℓ + 1) 0 (by omega) h2lt1W hxn
-      simp only [Nat.add_zero] at h2
-      exact h1.trans h2
-    -- the round-2 post's counter values, via its loc clause
-    have hRtD : llD Rt = ((2 * ℓ + 1 : ℕ) : ℤ) := by
-      have h1 : llD Rt = Function.update llB Rt (llB Rt + (1 : ℤ)) Rt :=
-        hlocD Rt (by simp only [Rt, Tmp]; omega) (by simp only [Rt, IdxR]; omega)
-          (by simp only [Rt, DstR]; omega) (by simp only [Rt, J]; omega)
-      rw [h1, hRtC]
-    have hLvlD : llD Lvl = ((2 ^ ℓ : ℕ) : ℤ) := by
-      have h1 : llD Lvl = Function.update llB Rt (llB Rt + (1 : ℤ)) Lvl :=
-        hlocD Lvl (by simp only [Lvl, Tmp]; omega) (by simp only [Lvl, IdxR]; omega)
-          (by simp only [Lvl, DstR]; omega) (by simp only [Lvl, J]; omega)
-      rw [h1, hLvlC]
-    -- step 4: set Rt := 2·ell + 2
-    refine Ends.seq 4
-      (univLevelB x.n - univRoundB x.n - 4 - univRoundB x.n - 4) ?_
-      (by rw [hB4])
-    have habs4 : |llD Rt + (1 : ℤ)| ≤ lim.word := by
-      rw [hRtD]
-      push_cast
-      have h3 : (0 : ℤ) ≤ 2 * ((ℓ : ℕ) : ℤ) + 1 + 1 := by push_cast; omega
-      rw [abs_of_nonneg h3]
-      have h5 : 2 * ((ℓ : ℕ) : ℤ) + 1 + 1 = ((2 * ℓ + 2 : ℕ) : ℤ) := by push_cast; ring
-      rw [h5]
-      have h2 : ((2 * ℓ + 2 : ℕ) : ℤ) ≤ ((mpRounds W : ℕ) : ℤ) := by omega
-      omega
-    have hsafe4 : Expr.Safe lim ⟨llD, μ₂⟩ (v Rt +' Expr.const 1) := by
-      simp only [Expr.Safe, Expr.val, Op.eval]
-      exact ⟨trivial, by omega, habs4⟩
-    refine Ends.set hsafe4 (by have := hcostSet; omega) ?_
-    · -- step 5: set Lvl := 2·2^ell
-      set llE : ℕ → ℤ := Function.update llD Rt (llD Rt + (1 : ℤ)) with hllE
-      have hLvlE : llE Lvl = ((2 ^ ℓ : ℕ) : ℤ) := by
-        rw [hllE, Function.update_of_ne hLR, hLvlD]
-      have habs5 : |(2 : ℤ) * llE Lvl| ≤ lim.word := by
-        rw [hLvlE]
-        exact hwordLvl'
-      have hsafe5 : Expr.Safe lim ⟨llE, μ₂⟩ (Expr.const 2 *' v Lvl) := by
-        simp only [Expr.Safe, Expr.val, Op.eval]
-        exact ⟨hword2, trivial, habs5⟩
-      have hPinsF : UnivPins lim vals x W
-          ⟨Function.update llE Lvl ((2 : ℤ) * llE Lvl), μ₂⟩ :=
-        UnivPins_set (UnivPins_set hP2
-          (by intro k' hk'; simp only [Rt]; omega)
-          (by simp only [Rt, Out]; omega) (by simp only [Rt, Nreg]; omega)
-          (by simp only [Rt, U2]; omega))
-          (by intro k' hk'; simp only [Lvl]; omega)
-          (by simp only [Lvl, Out]; omega) (by simp only [Lvl, Nreg]; omega)
-          (by simp only [Lvl, U2]; omega)
-      have hLvlF : Function.update llE Lvl ((2 : ℤ) * llE Lvl) Lvl
-          = ((2 ^ (ℓ + 1) : ℕ) : ℤ) := by
-        rw [Function.update_self, hLvlE]
-        have h2 : ((2 : ℤ) * ((2 ^ ℓ : ℕ) : ℤ)) = ((2 ^ (ℓ + 1) : ℕ) : ℤ) := by
-          rw [Nat.pow_succ]
-          push_cast
-          ring
-        rw [h2]
-      have hRtF : Function.update llE Lvl ((2 : ℤ) * llE Lvl) Rt
-          = ((2 * (ℓ + 1) : ℕ) : ℤ) := by
-        rw [Function.update_of_ne hRL, hllE, Function.update_self, hRtD]
-        push_cast
-        ring
-      have hrem5 : univLevelB x.n - univRoundB x.n - 4 - univRoundB x.n - 4 = 8 := by
-        omega
-      refine Ends.set hsafe5 (by rw [hrem5]; omega) ?_
-      · refine ⟨⟨hPinsF, hLvlF, hRtF, ⟨mask₂, hR2⟩, ?_⟩, ?_, ?_, ?_⟩
-        · -- the cell: kept by round 2·ell+1, it held the fold
-          have hq : μ₂ x.c = μ₁ x.c := by
-            have h0q := hQ2 0 0 h0ltW hxn (by omega)
-            simpa only [Nat.zero_mul, Nat.zero_add, Nat.add_zero] using h0q
-          show μ₂ x.c = (if ℓ + 1 = 0 then μ₀ x.c
-            else bracketAccumulate (μ₀ x.c) tests (mpRounds W))
-          rw [hq, hcell1, if_neg (by omega)]
-        · intro t u ht htW hu
-          rcases Nat.lt_or_ge t (2 * ℓ) with htl | htl
-          · have h1 : μ₂ (x.c + t * x.n + u) = μ₁ (x.c + t * x.n + u) :=
-              hQ2 t u htW hu (by omega)
-            have h2 : μ₁ (x.c + t * x.n + u) = μ (x.c + t * x.n + u) :=
-              hQ1 t u htW hu (by omega)
-            have h3 := hall1 t u htl htW hu
-            exact h1.trans (h2.trans h3)
-          · rcases Nat.lt_or_ge t (2 * ℓ + 1) with htl1 | htl2
-            · have ht2 : t = 2 * ℓ := by omega
-              subst ht2
-              have h1 : μ₂ (x.c + 2 * ℓ * x.n + u) = μ₁ (x.c + 2 * ℓ * x.n + u) :=
-                hQ2 (2 * ℓ) u h2ltW hu (by omega)
-              have h2 : μ₁ (x.c + 2 * ℓ * x.n + u) = r₁ := hRow1 u hu
-              have h4 : bracketAccumulate (μ (x.c + 2 * ℓ * x.n)) tests (mpRounds W)
-                  = bracketAccumulate (μ₀ (x.c + 2 * ℓ * x.n)) tests (mpRounds W) := by
-                rw [hhead1]
-              exact h1.trans (h2.trans (hReq1.trans h4))
-            · have ht2 : t = 2 * ℓ + 1 := by omega
-              subst ht2
-              have h2 : μ₂ (x.c + (2 * ℓ + 1) * x.n + u) = r₂ := hRow2 u hu
-              have h4 : bracketAccumulate (μ₁ (x.c + (2 * ℓ + 1) * x.n)) tests (mpRounds W)
-                  = bracketAccumulate (μ₀ (x.c + (2 * ℓ + 1) * x.n)) tests (mpRounds W) := by
-                rw [hhead2]
-              exact h2.trans (hReq2.trans h4)
-        · intro t u ht htW hu
-          have h1 : μ₂ (x.c + t * x.n + u) = μ₁ (x.c + t * x.n + u) :=
-            hQ2 t u htW hu (by omega)
-          have h2 : μ₁ (x.c + t * x.n + u) = μ (x.c + t * x.n + u) :=
-            hQ1 t u htW hu (by omega)
-          have h3 := hall2 t u (by omega) htW hu
-          exact h1.trans (h2.trans h3)
-        · intro b' hb'
-          have h1 : μ₂ b' = μ₁ b' := hK2 b' hb'.1 hb'.2
-          have h2 : μ₁ b' = μ b' := hK1 b' hb'.1 hb'.2
-          have h3 : μ b' = μ₀ b' := hkept b' hb'
-          exact h1.trans (h2.trans h3)
+    ring
+  · -- the flat round counter: `2·ℓ + 2 = 2·(ℓ+1)`
+    show Function.update ll₃ Lvl (2 * ll₃ Lvl) Rt = ((2 * (ℓ + 1) : ℕ) : ℤ)
+    rw [Function.update_of_ne (by
+      have h14 : Lvl = (14 : ℕ) := rfl
+      have h15 : Rt = (15 : ℕ) := rfl
+      omega), hll₃Rt]
+    push_cast
+    ring
+  · -- the reads at the second round's evolved mask (the counters touch none)
+    exact ⟨mask₂, hR2⟩
+  · -- the head still carries the fold
+    show μ₂ x.c = (if ℓ + 1 = 0 then μ₀ x.c else bracketAccumulate (μ₀ x.c) tests (mpRounds W))
+    rw [if_neg (by omega : ¬ (ℓ + 1 = 0))]
+    exact hcell2
+  · -- the frame: three `KeptBut` links, none of them touching the product's head
+    exact hkept.trans (hKept1.trans hKept2)
 
 #print axioms univLevel_runs
 
@@ -1818,7 +1261,6 @@ theorem wireUnivTarget_of
       (x.c < mb ∨ mb + P ≤ x.c))
     (hbelow : (x.c + x.n * x.n : ℕ) ≤ ab)
     (hspace : (lim.space : ℤ) ≤ lim.word)
-    (hregion : mpRounds W ≤ x.n)
     (hdim : d < lim.depth)
     (hTtk : Tt k ≤ callerTt x.n)
     (hwordRt : ((mpRounds W : ℕ) : ℤ) ≤ lim.word)
@@ -1877,7 +1319,7 @@ theorem wireUnivTarget_of
           (ab := ab) (rb := rb) (sb := sb) (mb := mb) (bb := bb) (fr := fr) (frC := frC)
           (cacheProg := cacheProg) (restoreProg := restoreProg) (cs := cs) (stage := stage)
           (Tt := Tt) (R := R) (x := x) (W := W) (tests := tests) (vals := vals) (μ₀ := μ₀)
-          hxn hvals hslot hret hflag hok hlay hfrCle haway hbelow hspace hregion hdim hTtk
+          hxn hvals hslot hret hflag hok hlay hfrCle haway hbelow hspace hdim hTtk
           hwordRt hwordLvl (ℓ := i) (ll := σ.loc) (μ := σ.mem) (T := univLevelB x.n)
           hi (by simpa using hinvAll) (le_refl _)
     · -- the exit: the level bound is exceeded, and the target's conclusion holds
@@ -1956,9 +1398,11 @@ that forty — `40 + 2·(13n+6) = 26n + 52 ≤ 27n + 64 = univProB n`.
 The hypothesis list is the frame correspondence (`hframe`, `hvals`) plus
 the instance's own lay-out facts: the product region below the buffers
 (`hbelow`), the buffer stack's fit (`hfit`), `space ≤ word`, the `2·U`
-word bound, the schedule fitting a row (`hregion`), the active mask's
-truth (`hactive`), and the rows table's memory image (`hrows`) — the
-level-0 stage reads' "the array keeps the instance's own values" device. -/
+word bound, the active mask's truth (`hactive`), and the rows table's
+memory image (`hrows`) — the level-0 stage reads' "the array keeps the
+instance's own values" device. (The `hregion : mpRounds W ≤ n` premise that
+stood here is GONE — cure (b) made the write set `{x.c}`, so no instance-
+class containment is needed. Corrected, not silently dropped.) -/
 theorem prologue_runs
     {lim : Limits} {d : ℕ} {P k I h : ℕ} {active : ℕ → Bool}
     {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr frC : ℕ}
@@ -1979,7 +1423,6 @@ theorem prologue_runs
     (hspace : (lim.space : ℤ) ≤ lim.word)
     (hwordU2 : |2 * (x.U : ℤ)| ≤ lim.word)
     (hword1 : (1 : ℤ) ≤ lim.word)
-    (hregion : mpRounds W ≤ x.n)
     (hactive : ∀ i < I, active i = true)
     (hrows : ∀ p < P, ∀ i < I, rows p i = μ₀ (rb + p * I + i)) :
     PrologueTarget (lim := lim) (d := d) (P := P) (k := k) (I := I) (h := h)
@@ -2083,7 +1526,7 @@ theorem prologue_runs
   intro σ' hσ'
   subst hσ'
   try dsimp only [State.mem, State.loc]
-  refine ⟨?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_⟩
   · -- UnivInv: pins, the two counters, the reads, the product cell
     refine ⟨?_, ?_, ?_, ?_, ?_⟩
     · -- the nine frame pins
@@ -2094,18 +1537,8 @@ theorem prologue_runs
       · simp [univPrologueLocals, univProloguePins, Out, frame]
       · simp [univPrologueLocals, univProloguePins, Nreg, frame]
       · simp [univPrologueLocals, univProloguePins, U2, frame] <;> push_cast <;> ring
-      · -- the address bookkeeping, from the stack's fit
-        intro t ht
-        have htle : t < x.n := lt_of_lt_of_le ht hregion
-        constructor
-        · have h1 : x.c + t * x.n + x.n ≤ x.c + x.n * x.n := by nlinarith
-          omega
-        · have h2 : ((t * x.n : ℕ) : ℤ) ≤ lim.word := by
-            have h3 : ((t * x.n : ℕ) : ℤ) ≤ ((x.n * x.n : ℕ) : ℤ) := by
-              exact_mod_cast (by nlinarith : t * x.n ≤ x.n * x.n)
-            omega
-          rw [abs_of_nonneg (by positivity)]
-          exact h2
+      · -- the product head's address: strictly inside the buffer stack
+        omega
     · -- the level counter
       simp only [univPrologueLocals, univProloguePins, Lvl, frame]
       norm_num
@@ -2146,18 +1579,6 @@ theorem prologue_runs
       have h1 : μ₂ x.c = μ₁ x.c := wrote_rest (μ := μ₁) (f := fun _ => 1) (Or.inl (by omega))
       have h2 : μ₁ x.c = μ₀ x.c := wrote_rest (μ := μ₀) (f := fun _ => 1) (Or.inl (by nlinarith))
       rw [h1, h2]
-  · -- the vacuous early-rows clause at ell = 0
-    intro t u ht
-    omega
-  · -- the untouched product rows
-    intro t u _ ht hu
-    show wrote (wrote μ₀ fr (fun _ => 1) x.n) (fr + 3 * x.n + x.n * x.n) (fun _ => 1) x.n
-      (x.c + t * x.n + u) = μ₀ (x.c + t * x.n + u)
-    have hout : Outside (fr + 3 * x.n + x.n * x.n) x.n (x.c + t * x.n + u) :=
-      Or.inl (by nlinarith)
-    have hout2 : Outside fr x.n (x.c + t * x.n + u) := Or.inl (by nlinarith)
-    rw [wrote_rest (μ := wrote μ₀ fr (fun _ => 1) x.n) (f := fun _ => 1) hout,
-      wrote_rest (μ := μ₀) (f := fun _ => 1) hout2]
   · -- the kept frame below the caller's free pointer
     intro b hb
     obtain ⟨hb1, _⟩ := hb
@@ -2170,5 +1591,54 @@ theorem prologue_runs
 #print axioms univPrologueLocals_eq
 
 #print axioms prologue_runs
+
+/-! ## Restored bricks
+
+Two of the four bricks a previous session of this lane authored and lost
+(the de-duplication incident — see the lane's REPRODUCE.md) survive the
+cure-(b) rewrite unchanged, because they say nothing about the write shape:
+`mpRounds_le_word` (the round counter fits a word) and
+`UnivInvAll_zero_self` (at level zero the product's head still holds the
+instance's own value). Two do not, and are named here rather than faked:
+
+* `pow_signedLevels_le` — SURVIVES UNDER ITS LANDED NAME:
+  `pow_pred_signed_levels_le` (the loop's exit, `2^(signedLevels W - 1) ≤
+  2W`), together with `two_mul_lt_pow_signed_levels`. Both are already
+  stated, proved and consumed by `wireUnivTarget_of`; re-introducing the
+  old name would be an alias, not a brick.
+* `univProloguePins_eq_argsOf` — NOT RESTORED. It identified the prologue's
+  nine pins with `argsOf (callSite …) ++ [fr]`, which needs the callSite's
+  nine field projections read in their exact slot order. Nothing in the
+  landed chain consumes that identity (the correspondence is carried as the
+  named `hvals` premise of `univRound_runs`/`univLevel_runs`), so restoring
+  it is bookkeeping, not proof. Recorded as the next brick for whoever
+  assembles the entry package. -/
+
+/-- Brick: the round counter fits a word, so every round index is a legal
+word-RAM value. Restored from the lost set (it is write-shape independent). -/
+theorem mpRounds_le_word {lim : Limits} (W : ℕ)
+    (h : ((mpRounds W : ℕ) : ℤ) ≤ lim.word) :
+    ∀ t : ℕ, t < mpRounds W → |(t : ℤ)| ≤ lim.word := by
+  intro t ht
+  have h1 : (t : ℤ) ≤ ((mpRounds W : ℕ) : ℤ) := by exact_mod_cast Nat.le_of_lt ht
+  have h2 : (0 : ℤ) ≤ (t : ℤ) := by positivity
+  rw [abs_of_nonneg h2]
+  omega
+
+/-- Brick: at level zero the product's head still holds the instance's own
+value — the prologue has written only the bookkeeping arrays, never the
+product. Restored from the lost set (it is write-shape independent). -/
+theorem UnivInvAll_zero_self {lim : Limits} {vals : List ℤ} {x : MatInst} {W : ℕ}
+    {P I : ℕ} {active : ℕ → Bool} {rows : ℕ → ℕ → ℕ} {ab rb mb : ℕ}
+    {μ₀ : ℕ → ℤ} {tests : ℕ → Bool × Bool} {frC : ℕ} {σ : State}
+    (h : UnivInvAll lim vals x W P I active rows ab rb mb μ₀ tests frC 0 σ) :
+    σ.mem x.c = μ₀ x.c := by
+  have hc := h.1.2.2.2.2
+  rw [if_pos rfl] at hc
+  exact hc
+
+#print axioms mpRounds_le_word
+
+#print axioms UnivInvAll_zero_self
 
 end ThinMatrix.CallerUniversalBody

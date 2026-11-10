@@ -136,35 +136,66 @@ via `ConservativeAdapter.conservativeStatementOfLedger` — is stated in its
 own module (`TwinRaceBound.lean`); no root swap; the filing call is the
 owner's.
 
-## The universal body's status (L7 — the universal-body session, 2026-11-09)
+## The universal body's status (L7) — CURE (b) landed, 2026-11-10
 
-`CallerUniversalBody.lean` lands the instance-free program term GREEN
-(stages A–C): the fixed register map, the computed-index write pass
-(`set IdxR (t·n) ;; set DstR (x.c + t·n) ;; pass J (v Nreg) (v DstR)
-(v Tmp)`), the level-doubling `univWhile` (exactly `mpRounds W` rounds in
-one fixed term), the nested-behind caller program (renumbering-consistent
-where the per-instance skeleton's flat `++` is not), `univRowPass_runs`
-and `univRound_runs` (the run-derivation green through the row pass and
-the round slice, at the caller program), and the quadratic `univTn`.
-STATED and now DISCHARGED (2026-11-10): `WireUnivTarget` — the while
-induction over `Ends.while` at `signedLevels W` iterations, proved by
-`wireUnivTarget_of` (standard-3 axioms, no sorryAx). Bricks: `UnivInvAll`
-(the all-cells invariant, superseding `UnivInv` for the loop),
-`univLevel_runs` (the level body: two certified rounds at 2ℓ/2ℓ+1 — the
-second at the first's evolved mask — plus three counter sets),
-`UnivPins_set`, and the exit arithmetic `pow_pred_signed_levels_le` /
-`two_mul_lt_pow_signed_levels`. The target's hypothesis was AMENDED from
-`UnivInv … 0` to `UnivInvAll … frC 0` (disclosed in the def's docstring):
-the all-cells tracking is load-bearing and only the prologue establishes
-it. The discharge also names `x.U = W` (equality, not `≤` — both sides of
-the loop test move with the bound), `0 < W`, and two word-fit premises.
-STILL OPEN, in order: the entry assembly (a `univPrologue` run lemma to
-`UnivInvAll … 0`; budget `univProB n = 27n + 64` is sized, no lemma yet),
-the `Light.Solves` packaging (bundle: hslot, hret, hflag, hok, hrows
-(FILL 1), hidentU, hkeptU), then `summitSlotUniv_of`/`twinUniv_of`, which
-fire `Race.bound` 2994999/1000000 and assemble the filing package at THAT
-commit.
+`CallerUniversalBody.lean` is GREEN with the WRITE SHAPE REWRITTEN
+(exit 0, 0 errors, 0 sorryAx, standard-3 axioms, olean 3,539,248 B).
 
+THE REVERSAL, RECORDED. Cure (a) landed a restricted task `mpTaskRounds`
+(`Pre' := MatInst.Pre ∧ mpRounds U <= n`, commit 7b6ac0b) on the argument
+that `hregion` was underivable from `mpTask.Pre`. That part is true and
+stands: the row pass wrote round `t`'s row at `x.c + t*n`, escaping the
+product region as soon as `mpRounds W > n` (n=1, U=100 gives mpRounds 100 =
+16 > 1), and no `Need` can express the containment. But the restriction is
+UNCONSUMABLE: the filing chain needs `IsHost mpTask apTask`, and Host.lean
+instantiates the lower solver at bounds ~3nU where `mpRounds U' <= n'` fails
+pointwise. A class argument justifies the bound's VALUE, never the pointwise
+host premise.
+
+CURE (b) — the body rewrite. The row broadcast was an implementation
+choice, not mathematics: the only cell any landed conclusion consumes is
+the product's head `x.c` (`MinPlusIdentity` takes `bracketCell x 0 0 = x.c`
+as its hypothesis and concludes EVERY cell's minPlusEntry; `mpTask.Post`'s
+Seg half follows from that premise). So `univRowPass` now writes ONE cell,
+guarded to round 0 (rounds t >= 1 deliver the fold seeded at ROW t's head,
+a different value):
+
+    univRowPass := .ite (v Rt =' k 0) (.store (v Out) (v Tmp)) .skip
+
+Write set `{x.c}`, for EVERY instance, inside `[x.c, x.c + n²)` for every
+n >= 1. The certified stage post (`SameOutside3` at sb/bb/mb) and `KeptBut`
+hold unconditionally; `hregion` is NEVER NEEDED; the task stays
+UNRESTRICTED. The register-accumulation formulation (the brief's words) is
+the same program up to the fact that nothing between round 0 and the loop's
+exit reads or writes the head — disclosed at the def rather than silently
+substituted.
+
+Knock-on simplifications, all disclosed at their defs: `UnivPins`'s address
+clause collapses to `x.c < lim.space`; `UnivInvAll` drops BOTH all-cells
+clauses (nothing left for them to justify); `univRowPass_runs'` and
+`row_disjoint` deleted; `univRound_runs` and `univRound_runs'` merge into
+one; `univLevel_runs` rewritten (327 -> 216 lines, no row tracking);
+`univRowB` is the constant 7 where the row pass cost `13n + 16`;
+`univRoundB n = callerTt n + 18`. `hregion` removed from the signatures of
+`univLevel_runs`, `wireUnivTarget_of` and `prologue_runs`.
+
+RESTORED BRICKS (2 of 4, the two that survive the write-shape change):
+`mpRounds_le_word`, `UnivInvAll_zero_self`. `pow_signedLevels_le` survives
+under its landed name `pow_pred_signed_levels_le` (+
+`two_mul_lt_pow_signed_levels`), already consumed by `wireUnivTarget_of`.
+`univProloguePins_eq_argsOf` NOT restored — it needs the callSite's nine
+field projections in slot order and nothing in the landed chain consumes it
+(the correspondence rides the named `hvals` premise).
+
+STILL OPEN — the filing chain, in order. (1) The ENTRY ASSEMBLY: compose
+`WireUnivTarget` (proved by `wireUnivTarget_of`) with `PrologueTarget`
+(proved by `prologue_runs`) into `CallerTarget` at `callerProgramUniv`; both
+halves are green, only the composition lemma between them is missing.
+(2) The `Solves mpTask` bundle: hslot, hret, hflag, hok, hrows (FILL 1),
+hidentU, hkeptU. (3) `twinUniv_of`: CallerTarget + hn + hdom ->
+`Twin.race_bound` 2994999/1000000, lifting `CallerPost.twin_of_CallerTarget`
+to the universal body. Then `Solves mpTask -> isHost_ap -> Solves apTask ->
+realized_apsp -> SolvedInTime`.
 ## The summit body's data-flow design (L7 — pinned 2026-11-09)
 
 The design narrative is `DATAFLOW.md` (the per-round cell semantics: the
