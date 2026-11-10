@@ -1,0 +1,39 @@
+CallerUniversalBody.lean — the entry assembly's build receipt (2026-11-10)
+=======================================================================
+
+Workspace: .machine-build/machine (ThreeSumApsp path-required at
+/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp, mathlib
+0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1, upstream machine
+pin 225c3747).
+
+Build (serialised by _build_lock.py — this host has no flock(1)):
+  lake env lean -j1 CallerUniversalBody.lean
+    -o .lake/build/lib/lean/CallerUniversalBody.olean
+  exit 0, 0 errors; log /private/tmp/apsp_pro7_1794300594.log
+  olean 5090728 bytes, mtime 2026-11-10T00:50 local.
+
+Axiom banner (standard-3, no sorryAx, no native_decide):
+  'ThinMatrix.CallerUniversalBody.univPrologueLocals_eq'
+    depends on axioms: [propext]
+  'ThinMatrix.CallerUniversalBody.prologue_runs'
+    depends on axioms: [propext, Classical.choice, Quot.sound]
+
+HOST NOTE (why the first two attempts show 143): the host's
+memory-admission watchdog (R2125608674,
+scripts/memory_admission_watchdog.py) SIGTERMs lean/lake when free memory
+falls under its floor. Its receipts name this build's pid
+(~/.multiaim/logs/memory_admission_reaps.jsonl, 2026-11-10T00:44:41 and
+00:46:05). The successful attempt ran from a higher-free window; a pure
+foreground retry is the cure, not a code change.
+
+What landed: `univProloguePins` / `univPrologueMid` / `univPrologueLocals`
+(the frame correspondence, corrected: baseBase = fr+2n+n^2,
+remainingBase = fr+3n+n^2, stage free pointer = fr+4n+n^2),
+`univPrologueLocals_eq`, the four mid-frame lookup lemmas, and
+`prologue_runs` : PrologueTarget — the entry assembly, 26n+52 <= 27n+64.
+
+The assembly seam is recorded in STMTS.md ("The universal body's status")
+and PRODUCT_BODY.md section 5: `hregion : mpRounds W <= n` is not derivable
+from mpTask.Pre + a polynomial Need.Ok (n=1, U=100 gives mpRounds 100 = 16
+> 1), so the Light.Solves packaging needs a design decision (restrict the
+task, or drop the per-round row write) before the twin can fire.
