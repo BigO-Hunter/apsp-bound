@@ -1,107 +1,64 @@
-CallerUniversalBody.lean — CURE (b) receipt: the write-shape rewrite (2026-11-10)
-================================================================================
+CallerUniversalBody.lean — THE ENTRY ASSEMBLY LANDED (2026-11-10)
+==================================================================
 
-Decision recorded: cure (b) is PRIMARY. Cure (a) — the restricted task
-`mpTaskRounds` (commit 7b6ac0b) — is SUPERSEDED, not deleted: it stays in the
-file with a corrected docstring. Reason (measured by the cure-(a) session):
-`IsHost mpTask apTask` is what the filing chain consumes, Host.lean
-instantiates the lower solver at bounds ~3nU where `mpRounds U' <= n'` FAILS
-pointwise, so a restricted lower task cannot reach `Ends tatement.APSP.SolvedInTime`.
-Cure (b) keeps the task UNRESTRICTED.
+The previous receipt said "only the composition lemma is missing". That was
+not quite true: composing the two green halves exposed TWO frame defects,
+both found by reading the defs against each other BEFORE writing the lemma.
 
-WHAT CHANGED (the body rewrite)
--------------------------------
-`univRowPass` was `x.n` stores per round at `x.c + t*n + u`. It is now ONE
-guarded store:
+BLOCKER 1 — `WireUnivTarget` fixed the while's START MEMORY.
+It quantified `∀ (l : ℕ → ℤ), … ⟨l, μ₀⟩ → Ends … ⟨l, μ₀⟩ …`: the while had to
+start at μ₀. But the prologue's two initialisation passes WRITE memory (active
+bits at `ab`, remaining flags at `mb`), so the while starts at the prologue's
+END memory. The composition was UNSTATABLE, not merely unproved. FIX: the
+target now binds the memory too — `∀ (l) (μ), UnivInvAll … ⟨l, μ⟩ → Ends … ⟨l, μ⟩ …`
+— with μ₀ keeping its one job, the reference memory in `KeptBut` and in the
+cell-(0,0) seed. Amended in place (not duplicated); `wireUnivTarget_of` needed
+exactly two `⟨l, μ₀⟩ → ⟨l, μ⟩` edits plus `intro l μ h0`.
 
-    univRowPass := .ite (v Rt =' k 0) (.store (v Out) (v Tmp)) .skip
+BLOCKER 2 — `univProloguePins_eq_argsOf` was FALSE AS REMEMBERED.
+The lost brick identified the nine pins with `argsOf (callSite …) ++ [fr]`.
+Slot 8 is the STAGE's free pointer, `Free := Remaining + Nreg = fr + 4n + n²`
+= `mb + P`, NOT the caller's `fr` (that is slot 3, `activeBase`). Restoring
+the old name would have restored a false statement. FIX: restored with the
+seam at `++ [(mb + P : ℕ)]`; it also needs `h = x.U` (slot 2 is `height`).
 
-Write set = {x.c}, for EVERY instance. `{x.c} ⊆ [x.c, x.c + n^2)` for every
-n >= 1, so the certified stage post (SameOutside3 at sb/bb/mb) and the final
-KeptBut hold unconditionally and `hregion : mpRounds W <= n` is NEVER NEEDED.
-
-WHY THE ROW WAS NEVER MATHEMATICS. The only cell any landed conclusion
-consumes is the product's head `x.c`: `CallerRun.MinPlusIdentity` takes the
-round-0 fold at `bracketCell x 0 0 = x.c` as its hypothesis and concludes
-EVERY cell's `minPlusEntry`, and `mpTask.Post`'s Seg half follows from that
-premise via `seg_of_entries`. Rounds t >= 1 deliver the fold seeded at ROW t's
-head — a different value — so the store is guarded to `t = 0`.
-
-THE "REGISTER ACCUMULATION", STATED AS THE EQUIVALENCE IT IS. Carrying the
-fold in a register and storing once after the loop is the same program up to
-the observation that nothing between round 0 and the loop's exit reads or
-writes the head. Disclosed at the def, not silently substituted.
-
-KNOCK-ON SIMPLIFICATIONS (all disclosed at their defs)
-------------------------------------------------------
-* `UnivPins`'s address bookkeeping: `∀ t < mpRounds W, (x.c + t*n) + n <=
-  lim.space ∧ |t*n| <= lim.word` collapses to `x.c < lim.space`.
-* `UnivInvAll` loses BOTH all-cells clauses (written rows / untouched rows):
-  with no row write there is nothing for them to justify. Not a weakening —
-  the wiring never read either.
-* `univRowPass_runs'` (the full-row + all-cells form) and `row_disjoint`
-  deleted; `univRound_runs` and `univRound_runs'` merge into ONE.
-* `univLevel_runs` rewritten: 327 -> 216 lines, no row tracking.
-* Clock: `univRowB` is the CONSTANT 7 (Cond.cost 3 + 1 + 3), where the row
-  pass cost `13n + 16`. `univRoundB n = callerTt n + 18`.
-* `hregion` removed from `univLevel_runs`, `wireUnivTarget_of` and
-  `prologue_runs` signatures.
-
-RESTORED BRICKS (2 of 4)
-------------------------
-* `mpRounds_le_word`   — LANDED, standard-3.
-* `UnivInvAll_zero_self` — LANDED, propext only.
-* `pow_signedLevels_le` — survives under its landed name
-  `pow_pred_signed_levels_le` (+ `two_mul_lt_pow_signed_levels`); already
-  consumed by `wireUnivTarget_of`. Re-introducing the old name is an alias.
-* `univProloguePins_eq_argsOf` — NOT RESTORED (disclosed at its note). It
-  needs the callSite's nine field projections in slot order; nothing in the
-  landed chain consumes it (the correspondence rides the `hvals` premise).
+THE ASSEMBLY. `mpBodyUniv stage` IS `univPrologue ;; univWhile stage`, so the
+composition is one `Ends.seq`: `univProB x.n + mpRounds W * univUnitB x.n`
+(clocks ADD — no re-derivation), `hpro.mono` supplying the functor form and
+the while's precondition being exactly `UnivInvAll … frC 0`.
 
 BUILD RECEIPT
 -------------
-Workspace: .machine-build/machine (ThreeSumApsp path-required at
-/Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp, mathlib
-0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1).
-Build (serialised by _build_lock.py; this host has no flock(1)):
-
-  lake env lean -j1 CallerUniversalBody.lean
-    -o .lake/build/lib/lean/CallerUniversalBody.olean
-
-  exit 0, 0 errors, 0 sorryAx.
-  olean 3,539,248 bytes (was 5,103,040 — the deleted machinery).
-  log /private/tmp/apsp_olean1.log
+Workspace .machine-build/machine, Lean 4.33.1, mathlib 0df444a360eaa60.
+  lake env lean -j1 CallerUniversalBody.lean -o .lake/build/lib/lean/CallerUniversalBody.olean
+  attempt 1, child rc=0, 0 errors, 0 sorryAx
+  olean 3,595,480 bytes (was 3,539,248 — brick + assembly)
+  log /private/tmp/apsp_entry2_build.log ; brick-only /private/tmp/apsp_wire_build.log
 
 Axiom banner (standard 3, no sorryAx, no native_decide):
-  'univRound_runs'        [propext, Classical.choice, Quot.sound]
-  'univLevel_runs'        [propext, Classical.choice, Quot.sound]
-  'wireUnivTarget_of'     [propext, Classical.choice, Quot.sound]
-  'prologue_runs'         [propext, Classical.choice, Quot.sound]
-  'mpRounds_le_word'      [propext, Classical.choice, Quot.sound]
-  'UnivInvAll_zero_self'  [propext]
+  'entryAssembly'              [propext, Quot.sound]
+  'univProloguePins_eq_argsOf' [propext]
+  'wireUnivTarget_of'          [propext, Classical.choice, Quot.sound]
+  'prologue_runs'              [propext, Classical.choice, Quot.sound]
 
-ENVIRONMENT NOTE (not a code result): the first build attempt died with
-`Killed: 9` (exit 137) — the host's memory-admission watchdog (R2125608674),
-swap 15.65/17.00 GB used. The lane's own `_run_univ.sh` reported
-`child rc=0` for that run because it echoes `=== exit: $?` inside a brace
-group and then exits 0: READ THE LOG, NOT THE WRAPPER. All receipts above
-come from /private/tmp/apsp_probe.sh and /private/tmp/apsp_olean.sh, which
-`exit "$rc"` honestly.
+An earlier run of this file died `Killed: 9` (rc 137) under the host's
+memory-admission watchdog at swap 16.4/17.4 GB. Transient; the build script
+now retries rc=137. The verdict is always read from the LOG's error lines.
 
-CHAIN STATE — WHAT IS **NOT** DONE
-----------------------------------
-The run-derivation is complete for the universal body. The FILING chain is
-NOT: `Solves mpTask -> isHost_ap -> Solves apTask -> realized_apsp ->
-SolvedInTime` is NOT assembled, and `twinUniv_of` does not exist.
-Remaining, in order:
-  1. `WireUnivTarget` (proved by `wireUnivTarget_of`) + `PrologueTarget`
-     (proved by `prologue_runs`) -> the entry assembly producing
-     `CallerTarget` at `callerProgramUniv`. Both halves are now green; only
-     the composition lemma between them is missing.
-  2. `Solves mpTask` bundle: hslot, hret, hflag, hok, hrows (FILL 1),
-     hidentU, hkeptU.
-  3. `twinUniv_of` : CallerTarget + hn + hdom -> `Twin.race_bound`
-     2994999/1000000 (`CallerPost.summit_of_CallerTarget` /
-     `twin_of_CallerTarget` are the per-instance shapes to lift).
-Filing package: BOUND = 2994999/1000000, SHA-at-firing-commit, credit
-paragraph — READY TO ASSEMBLE, NOT ASSEMBLED. Do not post.
+CHAIN STATE — WHAT IS NOT DONE
+------------------------------
+  1. `wireUnivTarget_of`'s `hvals` still says `argsOf … ++ [(fr : ℤ)]`. It must
+     move to `++ [((mb + P : ℕ) : ℤ)]` to be simultaneously satisfiable with
+     `prologue_runs`' `hvals : vals = univProloguePins x fr`. That hypothesis is
+     consumed structurally at `univRound_runs`' clock discharge (`rw […,
+     hframe 8 (by omega), hvals]; rfl`), so the move must be MEASURED against
+     that `rfl`, not assumed.
+  2. `Solves mpTask` bundle at `callerProgramUniv` (hslot, hret, hflag, hok,
+     hrows = FILL 1, hidentU, hkeptU) + the mpTask.Post packing (`Seg` via
+     `MinPlusIdentity` + `seg_of_entries`; `KeptBut` via hkeptU). BLOCKED on 1.
+  3. `twinUniv_of` : CallerTarget + hn + hdom -> 2994999/1000000.
+
+FILING PACKAGE: NOT READY. Bound 2994999/1000000 and the credit paragraph
+(shresh -> Alman–Vassilevska Williams -> Li Xuanji -> Wharton (QFEX) ->
+Hrishik Sai Bojnal) are fixed; no SHA-at-firing-commit exists because no
+`Solves`/`SolvedInTime` closes. Do NOT post.

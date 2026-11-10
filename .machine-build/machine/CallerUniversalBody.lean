@@ -838,10 +838,10 @@ def WireUnivTarget
     (R : Light.Program) (Tt : ℕ → ℕ)
     (x : MatInst) (W : ℕ) (tests : ℕ → Bool × Bool)
     (vals : List ℤ) (μ₀ : ℕ → ℤ) : Prop :=
-  ∀ (l : ℕ → ℤ),
-    UnivInvAll lim vals x W P I active rows ab rb mb μ₀ tests frC 0 ⟨l, μ₀⟩ →
+  ∀ (l : ℕ → ℤ) (μ : ℕ → ℤ),
+    UnivInvAll lim vals x W P I active rows ab rb mb μ₀ tests frC 0 ⟨l, μ⟩ →
     Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d (univWhile stage)
-      ⟨l, μ₀⟩ (mpRounds W * univUnitB x.n)
+      ⟨l, μ⟩ (mpRounds W * univUnitB x.n)
       (fun σ' => UnivPins lim vals x W σ' ∧
         σ'.mem x.c = bracketAccumulate (μ₀ x.c) tests (mpRounds W) ∧
         (∃ mask' : ℕ → Bool,
@@ -922,6 +922,49 @@ def univProloguePins (x : MatInst) (fr : ℕ) : List ℤ :=
    (fr : ℤ) + 3 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ),
    (fr : ℤ) + 2 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ),
    (fr : ℤ) + 4 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ)]
+
+/-- THE FRAME CORRESPONDENCE AT THE COMPOSITION SEAM — the brick the entry
+assembly consumes (named "the next brick" in the FILL-3 session's notes).
+
+`argsOf` is the stage's EIGHT argument slots; the nine-value frame `UnivPins`
+pins registers 0..8 to is `argsOf ++ [free pointer]`. The prologue PRODUCES
+that frame from the `mpTask` frame (`univProloguePins`), so the two lists must
+agree slot by slot. They agree on slots 0–7 under the lay-out equations — and
+slot 8 is NOT the caller's `fr`:
+
+  * `mpTask`'s free pointer `fr` is where the CALLER's buffers BEGIN
+    (slot 3, `activeBase := fr`);
+  * the STAGE's free pointer is where they END: `mb + P = fr + 4n + n²`,
+    the ninth pin — which is exactly the `Free := v Remaining +' v Nreg`
+    the prologue computes.
+
+DISCLOSED CORRECTION (2026-11-10, found while composing the two green halves):
+`wireUnivTarget_of` carries `hvals : vals = argsOf callSite ++ [fr]`, i.e.
+slot 8 = `fr`. That is the PER-INSTANCE skeleton's convention (`CallerRun`'s
+body IS the round program, so its stage frame starts at the task frame). It is
+not the UNIVERSAL body's, whose prologue stacks the five buffers at `fr` and
+hands the stage `mb + P`. Composing the halves therefore requires the seam at
+`++ [(mb + P : ℕ)]`; the brick states it that way and the caller must supply
+`h = x.U` (slot 2 is `height`) as well as the lay-out equations. -/
+theorem univProloguePins_eq_argsOf
+    {P k I h : ℕ} {active remaining : ℕ → Bool} {rows : ℕ → ℕ → ℕ}
+    {ab rb sb mb bb fr : ℕ} (x : MatInst)
+    (hP : P = x.n) (hI : I = x.n) (hU : h = x.U)
+    (hab : ab = fr) (hrb : rb = fr + x.n) (hsb : sb = fr + x.n + x.n * x.n)
+    (hbb : bb = fr + 2 * x.n + x.n * x.n) (hmb : mb = fr + 3 * x.n + x.n * x.n) :
+    argsOf (callSite P k I h active remaining rows ab rb sb mb bb)
+        ++ [((mb + P : ℕ) : ℤ)]
+      = univProloguePins x fr := by
+  subst hP
+  subst hI
+  subst hU
+  subst hab
+  subst hrb
+  subst hsb
+  subst hbb
+  subst hmb
+  simp [argsOf, callSite, univProloguePins]
+  all_goals ring
 
 /-- The prologue's locals after the eleven frame `.set`s: the nine pins
 plus the computed registers the sets write (`Out`, `Nreg`, `U2`). The two
@@ -1273,7 +1316,7 @@ theorem wireUnivTarget_of
       (active := active) (remaining := remaining) (rows := rows)
       (ab := ab) (rb := rb) (sb := sb) (mb := mb) (bb := bb) (fr := fr) (frC := frC)
       stage cacheProg restoreProg cs R Tt x W tests vals μ₀ := by
-  intro l h0
+  intro l μ h0
   have hWne : W ≠ 0 := by omega
   have hPowLe : 2 ^ (signedLevels W - 1) ≤ 2 * W := pow_pred_signed_levels_le W hWne
   have hPowGt : 2 * W < 2 ^ signedLevels W := two_mul_lt_pow_signed_levels W
@@ -1283,7 +1326,7 @@ theorem wireUnivTarget_of
     rw [Finset.sum_const, Finset.card_range]
     simp
   have hwhile : Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d
-      (.while (v Lvl ≤' v U2) (univLevelBody stage)) ⟨l, μ₀⟩
+      (.while (v Lvl ≤' v U2) (univLevelBody stage)) ⟨l, μ⟩
       ((∑ i ∈ Finset.range (signedLevels W), (5 + 1 + univLevelB x.n)) + (5 + 1))
       (fun σ' => UnivPins lim vals x W σ' ∧
         σ'.mem x.c = bracketAccumulate (μ₀ x.c) tests (mpRounds W) ∧
@@ -1292,7 +1335,7 @@ theorem wireUnivTarget_of
     refine Ends.while
       (I := fun ell σ => UnivInvAll lim vals x W P I active rows ab rb mb μ₀ tests frC ell σ)
       (n := signedLevels W) (b := fun _ => univLevelB x.n)
-      (c := (v Lvl ≤' v U2)) (s := univLevelBody stage) (σ := ⟨l, μ₀⟩) h0 ?_ ?_
+      (c := (v Lvl ≤' v U2)) (s := univLevelBody stage) (σ := ⟨l, μ⟩) h0 ?_ ?_
     · -- the body at level i < signedLevels W
       intro i σ hi hinvAll
       obtain ⟨hpins, hLvl, hRt, hreads, hcell⟩ := hinvAll.1
@@ -1592,6 +1635,56 @@ theorem prologue_runs
 
 #print axioms prologue_runs
 
+/-! ## THE ENTRY ASSEMBLY — the two halves composed -/
+
+/-- THE ENTRY ASSEMBLY'S TARGET AT THE COMPOSED PROGRAM (lane target-def
+pattern: no sorry, no new axiom).
+
+`mpBodyUniv stage` is BY DEFINITION `univPrologue ;; univWhile stage`, so the
+composition is one `Ends.seq`: the prologue's `univProB x.n` and the while's
+`mpRounds W * univUnitB x.n` ADD, and the while's precondition is exactly the
+prologue's post-invariant (`UnivInvAll … frC 0`). The two halves were already
+parametrised over the same `vals`, `μ₀`, `frC`, program and `R`, so nothing else
+is needed — the clocks add, they do not have to be re-derived.
+
+THE MEMORY BINDER IS THE WHOLE POINT. `WireUnivTarget` quantifies the while's
+start state as `⟨l, μ⟩`: the LOCATION assignment free, the MEMORY bound by the
+argument. The prologue's two initialisation passes WRITE memory (the active
+bits at `ab` and the remaining flags at `mb`), so the while does not start at
+`μ₀` — it starts at the prologue's end memory. Before 2026-11-10 the target
+hard-wired `⟨l, μ₀⟩`, which made this composition unstatable; the def now
+carries the memory as a bound variable (disclosed there) and `μ₀` keeps its
+one job, the reference memory in `KeptBut` and in the cell-(0,0) seed. -/
+theorem entryAssembly
+    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr frC : ℕ}
+    (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
+    (R : Light.Program) (Tt : ℕ → ℕ)
+    (x : MatInst) (W : ℕ) (tests : ℕ → Bool × Bool)
+    (vals frameVals : List ℤ) (μ₀ : ℕ → ℤ)
+    (hpro : PrologueTarget (lim := lim) (d := d) (P := P) (k := k) (I := I) (h := h)
+      (active := active) (rows := rows) (ab := ab) (rb := rb) (sb := sb)
+      (mb := mb) (bb := bb) (fr := fr) (frC := frC)
+      stage cacheProg restoreProg cs R Tt x W tests vals frameVals μ₀)
+    (hwire : WireUnivTarget (lim := lim) (d := d) (P := P) (k := k) (I := I) (h := h)
+      (active := active) (remaining := remaining) (rows := rows)
+      (ab := ab) (rb := rb) (sb := sb) (mb := mb) (bb := bb) (fr := fr) (frC := frC)
+      stage cacheProg restoreProg cs R Tt x W tests vals μ₀) :
+    Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d
+      (mpBodyUniv stage) ⟨frame frameVals, μ₀⟩
+      (univProB x.n + mpRounds W * univUnitB x.n)
+      (fun σ' => UnivPins lim vals x W σ' ∧
+        σ'.mem x.c = bracketAccumulate (μ₀ x.c) tests (mpRounds W) ∧
+        (∃ mask' : ℕ → Bool,
+          ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ'.mem)) := by
+  unfold mpBodyUniv
+  unfold PrologueTarget at hpro
+  unfold WireUnivTarget at hwire
+  refine Ends.seq (univProB x.n) (mpRounds W * univUnitB x.n) ?_ (le_refl _)
+  exact hpro.mono (le_refl _) (fun σ' hinv => hwire σ'.loc σ'.mem hinv)
+
+#print axioms entryAssembly
+
 /-! ## Restored bricks
 
 Two of the four bricks a previous session of this lane authored and lost
@@ -1636,6 +1729,8 @@ theorem UnivInvAll_zero_self {lim : Limits} {vals : List ℤ} {x : MatInst} {W :
   have hc := h.1.2.2.2.2
   rw [if_pos rfl] at hc
   exact hc
+
+#print axioms univProloguePins_eq_argsOf
 
 #print axioms mpRounds_le_word
 
