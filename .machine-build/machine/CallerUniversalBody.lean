@@ -1267,6 +1267,49 @@ def WireUnivTarget
         (∃ mask' : ℕ → Bool,
           ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ'.mem))
 
+/-- THE ENTRY ASSEMBLY'S TARGET — STATED (lane target-def pattern, no sorry).
+`univPrologue`, started in the mpTask frame (registers 0..5 = `[n, U, a, b,
+c, fr]`) over the instance memory `μ₀`, ends within `univProB x.n` in the
+level loop's ZERO invariant. This is the sole missing premise of
+`wireUnivTarget_of`, so discharging it closes the lane's run-derivation.
+
+THE FRAME CORRESPONDENCE (derived by reading, not assumed). `UnivPins vals`
+pins registers 0..8 to `vals.getD`, with `vals = argsOf callSite ++ [fr]`.
+The prologue's writes realise exactly that PROVIDED the instance's fields sit
+where the layout puts them:
+
+  vals[0] candidates     = n               (register 0 is never written — it
+                                            still holds the input n)
+  vals[1] length         = n               (`Len := v 0`)
+  vals[2] height         = U               (`Height := v 1`)
+  vals[3] activeBase     = fr              (`Active := v 5`)
+  vals[4] rowsBase       = fr + n          (`Rows := Active + Nreg`)
+  vals[5] scoresBase     = fr + n + n²     (`Scores := Rows + Nreg*Nreg`)
+  vals[6] remainingBase  = fr + 2n + n²    (`Remaining := Base + Nreg`)
+  vals[7] baseBase       = fr + n + n²     (`Base := Scores + Nreg`)
+  vals[8] fr                               (`Free := Remaining + Nreg`)
+
+Three consequences the proof will consume:
+- the writes land ONLY at `ab` (= `fr`) and `mb`; both are at or above
+  `x.c + n*n` (`hbelow`), which is precisely why the product region is
+  untouched and `KeptBut … frC x.c (n*n)` holds (with `hfrCle`);
+- the ORDER of the def's sets is load-bearing: `Height := v 1` must read
+  register 1 BEFORE `Len := v 0` overwrites it;
+- the ROWS region is never written, so the level-0 stage reads are
+  satisfiable by taking `rows p i := μ₀ (rb + p*I + i)` — the same
+  "the array keeps the instance's own values" device the all-cells clause
+  of `UnivInvAll` uses. -/
+def PrologueTarget
+    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr frC : ℕ}
+    (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
+    (R : Light.Program) (Tt : ℕ → ℕ)
+    (x : MatInst) (W : ℕ) (tests : ℕ → Bool × Bool)
+    (vals : List ℤ) (μ₀ : ℕ → ℤ) : Prop :=
+  Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d univPrologue
+    ⟨frame vals, μ₀⟩ (univProB x.n)
+    (UnivInvAll lim vals x W P I active rows ab rb mb μ₀ tests frC 0)
+
 /-- THE LEVEL BODY'S RUN: from the strengthened invariant at level `ell`,
 the level body — two certified rounds (rounds `2·ell`, `2·ell+1`, the
 second at the first's evolved mask) plus the three counter `.set`s —
