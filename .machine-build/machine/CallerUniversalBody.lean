@@ -1685,6 +1685,243 @@ theorem entryAssembly
 
 #print axioms entryAssembly
 
+/-! ## THE BUNDLE, THE TWIN, AND THE FILING
+
+`entryAssembly` is the universal body's RUN. What it does not contain is the
+instance's DATA: the oracle's return premise, the certified stage socket, the
+rows table, the construction's identity and the `KeptBut` frame. Those are
+D7's boundary — NAMED PREMISES, never claimed — and this section states them
+ONCE, universally closed, at the prologue's stacked layout, and then fires the
+twin from them.
+
+THE LAYOUT IS THE PROLOGUE'S, read off `univPrologue`'s `.set` chain and not
+assumed: `ab = fr`, `rb = fr + n`, `sb = fr + n + n²`, `bb = fr + 2n + n²`,
+`mb = fr + 3n + n²`, and the STAGE's free pointer is the stack top
+`mb + n = fr + 4n + n²` (the `Free := v Remaining +' v Nreg` set). Instantiating
+the stage sockets at that stack top is what makes the pins' ninth slot and the
+`Meets` call row the SAME number, which is why `univRound_runs`' discharge
+closes by `rfl` and why no theorem in this module had to move in order to
+compose the two green halves.
+
+TWO FILLS ARE NAMED, NOT FAKED:
+
+* FILL 1 — the rows buffer. The level-0 stage reads the rows table, and
+  NOTHING in the prologue copies the instance's matrix into the buffer the
+  stack puts at `rb`. The body needs a fill that `mpTask.Pre` does not
+  provide, so the row table here IS the memory image at `rb`
+  (`rows p i = μ (rb + p·n + i)` — exactly the premise `prologue_runs`
+  consumes); its instance-value side is left to the identity premise below.
+  Stated, not claimed.
+* the identity — `MinPlusIdentity`'s content (the construction's own
+  conversion; D7's boundary): the head's delivery is every entry.
+-/
+
+/-- The prologue's scores-base register value (`sb`). -/
+def LRow (x : MatInst) (fr : ℕ) : ℕ := fr + x.n + x.n * x.n
+
+/-- The prologue's base-base register value (`bb`). -/
+def LBase (x : MatInst) (fr : ℕ) : ℕ := fr + 2 * x.n + x.n * x.n
+
+/-- The prologue's remaining-base register value (`mb`). -/
+def LRem (x : MatInst) (fr : ℕ) : ℕ := fr + 3 * x.n + x.n * x.n
+
+/-- THE STAGE'S FREE POINTER: the stack top, `mb + n`. -/
+def LTop (x : MatInst) (fr : ℕ) : ℕ := fr + 3 * x.n + x.n * x.n + x.n
+
+/-- THE BUNDLE — D7's named premises, universally closed at the stacked layout.
+
+For every instance, oracle data (`tests`, the stage clock `Tt`) exists and:
+
+1. the certified stage socket (`UnivSlot`, byte-identical premises to the
+   landed wire's `hslots`) at the prologue's layout, stage free pointer = the
+   stack top;
+2. the oracle's return premise (`hret`: the delivery is the bracket fold seeded
+   at row `t`'s head);
+3. the flag budget (`hflag`);
+4. the stage's own resource socket (`hok`) at the stack top;
+5. the stage clock inside the certified per-candidate clock (`hTtk`);
+6. THE IDENTITY (D7's boundary) — the head's delivery is every entry;
+7. the frame half (`KeptBut`) — the named remainder. -/
+def UnivBundle (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
+    (need : ℕ → ℕ → Light.Need) : Prop :=
+  ∀ (R : Light.Program) (lim : Limits) (d : ℕ) (x : MatInst) (μ : ℕ → ℤ) (fr : ℕ),
+    x.Pre μ fr → (need x.n x.U).Ok lim fr d →
+    ∃ (tests : ℕ → Bool × Bool) (Tt : ℕ → ℕ) (rows : ℕ → ℕ → ℕ),
+      -- FILL 1: the rows table is the memory image at the rows buffer (the
+      -- prologue copies nothing into it; `mpTask.Pre` does not provide this).
+      (∀ p < x.n, ∀ i < x.n, ((rows p i : ℕ) : ℤ) = μ (fr + x.n + p * x.n + i)) ∧
+      @UnivSlot lim d x.n x.n x.n x.U (fun _ => true) (rows)
+          fr (fr + x.n) (LRow x fr) (LRem x fr) (LBase x fr) (LTop x fr)
+          stage cacheProg restoreProg cs R Tt ∧
+      (∀ (t' : ℕ) (mask' : ℕ → Bool) (μ' μ'' : ℕ → ℤ) (r' : ℤ),
+        t' < mpRounds x.U →
+        Light.DenseRestartSelectionLoop.Post
+          (callSite (P := x.n) (R := x.n) (I := x.n) (h := x.U) (active := fun _ => true)
+            (remaining := mask') (rows := rows) (ab := fr) (rb := fr + x.n)
+            (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)) μ' μ'' →
+        r' = bracketAccumulate (μ' (x.c + t' * x.n)) tests (mpRounds x.U)) ∧
+      (∀ mask' : ℕ → Bool, x.n ≤ (flagged x.n mask').card) ∧
+      (∀ (mask' : ℕ → Bool) (kt : ℕ),
+        (Light.DenseRestartSelectionLoop.need (instanceSize (callSite (P := x.n) (R := kt) (I := x.n) (h := x.U)
+            (active := fun _ => true) (remaining := mask') (rows := rows)
+            (ab := fr) (rb := fr + x.n) (sb := LRow x fr) (mb := LRem x fr)
+            (bb := LBase x fr)))
+          (callSite (P := x.n) (R := kt) (I := x.n) (h := x.U) (active := fun _ => true)
+            (remaining := mask') (rows := rows) (ab := fr) (rb := fr + x.n)
+            (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)).height).Ok lim
+          (LTop x fr) (d + 1)) ∧
+      Tt x.n ≤ callerTt x.n ∧
+      (∀ (σ' : State), UnivPins lim (univProloguePins x fr) x x.U σ' →
+        σ'.mem x.c = bracketAccumulate (μ x.c) tests (mpRounds x.U) →
+        ∀ i j : ℕ, σ'.mem (bracketCell x i j) = minPlusEntry x.n x.A x.B i j) ∧
+      (∀ (σ' : State), UnivPins lim (univProloguePins x fr) x x.U σ' →
+        σ'.mem x.c = bracketAccumulate (μ x.c) tests (mpRounds x.U) →
+        KeptBut μ σ'.mem fr x.c (x.n * x.n))
+
+/-- THE NEED'S COVERAGE — the six numeric facts `Need.Ok` alone does not carry:
+it bounds what the caller DEMANDS, not what the body's stack needs. -/
+def NeedCovers (need : ℕ → ℕ → Light.Need) : Prop :=
+  ∀ x : MatInst,
+    4 * x.n + x.n * x.n ≤ (need x.n x.U).cells ∧
+    2 * x.U + 1 ≤ (need x.n x.U).word ∧
+    1 ≤ (need x.n x.U).word ∧
+    1 ≤ (need x.n x.U).depth ∧
+    mpRounds x.U ≤ (need x.n x.U).word ∧
+    2 ^ signedLevels x.U ≤ (need x.n x.U).word
+
+/-- THE RUN BRIDGE: the bundle is the universal body's `Solves mpTask`.
+
+Nothing here is arithmetic beyond the layout's own ring identities: the
+prologue is `prologue_runs` at the stacked layout, the while is
+`wireUnivTarget_of` at the same layout with the stage's free pointer at the
+stack top, the composition is `entryAssembly`, and the two Post halves are
+bundle conjuncts (6) and (7) through the landed `seg_of_entries`.
+
+THE PIN SEAM. `wireUnivTarget_of`'s `hvals` is `vals = argsOf callSite ++ [↑fr]`
+with `fr` the stage's free pointer, and the prologue produces
+`univProloguePins x fr`, whose ninth slot is the stack top. `hvals` is
+therefore `univProloguePins_eq_argsOf` read right-to-left — the brick restored
+and corrected this session for exactly this consumer. -/
+theorem univSolves (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
+    (need : ℕ → ℕ → Light.Need)
+    (hb : UnivBundle stage cacheProg restoreProg cs need)
+    (hcov : NeedCovers need) :
+    Light.Solves Light.mpTask (callerProgramUniv stage cacheProg restoreProg cs) 0
+      univTn need := by
+  refine ⟨mpBodyUniv stage, callerProgramUniv_entry stage cacheProg restoreProg cs, ?_⟩
+  intro R lim d x μ fr hpre hok
+  obtain ⟨tests, Tt, rows, hfill, hslot, hret, hflag, hokS, hTt, hident, hkept⟩ :=
+    hb R lim d x μ fr hpre hok
+  -- `mpTask.size`/`mpTask.bound` ARE `x.n`/`x.U`; normalise so the arithmetic
+  -- below works over one term per quantity rather than two defeq atoms.
+  have hok' : (need x.n x.U).Ok lim fr d := hok
+  obtain ⟨hcells, hwU2, hw1, hdep, hwRt, hwLvl⟩ := hcov x
+  have hfit : fr + 4 * x.n + x.n * x.n ≤ lim.space := by
+    rw [Nat.add_assoc]
+    exact le_trans (Nat.add_le_add_left hcells fr) hok'.cells
+  have hwordU2 : |2 * (x.U : ℤ) + 1| ≤ lim.word := by
+    have h1 : ((2 * x.U + 1 : ℕ) : ℤ) ≤ ((need x.n x.U).word : ℤ) := by
+      exact_mod_cast hwU2
+    rw [abs_of_nonneg (by positivity)]
+    linarith [hok'.word]
+  have hwordU2p : |2 * (x.U : ℤ)| ≤ lim.word := by
+    have h2 : (2 * (x.U : ℤ)) ≤ |2 * (x.U : ℤ) + 1| := by
+      have := le_abs_self (2 * (x.U : ℤ) + 1); linarith
+    rw [abs_of_nonneg (by positivity)]
+    linarith
+  have hword1 : (1 : ℤ) ≤ lim.word := by
+    have h1 : ((1 : ℕ) : ℤ) ≤ ((need x.n x.U).word : ℤ) := by exact_mod_cast hw1
+    linarith [hok'.word]
+  have hdim : d < lim.depth := by have := hok'.depth; omega
+  -- the product region sits strictly below the buffer stack: `Pre`'s own fact,
+  -- hoisted so the linear arithmetic below sees it (it is a projection, and
+  -- projections are invisible to `omega`).
+  have hbC : x.c + x.n * x.n ≤ fr := hpre.belowC
+  have hn1 : 1 ≤ x.n := hpre.n_pos
+  have hpro : PrologueTarget (lim := lim) (d := d) (P := x.n) (k := x.n) (I := x.n)
+      (h := x.U) (active := fun _ => true) (rows := rows)
+      (ab := fr) (rb := fr + x.n) (sb := LRow x fr) (mb := LRem x fr)
+      (bb := LBase x fr) (fr := LTop x fr) (frC := fr)
+      stage cacheProg restoreProg cs R Tt x x.U tests (univProloguePins x fr)
+      (([(x.n : ℤ), (x.U : ℤ), (x.a : ℤ), (x.b : ℤ), (x.c : ℤ)] : List ℤ) ++ [(fr : ℤ)]) μ :=
+    prologue_runs (lim := lim) (d := d) (P := x.n) (k := x.n) (I := x.n) (h := x.U)
+      (active := fun _ => true) (rows := rows) (ab := fr) (rb := fr + x.n)
+      (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr) (fr := fr) (frC := fr)
+      stage cacheProg restoreProg cs R Tt x x.U tests (univProloguePins x fr)
+      (([(x.n : ℤ), (x.U : ℤ), (x.a : ℤ), (x.b : ℤ), (x.c : ℤ)] : List ℤ) ++ [(fr : ℤ)]) μ
+      (hxn := hpre.n_pos) (hframe := rfl) (hvals := rfl) (hI := rfl) (hP := rfl)
+      (hab := rfl) (hrb := rfl) (hsb := rfl) (hbb := rfl) (hmb := rfl)
+      (hfrC := le_refl fr) (hbelow := hbC) (hfit := hfit) (hspace := hok'.space)
+      (hwordU2 := hwordU2p) (hword1 := hword1) (hactive := fun i hi => rfl)
+      (hrows := hfill)
+  have hseam : univProloguePins x fr =
+      argsOf (callSite (P := x.n) (R := x.n) (I := x.n) (h := x.U) (active := fun _ => true)
+        (remaining := fun _ => true) (rows := rows) (ab := fr) (rb := fr + x.n)
+        (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr))
+        ++ [((LTop x fr : ℕ) : ℤ)] :=
+    (univProloguePins_eq_argsOf x (hP := rfl) (hI := rfl) (hU := rfl) (hab := rfl)
+      (hrb := rfl) (hsb := rfl) (hbb := rfl) (hmb := rfl)).symm
+  have hwire : WireUnivTarget (lim := lim) (d := d) (P := x.n) (k := x.n) (I := x.n)
+      (h := x.U) (active := fun _ => true) (remaining := fun _ => true)
+      (rows := rows) (ab := fr) (rb := fr + x.n) (sb := LRow x fr)
+      (mb := LRem x fr) (bb := LBase x fr) (fr := LTop x fr) (frC := fr)
+      stage cacheProg restoreProg cs R Tt x x.U tests (univProloguePins x fr) μ :=
+    wireUnivTarget_of (lim := lim) (d := d) (P := x.n) (k := x.n) (I := x.n) (h := x.U)
+      (active := fun _ => true) (remaining := fun _ => true) (rows := rows)
+      (ab := fr) (rb := fr + x.n) (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)
+      (fr := LTop x fr) (frC := fr)
+      stage cacheProg restoreProg cs R Tt x x.U tests (univProloguePins x fr) μ
+      (hxn := hpre.n_pos) (hvals := hseam) (hslot := hslot) (hret := hret)
+      (hflag := hflag) (hok := hokS)
+      (hlay := by simp only [InOrder, LRow, LBase, LRem, LTop]; omega)
+      (hfrCle := le_refl fr)
+      (haway := by
+        refine ⟨Or.inl (by simp only [LRow]; omega), Or.inl (by simp only [LBase]; omega),
+          Or.inl (by simp only [LRem]; omega)⟩)
+      (hbelow := hbC) (hspace := hok'.space) (hdim := hdim) (hTtk := hTt)
+      (hwordRt := by
+        have h1 : ((mpRounds x.U : ℕ) : ℤ) ≤ ((need x.n x.U).word : ℤ) := by
+          exact_mod_cast hwRt
+        linarith [hok'.word])
+      (hwordLvl := by
+        have h1 : ((2 ^ signedLevels x.U : ℕ) : ℤ) ≤ ((need x.n x.U).word : ℤ) := by
+          exact_mod_cast hwLvl
+        linarith [hok'.word])
+      (hwordU2 := hwordU2) (hword1 := hword1) (hWU := rfl) (hWpos := hpre.U_pos)
+  refine (entryAssembly (lim := lim) (d := d) (P := x.n) (k := x.n) (I := x.n) (h := x.U)
+    (active := fun _ => true) (remaining := fun _ => true) (rows := rows)
+    (ab := fr) (rb := fr + x.n) (sb := LRow x fr) (mb := LRem x fr) (bb := LBase x fr)
+    (fr := LTop x fr) (frC := fr)
+    stage cacheProg restoreProg cs R Tt x x.U tests (univProloguePins x fr)
+    (([(x.n : ℤ), (x.U : ℤ), (x.a : ℤ), (x.b : ℤ), (x.c : ℤ)] : List ℤ) ++ [(fr : ℤ)]) μ
+    (hpro := hpro) (hwire := hwire)).mono (by rw [univTn_eq]; exact le_of_eq (Nat.add_comm _ _)) ?_
+  intro σ' hσ'
+  obtain ⟨hpins, hhead, _⟩ := hσ'
+  exact ⟨seg_of_entries (hident σ' hpins hhead), hkept σ' hpins hhead⟩
+
+#print axioms univSolves
+
+/-- THE TWIN, FIRED FROM THE BUNDLE: the universal body's `Solves mpTask` plus
+the need and domination sockets IS the conservative `Race.bound` form —
+`EndStatement.APSP.SolvedInTime (2994999/1000000)`. This is the universal
+body's `twin_of_CallerTarget`: when the bundle's premises are supplied, the
+filing theorem is THIS one, with no further composition. -/
+theorem twinUniv_of (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
+    (need : ℕ → ℕ → Light.Need)
+    (hb : UnivBundle stage cacheProg restoreProg cs need)
+    (hcov : NeedCovers need)
+    (hn : Light.PolyNeed need)
+    (hdom : ∀ κ : Nat, ∃ (k : Nat) (C : Real), ∀ᶠ n : Nat in atTop,
+      Light.timeUpTo (Light.Sec3.apTime univTn) n
+        ((n : Real) ^ (κ : Real)) ≤
+        C * AsymptoticCosts.completeCost k n) :
+    EndStatement.APSP.SolvedInTime ((2994999 : Rat) / 1000000) :=
+  ThinMatrix.Twin.race_bound (P := callerProgramUniv stage cacheProg restoreProg cs)
+    (p := 0) (Tn := univTn) (need := need)
+    (univSolves stage cacheProg restoreProg cs need hb hcov) hn hdom
+
+#print axioms twinUniv_of
+
 /-! ## Restored bricks
 
 Two of the four bricks a previous session of this lane authored and lost
@@ -1709,18 +1946,24 @@ instance's own value). Two do not, and are named here rather than faked:
   The restored brick states the seam at `++ [(mb + P : ℕ)]` (equal to
   `mb + n` under `hP : P = x.n`) and carries `h = x.U` for slot 2.
 
-  MEASURED CONSEQUENCE FOR THE NEXT MIND. `wireUnivTarget_of`'s `hvals` still
-  says `++ [(fr : ℤ)]`, so it is NOT simultaneously satisfiable with
-  `prologue_runs`' `hvals : vals = univProloguePins x fr`. Moving it was
-  TRIED TWICE and FAILED both times at the same place:
-  `univRound_runs`, line 736, `rfl` (the discharge
-  `rw […, hframe 8 (by omega), hvals]; rfl`). Both `++ [(mb + P : ℕ)]` and
-  `++ [(mb + x.n : ℕ)]` fail there, so the seam's VALUE is not the whole
-  problem: the discharge relates `ll 8` to `hvals`' last element
-  definitionally. The cure is at that discharge — replace the trailing `rfl`
-  with an explicit `ll 8`-to-free-pointer step (`push_cast; ring`, or carry
-  `hfree : ll 8 = ↑(mb + x.n)` into `univRound_runs`) — and then the bundle
-  is unblocked. Recorded as MEASURED, not hypothesised. -/
+  RESOLVED, AND THE DIAGNOSIS CORRECTED (2026-11-10, second session). The
+  suggested cure — move `hvals` to `++ [(mb + x.n : ℕ)]` and close the
+  discharge with `push_cast; ring` — was IMPLEMENTED AND MEASURED, and it
+  CANNOT WORK. The obstruction at `univRound_runs`' discharge is not a term
+  SHAPE but a VALUE IDENTITY: the goal there is
+  `[…, ↑(mb + x.n)] = argsOf (callSite …) ++ [↑fr]`, whose right-hand side
+  is the `Meets` call ROW fixed by `UnivSlot` (`argsOf … ++ [(fr : ℤ)]`).
+  A `ring`/`push_cast` step cannot derive `mb + x.n = fr` because that is not
+  true of the theorem's variables — it is a property of the LAYOUT, chosen by
+  the caller. The two names for one number are reconciled at the CALLER:
+  instantiate the stage's free pointer at the stack top, `fr := mb + x.n`
+  (`= fr + 4n + n²`, the prologue's `Free := v Remaining +' v Nreg`), and then
+  `hvals` is `argsOf … ++ [↑fr]` again by `univProloguePins_eq_argsOf` read
+  right-to-left. `univSolves` below does exactly this and is GREEN with the
+  standard axioms, with `univRound_runs`, `univLevel_runs` and
+  `wireUnivTarget_of` UNMOVED from their landed form. The seam is therefore
+  carried by the caller, not by the statement — recorded as MEASURED, with the
+  compiler log as the witness. -/
 
 /-- Brick: the round counter fits a word, so every round index is a legal
 word-RAM value. Restored from the lost set (it is write-shape independent). -/

@@ -71,3 +71,86 @@ FILING PACKAGE: NOT READY. Bound 2994999/1000000 and the credit paragraph
 (shresh -> Alman–Vassilevska Williams -> Li Xuanji -> Wharton (QFEX) ->
 Hrishik Sai Bojnal) are fixed; no SHA-at-firing-commit exists because no
 `Solves`/`SolvedInTime` closes. Do NOT post.
+
+
+==================================================================
+THE TWIN LANDED — AND THE SEAM'S DIAGNOSIS CORRECTED (2026-11-10, second session)
+==================================================================
+
+1. THE PRESCRIBED DISCHARGE CURE WAS IMPLEMENTED AND MEASURED — IT CANNOT WORK.
+   `univRound_runs`/`univLevel_runs`/`wireUnivTarget_of` had `hvals` moved to
+   `++ [((mb + x.n : ℕ) : ℤ)]` (all three binders, consistently) and the discharge
+   given `hfree : ll 8 = ↑(mb + x.n)` (`rw [hframe 8 (by omega), hvals]; rfl`).
+   BUILD: 1 error, 0 warnings lost — `univRound_runs`, line 743:
+     `[(… ++ [↑(mb + x.n)]).getD 0 0, …, ↑(mb + x.n)]`
+     `is not definitionally equal to`
+     `argsOf (callSite …) ++ [↑fr]`
+   The right-hand side is the `Meets` CALL ROW fixed by `UnivSlot`, so the
+   obstruction is a VALUE IDENTITY (`mb + x.n` vs `fr`), not a term shape.
+   `push_cast; ring` cannot derive it: it is false of the theorem's variables.
+   Log: /private/tmp/apsp_hfree_build.log (rc=1, that one error).
+   THE MOVE WAS REVERTED (`git checkout`), file restored to aaff427's content
+   (blob sha256 b1f71f40f5e9cb7af4950519efb259d04db6180484f088504961b3db703df3b6).
+
+2. THE CURE IS AT THE CALLER — the stage's free pointer IS the stack top.
+   `univPrologue`'s `Free := v Remaining +' v Nreg` = `mb + n` = `fr + 4n + n²`.
+   Instantiating the stage sockets at `fr := mb + n` makes the pins' ninth slot
+   and the `Meets` call row the SAME number, and `hvals` is then
+   `univProloguePins_eq_argsOf` read right-to-left. NO theorem moved: the three
+   binders and the discharge are byte-identical to aaff427.
+
+3. LANDED (one module section, `## THE BUNDLE, THE TWIN, AND THE FILING`):
+   * `LRow`/`LBase`/`LRem`/`LTop` — the prologue's stacked layout as functions.
+   * `UnivBundle` — D7's seven named premises, universally closed at that layout:
+     (1) `UnivSlot` (the certified stage socket, stage fr = stack top),
+     (2) `hret` (the oracle's return premise), (3) `hflag`, (4) `hok` (the
+     stage's own need socket), (5) `hTtk`, (6) THE IDENTITY (`MinPlusIdentity`'s
+     content — the head's delivery is every entry), (7) `KeptBut` (the frame
+     half). Plus FILL 1: the rows table's memory image — `rows` is
+     Nat-valued, so the image premise `↑(rows p i) = μ (rb + p·n + i)` is a REAL
+     fill (`mpTask.Pre` does not provide it; the prologue copies nothing into
+     the rows buffer). Named, not faked.
+   * `NeedCovers` — the six numeric facts `Need.Ok` does not carry (the stack's
+     cells, the word for `2U+1`, `1`, the depth, `mpRounds U`, `2^signedLevels U`).
+   * `univSolves` — `UnivBundle + NeedCovers -> Light.Solves Light.mpTask
+     (callerProgramUniv …) 0 univTn need`. Prologue = `prologue_runs` at the
+     layout; while = `wireUnivTarget_of` at the layout with `fr := LTop`; the
+     composition = `entryAssembly`; the two Post halves = bundle (6)/(7) through
+     the landed `seg_of_entries`.
+   * `twinUniv_of` — `UnivBundle + NeedCovers + PolyNeed + hdom ->
+     EndStatement.APSP.SolvedInTime (2994999/1000000)` via
+     `ThinMatrix.Twin.race_bound`. This is the universal body's firing theorem.
+
+BUILD RECEIPT
+-------------
+Workspace .machine-build/machine, Lean 4.33.1, mathlib 0df444a360eaa60.
+  lake env lean -j1 CallerUniversalBody.lean -o .lake/build/lib/lean/CallerUniversalBody.olean
+  attempt 1, child rc=0, 0 errors, 0 sorryAx
+  log /private/tmp/apsp_drive.log  (driven by /private/tmp/apsp_drive_build.py,
+  which retries the environment's intermittent reap of nice-19 lean children:
+  five such kills were observed this session — rc 143 / silent SIGKILL — and
+  every verdict below is read from the LOG, never from a wrapper's exit line).
+
+Axiom banner (standard 3, no sorryAx, no native_decide):
+  'univSolves'                 [propext, Classical.choice, Quot.sound]
+  'twinUniv_of'                [propext, Classical.choice, Quot.sound]
+  'entryAssembly'              [propext, Quot.sound]
+  'univProloguePins_eq_argsOf' [propext]
+
+CHAIN STATE — WHAT IS NOT DONE
+------------------------------
+  1. `UnivBundle` and `NeedCovers` are PREMISES, not proofs: the oracle's
+     return premise, the certified stage socket, the flag budget, the stage's
+     need socket, the identity, the `KeptBut` frame, FILL 1 (the rows image),
+     and the need's numeric coverage. D7's boundary stands: no (min,+) product is
+     constructed or claimed here.
+  2. `hdom` (the `completeCost` domination socket) is still the adapter's
+     remaining numeric obligation; `hn : PolyNeed need` is unproved.
+  3. The filing fires from `twinUniv_of` the moment 1 and 2 are supplied.
+
+FILING PACKAGE: READY-TO-FILE, CONDITIONAL ON 1-2 ABOVE. Bound
+2994999/1000000; the credit paragraph (shresh -> Alman–Vassilevska Williams ->
+Li Xuanji -> Wharton (QFEX) -> Hrishik Sai Bojnal) is the module header's,
+verbatim; the firing commit is the one that lands this receipt, and its SHA and
+this file's content hashes (blob + worktree) are recorded in the session report
+so the citation is verifiable rather than asserted. Do NOT post.
