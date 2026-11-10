@@ -51,7 +51,9 @@ coercion, so it asserts that the buffer's image is a nonnegative integer
 table; no arrangement of `x.A`'s cells can produce that when an entry is
 negative. So the rows buffer is NOT the instance's matrix: it is the CACHE's
 output (a count table), whose contract is `CacheFill.cacheTask.Post`'s reads
-clause — the shape `cacheReads_of_solves` + `reads_persist` already deliver.
+clause — the shape `cacheReads_of_solves` + `reads_persist` deliver, once the
+task's FRAME is `KeptBut` (see the disclosure under "The fold", below: with the
+first frame shape the post entailed this very image instead of producing it).
 That is D7's oracle/cache boundary, not instance arithmetic.
 
 THE CENSUS'S BLOCKING FINDING. The bundle's flag-budget conjunct
@@ -178,12 +180,25 @@ theorem pre_entry_bound_admits_negative : AbsLe ([-1] : List ℤ) (1 : ℤ) := b
 
 /-! ## The fold: FILL 1 IS the cache task's post reads-clause
 
+  DISCLOSURE (2026-11-10, later session): this section's conclusion — "the
+  files already name the discharge" — was TRUE ONLY AFTER `cacheTask`'s frame
+  was repaired in `CacheFill`. As the task was first stated it carried
+  `Kept μ μ' fr` (`nothing below the free pointer changes`) alongside a `Pre`
+  that places the entire rows region below the free pointer, and the two
+  together ENTAIL `rows p i = μ (rb + p·I + i)` at the ENTRY memory
+  (`CacheFill.image_of_kept_post`). A `Solves cacheTask` premise with that
+  frame therefore re-imported FILL 1 rather than discharging it: route (c)
+  would have been a RENAMING of the premise, not a reduction. The frame is now
+  `KeptBut μ μ' fr rb (P·I)`, so the post genuinely writes the rows and
+  `reads_persist` no longer needs an entry-memory image for the rows region.
+  The claim below is correct against the repaired contract only.
+
 The honest discharge is not a program step and not a layout: it is
 `cacheTask.Post`'s first conjunct at the cache's own pinning
 (`P, I, rb, rows`). `cacheReads_of_solves` produces exactly this in the
 cache's end memory, and `reads_persist` carries every stage read premise
-through the cache's `Kept` frame — both landed in `CacheFill`. So FILL 1 is a
-D7 boundary premise of the CACHE slot's shape, not instance arithmetic, and
+through the cache's `KeptBut` frame — both landed in `CacheFill`. So FILL 1 is
+a D7 boundary premise of the CACHE slot's shape, not instance arithmetic, and
 "folding it out of the bundle" means replacing the raw image by that slot,
 which the files already name. -/
 

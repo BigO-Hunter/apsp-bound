@@ -1,48 +1,83 @@
-CacheFill.lean — D7(b) FILL 1 verification receipt
+CacheFill.lean — D7(b) FILL 1's cache task contract, WITH THE FRAME REPAIR
+(2026-11-10)
+
 Workspace: .machine-build/machine (ThreeSumApsp path-required at
 /Volumes/MultiAIM/bigo3sum/anthropic-formal-math/3sum-apsp,
-mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1,
-upstream machine pin 225c3747)
-Build chain (exit receipts in the same chain as each build; TERM-immune
-wrapper `trap "" TERM; exec …`; oleans emitted into the search path with
--o .lake/build/lib/lean/):
-  lake env lean -j1 MinPlusCaller.lean
-    -o .lake/build/lib/lean/MinPlusCaller.olean
+mathlib 0df444a360eaa60ab8c11dca51a86af692955474, Lean 4.33.1).
+
+WHAT CHANGED AND WHY (the finding, not the preference). `cacheTask.Post`
+carried `Kept μ μ' fr` — "nothing below the free pointer changes" — while
+`Pre` places the WHOLE rows region below that pointer
+(`Pre x μ fr := x.rb + x.P * x.I ≤ fr`). For the cache's non-degenerate case
+(`1 ≤ P`, `1 ≤ I`, the only case the universal body consumes) the two
+conjuncts are jointly satisfiable ONLY when the rows region already holds
+`rows`. So the old post ENTAILED
+
+    rows p i = μ (rb + p·I + i)                                     (*)
+
+at the ENTRY memory — i.e. exactly the raw FILL-1 memory image the cache was
+supposed to PRODUCE. Consequence, and the reason this is a repair and not a
+restatement: a `Light.Solves cacheTask …` premise stated with the old frame
+does not put the image behind the cache boundary, it puts the image INSIDE
+the premise. Route (c) — "call the cache procedure before `univPrologue` and
+the rows conjunct becomes a theorem" — would then have been a RENAMING of the
+premise, not a reduction of it.
+
+The receipt for (*) is `image_of_kept_post`, kept in the file: it is stated
+about the OLD shape and is true; nothing below depends on it.
+
+The repaired frame is `KeptBut μ μ' fr x.rb (x.P * x.I)`: everything below the
+free pointer EXCEPT the rows region the task is defined to fill. This is the
+same class of finding as the bundle's refuted flag conjunct
+(`CallerFill1Measure.hflag_shape_false`, repaired at 06a523e) — a premise that
+looks like a boundary and is in fact the thing it was meant to produce.
+
+DOWNSTREAM EFFECT, stated exactly:
+- `cacheReads_of_solves` now delivers `KeptBut μ σ'.mem fr x.rb (x.P*x.I)`
+  (it delivered `Kept` before). Nothing else about it moved.
+- `reads_persist` is RESTATED and STRENGTHENED: it consumed `Kept` plus an
+  entry-memory rows image (`hRR : ∀ p < P, ∀ i < I, μ (rb+p·I+i) = rows p i`)
+  and produced all three read families at `μ'`. It now consumes `KeptBut` and
+  the cache's WRITE (`hW`, the post's first conjunct at `μ'`), and it no
+  longer consumes `hRR` AT ALL: the rows premise comes from the write, while
+  the active-bit and remaining-flag premises (which lie outside the rows
+  region by `InOrder`) come from the frame. That asymmetry is the whole
+  content of the repair — the image is now produced, not assumed.
+  The unused `{h : ℕ}` binder was dropped with the restatement.
+
+BUILD + VERDICTS (read from the log, never from a wrapper):
+
   lake env lean -j1 CacheFill.lean
-Exit codes: 0 (both stages)
+    /private/tmp/apsp_c2.log   rc=0, elapsed 44 s, 0 errors, 0 sorry
+    banners:
+      'ThinMatrix.CacheFill.cacheContent'            does not depend on any axioms
+      'ThinMatrix.CacheFill.image_of_kept_post'      depends on axioms: [propext, Quot.sound]
+      'ThinMatrix.CacheFill.cacheReads_of_solves'    depends on axioms: [propext]
+      'ThinMatrix.CacheFill.reads_persist'           depends on axioms: [propext, Quot.sound]
 
-FILL 1: the cache program's task contract, pinned in the machine workspace.
-- cacheContent — the content contract byte-identical to upstream
-  MinPlusReduction.OracleCorrect (the triangle-oracle correctness
-  bounded_signed_eq_minPlus is conditioned on). The deeper row-level clause
-  (ArrayCompositeAlgorithm.Oracle.Correct, modCount-shaped) trails with the
-  L2/L3 cone port and is named in the module docs.
-- CacheInst / cacheTask — the Light task the cache program solves: write the
-  P*I cached rows into the rows region below the free pointer, keep
-  everything else (Kept). The BODY is the L2/L3 cone's obligation; the
-  contract is what the caller composes with.
-- cacheReads_of_solves — PROVED: the cache program's Light.Solves delivers
-  the reads (hRR-shaped, pointwise) and the Kept frame. [propext] only.
-- reads_persist — PROVED: under Kept with the five-region layout below the
-  free pointer, every stage read premise survives into the cache's final
-  memory. [propext, Quot.sound].
-- The stage slot inside the composed caller program (cache-first layout
-  shifts the driver's indices) = NAMED FILL 3 content via the Lang's
-  Stmt.shift / Program.behind machinery — not proved here, documented in
-  the module.
+  lake env lean -j1 CallerFill1Measure.lean
+    /private/tmp/apsp_<tag>.log (see FILL1_CENSUS.md for the tag of record)
+    — the doc-only correction in that file is re-verified there.
 
-All declarations standard-3 or lighter (cacheReads_of_solves [propext];
-reads_persist [propext, Quot.sound]; cacheContent axiom-free); no sorry,
-no native_decide.
+No `sorry`, no `native_decide`, no new axiom: standard-3 or lighter
+throughout. Builds ran detached in a tmux session under the single-writer
+fcntl lock (/Volumes/Substrate-1/bigo/.build.lock), with kill-retry on
+transport deaths — this host was at 93 % swap with the lean-build governor in
+`enforce` mode, and elaborators were being SIGTERM'd in the 35-50 s window;
+a SIGTERM'd build is not a verdict about the proof.
 
-'ThinMatrix.CacheFill.cacheContent' does not depend on any axioms
-'ThinMatrix.CacheFill.cacheReads_of_solves' depends on axioms: [propext]
-'ThinMatrix.CacheFill.reads_persist' depends on axioms: [propext, Quot.sound]
+REMAINING (route (c) proper, not claimed here): the 3-argument cache call
+before `univPrologue` in `mpBodyUniv`, the `cacheTime (n²) U` increment in
+`univTn`, and the conjunct swap in `UnivBundle`. This module supplies the
+premise SHAPE those steps need; it does not perform them.
+
+D7's boundary stands: no oracle, no cache body, no (min,+) product is
+claimed. The cache program's BODY still trails (the L2/L3 cone porting
+board-side).
 
 Credits (constructions first, filer last): shresh (shreshth-s) — the
-materialized row cache behind the scheduled triangle queries and its
-correctness contract; Josh Alman and Virginia Vassilevska Williams —
-arXiv:2610.06783; Li Xuanji — the verified ten-term construction and
-word-RAM compiler; Joshua Wharton (QFEX) — the canonical adapter arrangement
-and the checked selection round / restart-loop driver; Hrishik Sai Bojnal —
-the verified frontier being refined.
+composite-incidence construction and the oracle functional chain; Josh
+Alman and Virginia Vassilevska Williams — arXiv:2610.06783; Li Xuanji — the
+verified ten-term construction and word-RAM compiler; Joshua Wharton (QFEX) —
+the canonical adapter arrangement and the checked selection round /
+restart-loop driver; Hrishik Sai Bojnal — the verified frontier being refined.

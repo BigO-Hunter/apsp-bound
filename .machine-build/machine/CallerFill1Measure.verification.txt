@@ -71,3 +71,27 @@ Axiom banner (standard 3, no sorryAx, no native_decide):
 
 D7's boundary stands: nothing here proves the oracle, the cache body, or the
 (min,+) product. This module is a measurement and a refutation.
+
+--- DISCLOSURE APPENDED 2026-11-10 (later session): the fold needed a repair ---
+
+This file's "the fold" section concluded that FILL 1 "is" cacheTask.Post's
+reads clause and that the files already named the discharge. Measured against
+the contract the files actually carried, that was not yet true. cacheTask.Post
+carried a frame of Kept (nothing below the free pointer changes) while Pre
+places the whole rows region below that pointer, so for the non-degenerate case
+the post ENTAILED the rows image at the entry memory. A Solves cacheTask
+premise with that frame therefore put the image inside the premise, not behind
+the cache boundary: route (c) would have renamed FILL 1, not discharged it.
+
+CacheFill.cacheTask.Post's frame is now KeptBut mu mu' fr rb (P*I), and
+CacheFill.image_of_kept_post is the receipt for the old shape. CacheFill
+.reads_persist no longer consumes an entry-memory rows image at all: the rows
+premise comes from the cache's WRITE, the other two read families from the
+frame. The prose in this module was corrected in the same commit, not later.
+
+Re-verified after the correction (log, not wrapper):
+  lake env lean -j1 CallerFill1Measure.lean
+    /private/tmp/apsp_mfinal.log   rc=0 (attempt 1), 0 errors, 0 sorry,
+    olean 291264 bytes. Axiom list unchanged from the block above except that
+    univBundle_false is GONE from the module (deleted at 06a523e) -- this file's
+    list is stale on that row and is left as the historical record.
