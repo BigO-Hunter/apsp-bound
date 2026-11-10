@@ -614,4 +614,170 @@ theorem univRowPass_runs
 
 #print axioms univRowPass_runs
 
+/-! ## The certified slot family at the caller program -/
+
+/-- THE UNIVERSAL SLOT FAMILY: the certified stage slot (the L5/L6
+restart-loop wrapper's `Meets`, byte-identical premises to the landed
+wire's `hslots`) re-keyed to the caller program's stage index — the
+per-round socket the universal body consumes. -/
+def UnivSlot {lim : Limits} {d : ℕ} {P k I h : ℕ} {active : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr : ℕ}
+    (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
+    (R : Light.Program) (Tt : ℕ → ℕ) : Prop :=
+  ∀ (mask : ℕ → Bool) (kt : ℕ) (μ : ℕ → ℤ),
+    ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ →
+    kt ≤ (flagged P mask).card →
+    (Light.DenseRestartSelectionLoop.need
+      (instanceSize (callSite P kt I h active mask rows ab rb sb mb bb))
+      (callSite P kt I h active mask rows ab rb sb mb bb).height).Ok lim fr (d + 1) →
+    Meets lim (callerProgramUniv stage cacheProg restoreProg cs ++ R)
+      stage (d + 1)
+      (argsOf (callSite P k I h active mask rows ab rb sb mb bb) ++ [(fr : ℤ)]) μ
+      (Tt kt)
+      (pinnedPost (callSite P kt I h active mask rows ab rb sb mb bb) μ fr)
+
+/-- THE ROUND SLICE'S RUN: one certified stage call followed by the
+row's write pass, at the caller program. Round 0 writes the delivered
+fold into the product's cell (0,0); rounds ≥ 1 keep the carried value;
+every round preserves the pins and the reads at the evolved mask (the
+stage's certified post clears one flag — `reads_carry`; the row's stores
+miss the reads regions — the layout, the product region below the
+stage's active base). -/
+theorem univRound_runs
+    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr : ℕ}
+    {cacheProg restoreProg : Light.Program} {cs : Inst}
+    {stage : ℕ} {Tt : ℕ → ℕ} {R : Light.Program}
+    {x : MatInst} {W : ℕ} {tests : ℕ → Bool × Bool}
+    {vals : List ℤ} {ll : ℕ → ℤ} {μ : ℕ → ℤ} {mask : ℕ → Bool}
+    {t : ℕ} {w : ℤ} {T : ℕ}
+    (hxn : 1 ≤ x.n)
+    (hvals : vals = argsOf (callSite P k I h active remaining rows ab rb sb mb bb)
+      ++ [(fr : ℤ)])
+    (hslot : @UnivSlot lim d P k I h active rows ab rb sb mb bb fr
+      stage cacheProg restoreProg cs R Tt)
+    (hret : ∀ (t' : ℕ) (mask' : ℕ → Bool) (μ' μ'' : ℕ → ℤ) (r' : ℤ),
+      t' < mpRounds W →
+      Light.DenseRestartSelectionLoop.Post
+        (callSite P k I h active mask' rows ab rb sb mb bb) μ' μ'' →
+      r' = bracketAccumulate (μ' (x.c + t' * x.n)) tests (mpRounds W))
+    (hflag : ∀ mask' : ℕ → Bool, k ≤ (flagged P mask').card)
+    (hok : ∀ (mask' : ℕ → Bool) (kt : ℕ),
+      (Light.DenseRestartSelectionLoop.need
+        (instanceSize (callSite P kt I h active mask' rows ab rb sb mb bb))
+        (callSite P kt I h active mask' rows ab rb sb mb bb).height).Ok lim fr (d + 1))
+    (hpins : UnivPins lim vals x W ⟨ll, μ⟩)
+    (hRt : ll Rt = (t : ℤ))
+    (hreads : ThinMatrix.CallerChain.StageReads P I active mask rows ab rb mb μ)
+    (hlay : InOrder (callerFr fr P I) [(callerAb fr I, I), (callerRb fr I, P * I),
+      (callerSb fr P I, P), (callerBb fr P I, I), (callerMb fr P I, P)])
+    (haway : (x.c < callerSb fr P I ∨ callerSb fr P I + P ≤ x.c) ∧
+      (x.c < callerBb fr P I ∨ callerBb fr P I + I ≤ x.c) ∧
+      (x.c < callerMb fr P I ∨ callerMb fr P I + P ≤ x.c))
+    (hbelow : (x.c + x.n * x.n : ℕ) ≤ ab)
+    (hlay' : ab = callerAb fr I ∧ rb = callerRb fr I ∧ sb = callerSb fr P I ∧
+      bb = callerBb fr P I ∧ mb = callerMb fr P I)
+    (hw : μ x.c = w)
+    (hspace : (lim.space : ℤ) ≤ lim.word)
+    (hregion : mpRounds W ≤ x.n)
+    (htW : t < mpRounds W)
+    (hdim : d < lim.depth)
+    (hTtk : Tt k ≤ callerTt x.n)
+    (hT : univRoundB x.n ≤ T) :
+    Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d (univRound stage)
+      ⟨ll, μ⟩ (univRoundB x.n)
+      (fun σ' => ∃ mask' : ℕ → Bool,
+        ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ'.mem ∧
+        UnivPins lim vals x W σ' ∧
+        σ'.mem x.c = (if t = 0 then bracketAccumulate (μ x.c) tests (mpRounds W) else w)) := by
+  obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := hlay'
+  have hframe := hpins.1
+  simp only [State.loc] at hframe
+  have hcallcost : (callArgs.map Expr.cost).sum + 2 + Tt k
+      + univRowB x.n ≤ univRoundB x.n := by
+    have h9 : (callArgs.map Expr.cost).sum = 9 := callArgs_cost
+    simp only [univRoundB, univRowB, univRowBw, univRowFix]
+    omega
+  have hrowT : univRowB x.n ≤ univRoundB x.n - ((callArgs.map Expr.cost).sum + 2 + Tt k) := by
+    omega
+  unfold univRound
+  refine Ends.seq ((callArgs.map Expr.cost).sum + 2 + Tt k)
+    (univRoundB x.n - ((callArgs.map Expr.cost).sum + 2 + Tt k)) ?_ (by omega)
+  have hslot' := hslot (mask := mask) (kt := k) (μ := μ) hreads (hflag mask) (hok mask k)
+  refine Ends.callLast hslot' ?_ ?_ hdim
+    (by simp only [callArgs_cost, univRoundB, univRowB, univRowBw, univRowFix]
+        omega)
+  · -- the continuation: the evolved reads, the pins, and the cell fact
+    intro r₁ μ₁ hR
+    obtain ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0', hpos⟩ := id hR
+    have hreads₁ :=
+      ThinMatrix.CallerChain.reads_carry (P := P) (I := I) (h := h) hlay hreads hsam hmask
+    have hpinsμ₁ : UnivPins lim vals x W ⟨ll, μ₁⟩ := UnivPins_congr rfl hpins
+    have hpins₁ : UnivPins lim vals x W ⟨Function.update ll Tmp r₁, μ₁⟩ :=
+      UnivPins_update hpinsμ₁
+    have huR : Function.update ll Tmp r₁ Rt = ll Rt :=
+      dif_neg (by have h15 : Rt = (15 : ℕ) := rfl; have h10 : Tmp = (10 : ℕ) := rfl; omega)
+    have hRt₁ : Function.update ll Tmp r₁ Rt = (t : ℤ) := by rw [huR]; exact hRt
+    have hTmp₁ : Function.update ll Tmp r₁ Tmp = r₁ := rfl
+    refine (univRowPass_runs hxn hpins₁ hspace hRt₁ hTmp₁ htW hrowT).mono le_rfl ?_
+    rintro σ' ⟨hW, hP', hK⟩
+    -- the reads survive the row's stores (the reads regions sit at and
+    -- above the stage's active base, the product region below it)
+    have hrowaway : ∀ (b' : ℕ), ab ≤ b' → x.c + t * x.n + x.n ≤ b' := by
+      intro b' hb'
+      have h1 : x.c + x.n * x.n ≤ ab := hbelow
+      have h2 : t * x.n + x.n ≤ x.n * x.n := by
+        have h3 : t + 1 ≤ x.n := by omega
+        have h4 : (t + 1) * x.n ≤ x.n * x.n := Nat.mul_le_mul h3 (Nat.le_refl x.n)
+        have h5 : (t + 1) * x.n = t * x.n + x.n := by ring
+        omega
+      omega
+    refine ⟨maskCleared cs₁.toFinset mask, ?_, hP', ?_⟩
+    · refine ⟨fun i hi => ?_, fun p hp i hi => ?_, fun p hp => ?_⟩
+      · have hk := hK (ab + i) (Or.inr (hrowaway (ab + i) (by omega)))
+        rw [hk]; exact hreads₁.1 i hi
+      · have hk := hK (callerRb ab I + p * I + i)
+          (Or.inr (hrowaway _ (show ab ≤ callerRb ab I + p * I + i from by
+            simp only [callerRb]; omega)))
+        rw [hk]; exact hreads₁.2.1 p hp i hi
+      · have hk := hK (callerMb ab P I + p)
+          (Or.inr (hrowaway _ (show ab ≤ callerMb ab P I + p from by
+            simp only [callerMb]; omega)))
+        rw [hk]; exact hreads₁.2.2 p hp
+    · by_cases h0 : t = 0
+      · subst h0
+        have hfold := hret 0 mask μ μ₁ r₁ htW
+          ⟨cs₁, hlen, hnd, hmem, hmask, hsam, h0', hpos⟩
+        simp only [Nat.zero_mul, Nat.zero_add, Nat.add_zero] at hfold
+        show σ'.mem x.c = bracketAccumulate (μ x.c) tests (mpRounds W)
+        have hW' : σ'.mem x.c = r₁ := by simpa using hW
+        rw [hW', hfold]
+      · have ht1 : 1 ≤ t := by omega
+        have hk := hK x.c (Or.inl (show x.c < x.c + t * x.n from
+          Nat.lt_add_of_pos_right (Nat.mul_pos ht1 hxn)))
+        rw [hk, hsam x.c haway, if_neg h0]
+        exact hw
+  · -- the call's arguments: safe, with the pinned frame values
+    refine ⟨fun e he => ?_, ?_⟩
+    · simp only [callArgs, List.mem_cons] at he
+      rcases he with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | h
+      · exact trivial
+      · exact trivial
+      · exact trivial
+      · exact trivial
+      · exact trivial
+      · exact trivial
+      · exact trivial
+      · exact trivial
+      · exact trivial
+      · exact absurd h (by simp)
+    · have hlits : callArgs.map (fun x => Expr.val ⟨ll, μ⟩ x) =
+        [ll 0, ll 1, ll 2, ll 3, ll 4, ll 5, ll 6, ll 7, ll 8] := rfl
+      rw [hlits, hframe 0 (by omega), hframe 1 (by omega), hframe 2 (by omega),
+        hframe 3 (by omega), hframe 4 (by omega), hframe 5 (by omega),
+        hframe 6 (by omega), hframe 7 (by omega), hframe 8 (by omega), hvals]
+      rfl
+
+#print axioms univRound_runs
+
 end ThinMatrix.CallerUniversalBody
