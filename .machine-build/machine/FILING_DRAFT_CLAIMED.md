@@ -78,7 +78,7 @@ landed `Race.bound (((1497780383 : Rat) / 500000000))` in
 
 ## The premise list — four named, everything else closed or routed
 
-The four, stated as the ONE theorem that fires (`twinUniv_socket`):
+The four, stated as the ONE theorem that fires (`twinUniv_socket_clock`):
 
 1. **the cache boundary** — `Light.Solves cacheTask cacheProg cacheProc cacheTime univSocket`
    (`UnivBundle`'s conjunct 1). This is D7's cache slot, at the stack-shaped
@@ -300,8 +300,9 @@ hypotheses. What changed in `CallerUniversalBody.lean`:
 
 So the bundle states FIVE things (the cache boundary, the stage slot, `hret`,
 `hTt`, `hident`, `hkept` — six conjuncts, one of them the cache boundary) where
-it stated nine, and the filing theorem's hypothesis list is
-`bundle + hdom`.
+it stated nine, and the filing theorem's hypothesis list is `bundle + hcT`
+(the sixth pass replaced the fifth pass's `hdom` with the cache's own clock —
+see the class-(iii) row and the root shape above).
 
 **THE SOCKET IS DISCLOSED, because it is a claim about a body this lane does not
 have.** `univSocket s U = Light.DenseRestartSelectionLoop.need s U` —
