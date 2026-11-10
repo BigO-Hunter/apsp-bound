@@ -217,3 +217,26 @@ Consequences for the run lemma's conclusions:
   writes the rows region, the active bits are all 1 from the first pass, and
   the remaining flags are all 1 from the second. This is the same "the array
   keeps the instance's own values" device the all-cells clause uses.
+
+## The prologue's contract now has a name (2026-11-10)
+
+`PrologueTarget` in `CallerUniversalBody.lean` states the entry assembly:
+`univPrologue` from the mpTask frame ends in `UnivInvAll ... 0` within
+`univProB x.n`. It is STATED (lane pattern, no sorry), and it is the sole
+missing premise of `wireUnivTarget_of`.
+
+The frame correspondence is DERIVED, not assumed, and recorded at the def:
+`vals` must be `[n, n, U, fr, fr+n, fr+n+n², fr+2n+n², fr+n+n², fr]` in the
+instance's `candidates, length, height, activeBase, rowsBase, scoresBase,
+remainingBase, baseBase, fr` slots — each one traced to the prologue `.set`
+that produces it. Consequences: the writes land only at `ab` and `mb` (both
+`>= x.c + n*n`), which is why the product region survives and `KeptBut`
+holds; `Height := v 1` must read register 1 before `Len := v 0` overwrites
+it; and the rows region is never written, so level-0 stage reads use
+`rows p i := mu0 (rb + p*I + i)`.
+
+Budget verified: 13 sets (40 steps) + two passes (13n+6 each) = 26n+52 <=
+27n+64 = `univProB n`.
+
+What remains is proof work only, not design work: the fifteen-step `Ends.seq`
+chain, the two `Ends.pass` applications, and the memory-untouched argument.
