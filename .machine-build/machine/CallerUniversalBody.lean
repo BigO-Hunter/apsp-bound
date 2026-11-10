@@ -780,4 +780,77 @@ theorem univRound_runs
 
 #print axioms univRound_runs
 
+/-- The pins survive a register write outside the pinned registers
+(the frame 0–8, Out, Nreg, U2). -/
+theorem UnivPins_set {lim : Limits} {vals : List ℤ} {x : MatInst} {W : ℕ}
+    {l : ℕ → ℤ} {μ : ℕ → ℤ} {i : ℕ} {v : ℤ}
+    (hp : UnivPins lim vals x W ⟨l, μ⟩)
+    (hfr : ∀ k' : ℕ, k' < 9 → i ≠ k') (hO : i ≠ Out) (hN : i ≠ Nreg) (hU : i ≠ U2) :
+    UnivPins lim vals x W ⟨Function.update l i v, μ⟩ := by
+  obtain ⟨h1, h2, h3, h4, h5⟩ := hp
+  simp only [State.loc] at h1 h2 h3 h4 ⊢
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  · intro k' hk'
+    show Function.update l i v k' = vals.getD k' 0
+    have hu : Function.update l i v k' = l k' := dif_neg (fun h => hfr k' hk' h.symm)
+    rw [hu]
+    exact h1 k' hk'
+  · show Function.update l i v Out = (x.c : ℤ)
+    have hu : Function.update l i v Out = l Out := dif_neg (fun h => hO h.symm)
+    rw [hu]
+    exact h2
+  · show Function.update l i v Nreg = (x.n : ℤ)
+    have hu : Function.update l i v Nreg = l Nreg := dif_neg (fun h => hN h.symm)
+    rw [hu]
+    exact h3
+  · show Function.update l i v U2 = (2 * x.U : ℤ)
+    have hu : Function.update l i v U2 = l U2 := dif_neg (fun h => hU h.symm)
+    rw [hu]
+    exact h4
+  · intro t ht
+    exact h5 t ht
+
+/-- The level-loop invariant: the pins, the doubling level, the flat
+round counter, the reads at the evolved mask, and the cell-(0,0) state
+(the seed before the first round; the delivered fold from round 1 on). -/
+def UnivInv (lim : Limits) (vals : List ℤ) (x : MatInst) (W : ℕ)
+    (P I : ℕ) (active : ℕ → Bool) (rows : ℕ → ℕ → ℕ) (ab rb mb : ℕ)
+    (μ₀ : ℕ → ℤ) (tests : ℕ → Bool × Bool) (ell : ℕ) (σ : State) : Prop :=
+  UnivPins lim vals x W σ ∧
+  σ.loc Lvl = ((2 ^ ell : ℕ) : ℤ) ∧
+  σ.loc Rt = ((2 * ell : ℕ) : ℤ) ∧
+  (∃ mask' : ℕ → Bool,
+    ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ.mem) ∧
+  σ.mem x.c = (if ell = 0 then μ₀ x.c else bracketAccumulate (μ₀ x.c) tests (mpRounds W))
+
+/-- The level-loop wire target — STATED, the induction is the next
+session's core (the while-form of the landed per-round wire induction).
+The loop rule is `Ends.while` at `signedLevels W` iterations with the
+constant per-iteration budget `univTestB + univLevelB n`; the invariant
+is `UnivInv`; the per-iteration body decomposes into two `univRound_runs`
+rounds (the round counter 2·ℓ and 2·ℓ+1, the second at the first's
+evolved mask) plus three counter `.set`s (Rt twice, Lvl doubling — each
+pin-preserving by `UnivPins_set`, each word-safe by `hword`); the exit
+needs `2^signedLevels W > 2·U` (`Nat.lt_pow_succ_log_self` at the
+instance's positive bound) and yields the fold identity at cell (0,0).
+The per-iteration cost is `univWhile_cost`-bounded by the schedule's
+unit budget; the total is `univTn`-shaped. -/
+def WireUnivTarget
+    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active remaining : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr : ℕ}
+    (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
+    (R : Light.Program) (Tt : ℕ → ℕ)
+    (x : MatInst) (W : ℕ) (tests : ℕ → Bool × Bool)
+    (vals : List ℤ) (μ₀ : ℕ → ℤ) : Prop :=
+  ∀ (l : ℕ → ℤ),
+    UnivInv lim vals x W P I active rows ab rb mb μ₀ tests 0 ⟨l, μ₀⟩ →
+    Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d (univWhile stage)
+      ⟨l, μ₀⟩ (mpRounds W * univUnitB x.n)
+      (fun σ' => UnivPins lim vals x W σ' ∧
+        σ'.mem x.c = bracketAccumulate (μ₀ x.c) tests (mpRounds W) ∧
+        (∃ mask' : ℕ → Bool,
+          ThinMatrix.CallerChain.StageReads P I active mask' rows ab rb mb σ'.mem))
+
+#print axioms UnivPins_set
+
 end ThinMatrix.CallerUniversalBody
