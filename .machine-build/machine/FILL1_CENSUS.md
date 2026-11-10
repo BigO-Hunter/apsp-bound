@@ -7,6 +7,16 @@ Working commit: `ea7e86d` (branch `wip-summit-body`; the census was written at
 
 This file records THREE findings, all measured, none prescribed:
 
+<!-- SUPERSEDED IN PART, 2026-11-10 (fifth pass, commit acd5612): the cache
+     call IS wired (`9298c40`) and the bundle's hokC/hokS/hflag conjuncts are
+     GONE (derived or tautological), and row 9's literal need witness was
+     CORRECTED in two places — its `depth = 1` cannot close the nested stage
+     socket (DenseRestartSelectionLoop.need has depth 4, asked at d+1) and its
+     `(n²+4n+1)` bracket is false at n = 0 against `4U+2`. The tree's witness is
+     `univNeed = ⟨(n²+4n+5)(U+1)+8, n²+4n+8, 5⟩`, with NeedCovers/PolyNeed now
+     THEOREMS. Read this file as the dated measurement it is; the live premise
+     list is FILING_DRAFT_CLAIMED.md. -->
+
 1. **FILL 1 (the rows-buffer memory image) is not a program step and not a
    layout.** Both routes the brief named are refuted — one by budget, one by
    the stage's own region order — and BOTH by the same coercion obstruction.

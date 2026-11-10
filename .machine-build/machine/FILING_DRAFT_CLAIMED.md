@@ -77,11 +77,11 @@ The four, stated as the ONE theorem that fires (`twinUniv_socket`):
    (`UnivBundle`'s conjunct 1). This is D7's cache slot, at the stack-shaped
    socket (see the fifth-pass section). It is the ONLY named premise that is a
    *solver contract* rather than an oracle fact.
-2. `hret` — the oracle's return (bundle conjunct 2).
-3. `hTt` — the tight clock, `Tt 0 ≤ callerTt x.n` (bundle conjunct 3). Index
+2. `hret` — the oracle's return (bundle conjunct 3).
+3. `hTt` — the tight clock, `Tt 0 ≤ callerTt x.n` (bundle conjunct 4). Index
    `0`, not `x.n`: `k := 0` is forced by the mask-generic flag budget.
 4. `hident` — `MinPlusIdentity`, the head's delivery is every entry (bundle
-   conjunct 4).
+   conjunct 5).
 
 Plus `hdom` (class (iii)): the `completeCost` domination for `univTn`. It is
 the fourth hypothesis of `twinUniv_socket` and is NOT a bundle conjunct.
@@ -113,8 +113,8 @@ witness term, and the two resource sockets (`hokC`, `hokS`) and the flag budget
 
 | premise | site | state |
 |---|---|---|
-| `UnivSlot` at `k := 0` (certified stage socket) | `:1959` | closed by the bundle's inhabitant: `stageSlot_any` is **landed**; `hAR`/`hfl` from the prologue's two passes, `hlay` from the layout ring. Its `hRR` was premise 1 and is now supplied by the cache call's post |
-| `hkept` — `KeptBut` frame | `:1971` | closed by the bundle's inhabitant: write set `{x.c} ⊆ [x.c, x.c+n²)` by `Pre.belowC`; prologue writes at `ab = fr` and above |
+| `UnivSlot` at `k := 0` (certified stage socket) | `:1959` (bundle conjunct 2) | closed by the bundle's inhabitant: `stageSlot_any` is **landed**; `hAR`/`hfl` from the prologue's two passes, `hlay` from the layout ring. Its `hRR` was premise 1 and is now supplied by the cache call's post |
+| `hkept` — `KeptBut` frame | `:1971` (bundle conjunct 6) | closed by the bundle's inhabitant: write set `{x.c} ⊆ [x.c, x.c+n²)` by `Pre.belowC`; prologue writes at `ab = fr` and above |
 
 ### Class (iii) — image arithmetic / domination
 
