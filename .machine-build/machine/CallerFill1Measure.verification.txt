@@ -1,0 +1,73 @@
+CallerFill1Measure.lean — FILL 1's measurement, and the census's blocking finding
+================================================================================
+
+Verdicts here are read from the build LOG, never from the wrapper's return
+(5 builds were reaped by the host in the previous session; the driver retries
+137/139/143/9/134 and re-logs every attempt).
+
+What was measured, and what it settles
+--------------------------------------
+The brief prescribed two routes to discharge FILL 1 (the rows-buffer memory
+image, `UnivBundle`, `CallerUniversalBody.lean:1752`) and expected one of them
+to make the conjunct follow from `MatInst.Pre`. Both were MEASURED and BOTH
+FAIL. The refutations are theorems in this module, not prose:
+
+  routeA_overrun                     an n×n copy pass costs 13n²+6n; univProB n
+                                     leaves n+12; overrun 13n²+5n−12 > 0 at every
+                                     n ≥ 1.
+  routeA_budget_if_paid              the budget that WOULD pay (13n²+32n+64) —
+                                     asymptotically free, so cost is not the
+                                     obstacle.
+  routeB_order_forces_rows_above     `InOrder`'s first clause is `ab + I ≤ rb`.
+  routeB_contradicts_belowA          `rb := x.a` needs `fr + n ≤ x.a`, while
+                                     `MatInst.Pre.belowA` gives `x.a + n·n ≤ fr`:
+                                     no layout exists.
+  no_nat_image_of_neg                a negative cell has no ℕ image.
+  pre_entry_bound_admits_negative    `MatInst.Pre`'s entry bound is `AbsLe`
+                                     (|e| ≤ U) — it never bounds the sign.
+
+So neither route can be a copy of `x.A`, and the reason is not bookkeeping: the
+rows buffer is a COUNT table (the composite-incidence cache's output), not the
+instance's matrix. The honest producer is the CACHE slot, and it is landed:
+`cachePost_reads` shows FILL 1's shape is literally `cacheTask.Post`'s reads
+clause, which `CacheFill.cacheReads_of_solves` produces and `reads_persist`
+carries. The cheapest correct route is therefore a CALL to the cache procedure
+before `univPrologue` (≈5–9 steps + the cache clock, vs 13n²+6n for a copy),
+with `MatInst.Pre` surviving into the cache's end memory by
+`Seg.of_kept` (`Lang/Tasks.lean:75`) — no new premise.
+
+The blocking finding
+--------------------
+`hflag_shape_false` refutes the bundle's flag budget as stated
+(`∀ mask', k ≤ (flagged P mask').card` fails at the all-false mask for every
+k ≥ 1), and `univBundle_false` lifts that to `¬ UnivBundle … need` at EVERY
+need, by instantiating the bundle's own `∀ lim` at limits that satisfy `Ok`.
+The bundle is therefore UNSATISFIABLE, so `univSolves` and `twinUniv_of` are
+VACUOUS as they stand: green, and unfireable. Repair is at the CALL SITE — the
+wire is generic in `k` and the schedule clears one flag per round, so a
+mask-generic budget forces `k = 0`; the bundle instantiates `k := x.n`.
+
+BUILD RECEIPT
+-------------
+Workspace .machine-build/machine, Lean 4.33.1, mathlib 0df444a360eaa60.
+  lake env lean -j1 CallerFill1Measure.lean -o .lake/build/lib/lean/CallerFill1Measure.olean
+  attempt 1, child rc=0, 0 errors, 0 sorryAx
+  olean 356,944 bytes ; source 247 lines
+  log /private/tmp/apsp_fill1_measure3.log (an earlier concurrent run also
+  reached exit 0 at /private/tmp/apsp_fill1_measure2.log attempt 2 — both read
+  the same source mtime 12:47:06Z; the olean is 12:48:26Z, newer than source)
+
+Axiom banner (standard 3, no sorryAx, no native_decide):
+  'routeA_copy_cost'                    [propext]
+  'routeA_overrun'                      [propext, Classical.choice, Quot.sound]
+  'routeB_order_forces_rows_above'      no axioms
+  'routeB_contradicts_belowA'           [propext, Quot.sound]
+  'no_nat_image_of_neg'                 [propext, Classical.choice, Quot.sound]
+  'pre_entry_bound_admits_negative'     [propext, Classical.choice, Quot.sound]
+  'cachePost_reads'                     no axioms
+  'hflag_shape_false'                   [propext, Classical.choice, Quot.sound]
+  'xInst_pre'                           [propext, Classical.choice, Quot.sound]
+  'univBundle_false'                    [propext, Classical.choice, Quot.sound]
+
+D7's boundary stands: nothing here proves the oracle, the cache body, or the
+(min,+) product. This module is a measurement and a refutation.
