@@ -144,19 +144,38 @@ the round slice (`univRound_runs`, `Ends.callLast` at the caller program
 + `reads_carry` + the row pass). The clock: `univTn n U = mpRounds U ·
 univUnitB n + univProB n`, quadratic, `univTn_le`.
 
-THE NAMED REMAINDER (the lane's one open seam): the while induction's
-discharge — `WireUnivTarget` is STATED in `CallerUniversalBody.lean`
-(lane target-def pattern, no sorry); `UnivInv` (the invariant) and
-`UnivPins_set` (the counter-set pins' obligation) are landed; the
-discharge is `Ends.while` at `signedLevels W` iterations, the body = two
-`univRound_runs` rounds + three counter sets, the exit =
-`2^signedLevels W > 2·U`, the budget = `univWhile_cost` + `univTn_eq`.
-Then: the entry assembly (prologue run — 12 sets + the active/flag init
-passes — then the wire), the `Light.Solves` packaging (bundle: hslot,
-hret, hflag, hok, hrows (the FILL-1 seam), hidentU, hkeptU), and
-`summitSlotUniv_of`/`twinUniv_of` fire `Race.bound` 2994999/1000000.
-This is the campaign's actual "all arrays, scans, control flow" row
-(MACHINE_OBLIGATIONS).
+THE NAMED REMAINDER (the lane's open seam, narrowed by this session): the
+wire induction is now DISCHARGED — `wireUnivTarget_of` proves
+`WireUnivTarget` by `Ends.while` at `signedLevels W` iterations
+(standard-3 axioms, no sorryAx). The invariant is `UnivInvAll` (the
+all-cells tracking), the body is `univLevelBody` (two certified rounds at
+levels 2ℓ and 2ℓ+1 — the second at the first's evolved mask — plus the
+three pin-preserving counter sets, brick `univLevel_runs`), the exit is
+`2^signedLevels W > 2·U` via `pow_pred_signed_levels_le` /
+`two_mul_lt_pow_signed_levels`, and the budget closes on
+`univWhile_cost` (the test costs 5 = `univTestB - 1`, so the while total
+`SL·(6 + univLevelB) + 6` is that lemma's left side exactly).
+
+TWO DISCLOSED AMENDMENTS, neither silent:
+1. `WireUnivTarget`'s hypothesis is now `UnivInvAll … frC 0`, not
+   `UnivInv … 0`. The stronger form is REQUIRED: the loop's all-cells
+   tracking is load-bearing for every later round's row pass and for the
+   cell-(0,0) fold's survival, and it is not derivable from `UnivInv` —
+   only the prologue establishes it. Supplying it is the entry assembly's
+   obligation, which is exactly the next seam.
+2. The discharge also needs `x.U = W` (EQUALITY, not `≤`: both sides of
+   the loop test move with the bound, so `≤` breaks the exit and `≥`
+   breaks the entry), `0 < W`, and the two word-fit premises
+   (`|2·U+1| ≤ word`, `1 ≤ word`).
+
+STILL OPEN (in order): the entry assembly — a `univPrologue` run lemma
+from `⟨frame (args ++ [fr]), μ⟩` to `UnivInvAll … 0` (twelve register sets
+plus the two Active/Remaining initialization passes; the budget
+`univProB n = 27n + 64` is already sized for it, but no lemma states it
+yet) — then the `Light.Solves` packaging (bundle: hslot, hret, hflag, hok,
+hrows (the FILL-1 seam), hidentU, hkeptU), then `summitSlotUniv_of` /
+`twinUniv_of`, which fire `Race.bound` 2994999/1000000 and assemble the
+filing package at THAT commit.
 
 ## 6. The step count (landed this session)
 

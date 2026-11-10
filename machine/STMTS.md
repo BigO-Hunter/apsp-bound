@@ -146,14 +146,24 @@ one fixed term), the nested-behind caller program (renumbering-consistent
 where the per-instance skeleton's flat `++` is not), `univRowPass_runs`
 and `univRound_runs` (the run-derivation green through the row pass and
 the round slice, at the caller program), and the quadratic `univTn`.
-STATED, not yet discharged (the lane's one open seam):
-`WireUnivTarget` — the while induction over `Ends.while` with `UnivInv`
-(the invariant def) and `UnivPins_set` (landed) as its bricks; the exit
-arithmetic and the budget close by landed lemmas. When it discharges:
-the entry assembly (prologue + wire), the `Light.Solves` packaging (the
-named-premise bundle: hslot, hret, hflag, hok, hrows (FILL 1), hidentU,
-hkeptU), and `twinUniv_of` fires `Race.bound` 2994999/1000000 — the
-filing package assembles at THAT commit.
+STATED and now DISCHARGED (2026-11-10): `WireUnivTarget` — the while
+induction over `Ends.while` at `signedLevels W` iterations, proved by
+`wireUnivTarget_of` (standard-3 axioms, no sorryAx). Bricks: `UnivInvAll`
+(the all-cells invariant, superseding `UnivInv` for the loop),
+`univLevel_runs` (the level body: two certified rounds at 2ℓ/2ℓ+1 — the
+second at the first's evolved mask — plus three counter sets),
+`UnivPins_set`, and the exit arithmetic `pow_pred_signed_levels_le` /
+`two_mul_lt_pow_signed_levels`. The target's hypothesis was AMENDED from
+`UnivInv … 0` to `UnivInvAll … frC 0` (disclosed in the def's docstring):
+the all-cells tracking is load-bearing and only the prologue establishes
+it. The discharge also names `x.U = W` (equality, not `≤` — both sides of
+the loop test move with the bound), `0 < W`, and two word-fit premises.
+STILL OPEN, in order: the entry assembly (a `univPrologue` run lemma to
+`UnivInvAll … 0`; budget `univProB n = 27n + 64` is sized, no lemma yet),
+the `Light.Solves` packaging (bundle: hslot, hret, hflag, hok, hrows
+(FILL 1), hidentU, hkeptU), then `summitSlotUniv_of`/`twinUniv_of`, which
+fire `Race.bound` 2994999/1000000 and assemble the filing package at THAT
+commit.
 
 ## The summit body's data-flow design (L7 — pinned 2026-11-09)
 
