@@ -190,3 +190,30 @@ Vassilevska Williams — arXiv:2610.06783; Li Xuanji — the verified ten-term
 construction and word-RAM compiler; Joshua Wharton (QFEX) — the checked
 selection round and machine obligations; Hrishik Sai Bojnal — the verified
 frontier being refined.
+
+## Entry-assembly convention, confirmed by reading (2026-11-10)
+
+Recorded so the next session need not re-derive it.
+
+The stage frame is Candidates=0, Len=1, Height=2, Active=3, Rows=4,
+Scores=5, Remaining=6, Base=7, Free=8, Chosen=9, Unused=10
+(`DenseCanonicalSelectionRound`), with the universal body's own scratch map
+Out=11, Nreg=12, U2=13, Lvl=14, Rt=15, IdxR=16, DstR=17, J=18, Tmp=10.
+
+`univPrologue` consumes the mpTask frame in registers 0..5 (`[n, U, a, b, c,
+fr]`) and PRODUCES exactly that stage frame — which is why the two
+conventions do not clash, and why `UnivPins` with `vals = argsOf callSite ++
+[fr]` is satisfiable: `Out := v 4` yields `x.c`, `Nreg := v 0` yields `n`,
+`U2 := k 2 *' v 1` yields `2U`. ORDER MATTERS and is already correct in the
+def: `Height := v 1` is read BEFORE `Len := v 0` overwrites register 1.
+
+Consequences for the run lemma's conclusions:
+- `UnivInvAll`'s all-cells clause holds because the prologue writes ONLY at
+  Active (`ab = fr`) and Remaining (`mb`); both lie at or above `ab`, and
+  `hbelow : x.c + n*n <= ab`, so the product region is untouched — exactly
+  the `KeptBut` argument, with `frC <= ab`.
+- `StageReads` at `ell = 0` is satisfiable with the ROWS taken from the
+  initial memory (`rows p i := mu0 (rb + p*I + i)`): the prologue never
+  writes the rows region, the active bits are all 1 from the first pass, and
+  the remaining flags are all 1 from the second. This is the same "the array
+  keeps the instance's own values" device the all-cells clause uses.
