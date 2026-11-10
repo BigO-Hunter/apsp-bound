@@ -168,14 +168,27 @@ TWO DISCLOSED AMENDMENTS, neither silent:
    breaks the entry), `0 < W`, and the two word-fit premises
    (`|2·U+1| ≤ word`, `1 ≤ word`).
 
-STILL OPEN (in order): the entry assembly — a `univPrologue` run lemma
-from `⟨frame (args ++ [fr]), μ⟩` to `UnivInvAll … 0` (twelve register sets
-plus the two Active/Remaining initialization passes; the budget
-`univProB n = 27n + 64` is already sized for it, but no lemma states it
-yet) — then the `Light.Solves` packaging (bundle: hslot, hret, hflag, hok,
-hrows (the FILL-1 seam), hidentU, hkeptU), then `summitSlotUniv_of` /
-`twinUniv_of`, which fire `Race.bound` 2994999/1000000 and assemble the
-filing package at THAT commit.
+LANDED (2026-11-10): the entry assembly. `prologue_runs` proves
+`PrologueTarget` — thirteen register sets (40 steps) + two `Ends.pass`
+applications at `fun _ => 1` (`13n + 6` each) = `26n + 52 <= univProB n`,
+ending in `UnivInvAll … 0` (standard-3 axioms, no sorryAx). The frame
+correspondence is now the lemma's hypothesis list (`univProloguePins`,
+`univPrologueMid`, `univPrologueLocals`), with the two prose corrections
+disclosed at the def (the buffer order is active, rows, scores, base,
+remaining — so `baseBase = fr+2n+n²`, `remainingBase = fr+3n+n²` — and
+the entry frame is `frameVals`, separate from the pins).
+
+STILL OPEN (and this is now a DESIGN finding): the `Light.Solves`
+packaging's `hregion : mpRounds W <= n` does NOT follow from
+`mpTask.Pre` + a polynomial `Need.Ok`. The row pass writes round `t`'s
+row at `x.c + t‧n`, so `mpRounds U > n` puts those stores above
+`x.c + n²`, inside the buffers the stage reads — the certified stage post
+and the final `KeptBut` both fail (`n = 1, U = 100` gives
+`mpRounds 100 = 16 > 1`). Two cures, named, neither faked: (a) restrict
+the task (`mpTaskRounds`) and re-wire the twin; (b) drop the per-round
+row write (accumulate the bracket value in registers). Until one lands,
+`summitSlotUniv_of` / `twinUniv_of` cannot fire `Race.bound`
+2994999/1000000 for `mpTask` as stated.
 
 ## 6. The step count (landed this session)
 

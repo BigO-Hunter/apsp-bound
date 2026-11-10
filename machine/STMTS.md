@@ -238,5 +238,52 @@ it; and the rows region is never written, so level-0 stage reads use
 Budget verified: 13 sets (40 steps) + two passes (13n+6 each) = 26n+52 <=
 27n+64 = `univProB n`.
 
-What remains is proof work only, not design work: the fifteen-step `Ends.seq`
-chain, the two `Ends.pass` applications, and the memory-untouched argument.
+**LANDED (2026-11-10): `prologue_runs` proves `PrologueTarget`**
+(standard-3 axioms, no sorryAx). The proof is the fifteen-step `Ends`
+chain the def's text dictates: eleven frame `.set`s (36 steps), the two
+`Ends.pass` applications at `fun _ => 1` (`13n + 6` each), the two counter
+sets (4) — `26n + 52 <= 27n + 64 = univProB n`. Register bookkeeping runs
+through the library's frame idiom (`Ends.setToThen` / `Ends.setTo`, the
+locals as a list); the memory argument is the two `wrote` regions: the
+writes land only at `ab` and `mb`, each at or above `x.c + n*n`, so the
+product rows are untouched (the all-cells clause, from `hbelow`), the
+product cell keeps `mu0 x.c`, and `KeptBut` holds below `frC <= ab`. The
+level-0 stage reads are the "the array keeps the instance's own values"
+device (`hactive`, `hrows`), with the rows sampled from `mu0` at `rb`.
+
+Two corrections, both disclosed at the def:
+1. the correspondence prose was one buffer early on `baseBase` /
+   `remainingBase`. The def writes the buffers in the order active, rows,
+   scores, base, remaining, so `baseBase = fr+2n+n^2` and
+   `remainingBase = fr+3n+n^2` (the stage's free pointer is `fr+4n+n^2`).
+   The def was always right; only the prose was wrong. `univProloguePins`
+   now holds the nine values the proof pins.
+2. `PrologueTarget` first took ONE `vals` as both the entry frame and the
+   pin list — impossible, since the entry is the six-register mpTask frame
+   and the pins are the nine-value stage frame the prologue PRODUCES. The
+   def now takes the entry frame separately (`frameVals`).
+
+The instance premises the lemma consumes: `hbelow` (`x.c + n*n <= ab`),
+the buffer stack's fit `fr + 4n + n^2 <= lim.space` (whence every op
+value's word bound, with `space <= word`), `|2U| <= word`, `1 <= word`,
+`mpRounds W <= n`, and the two read devices above.
+
+**THE ASSEMBLY SEAM (the next opener — a finding, not bookkeeping).** The
+`Light.Solves` bundle now has one premise that does NOT follow from
+`mpTask.Pre` plus a polynomial `Need.Ok`: `hregion : mpRounds W <= x.n`.
+It is load-bearing: the row pass writes round `t`'s row at
+`x.c + t*n`, so when `mpRounds U > n` those stores land above `x.c + n^2`
+— inside the buffers the stage reads — and both the certified stage post
+and the final `KeptBut` fail. No `Need` can supply it (a `Need` bounds
+`word`, `cells`, `depth`; `Pre` bounds `U` only from below, via `AbsLe`).
+Counterexample shape: `n = 1`, `U = 100` gives
+`mpRounds 100 = 2*(log2 200 + 1) = 16 > 1 = n`.
+Honest reading: the universal body solves the (min,+) task on instances
+whose value bound fits the row budget (`mpRounds U <= n`) — the
+`U <= 2^(n/2)` regime, which is the regime the filing's `timeUpTo`
+supremum ranges over (`U <= n^k` per fixed k), but `Light.mpTask` itself
+does not carry the constraint. Two cures, named and neither faked:
+(a) restrict the task (`mpTaskRounds` with `Pre' := Pre /\ mpRounds U <= n`)
+and re-wire the twin to that task; (b) make the body's row use
+independent of the round count (accumulate the bracket value in
+registers, no per-round row write).

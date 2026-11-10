@@ -112,9 +112,9 @@ def univPrologue : Light.Stmt :=
   .set Base (v Scores +' v Nreg) ;;                     -- bb := sb + n
   .set Remaining (v Base +' v Nreg) ;;                  -- mb := bb + n
   .set Free (v Remaining +' v Nreg) ;;                  -- the stage's fr := mb + n
-  pass J (v Nreg) (v Active) (k 1) ;;                   -- the active bits := 1
-  pass J (v Nreg) (v Remaining) (k 1) ;;                -- the flags := 1
-  .set Lvl (k 1) ;;                                     -- Lvl := 1
+  pass J (v Nreg) (v Active) (Light.k 1) ;;                   -- the active bits := 1
+  pass J (v Nreg) (v Remaining) (Light.k 1) ;;                -- the flags := 1
+  .set Lvl (Light.k 1) ;;                                     -- Lvl := 1
   .set Rt (k 0)                                         -- Rt := 0
 
 /-- The per-round write pass: THE FIXED INDEX REGISTER (`IdxR := t·n` by
@@ -1276,7 +1276,10 @@ level loop's ZERO invariant. This is the sole missing premise of
 THE FRAME CORRESPONDENCE (derived by reading, not assumed). `UnivPins vals`
 pins registers 0..8 to `vals.getD`, with `vals = argsOf callSite ++ [fr]`.
 The prologue's writes realise exactly that PROVIDED the instance's fields sit
-where the layout puts them:
+where the layout puts them. Read off the real `.set` chain (the buffers are
+stacked in the ORDER the def writes them: active, rows, scores, base,
+remaining — so `Base := Scores + Nreg` at `fr + 2n + n²` and
+`Remaining := Base + Nreg` at `fr + 3n + n²`):
 
   vals[0] candidates     = n               (register 0 is never written — it
                                             still holds the input n)
@@ -1285,11 +1288,27 @@ where the layout puts them:
   vals[3] activeBase     = fr              (`Active := v 5`)
   vals[4] rowsBase       = fr + n          (`Rows := Active + Nreg`)
   vals[5] scoresBase     = fr + n + n²     (`Scores := Rows + Nreg*Nreg`)
-  vals[6] remainingBase  = fr + 2n + n²    (`Remaining := Base + Nreg`)
-  vals[7] baseBase       = fr + n + n²     (`Base := Scores + Nreg`)
-  vals[8] fr                               (`Free := Remaining + Nreg`)
+  vals[6] remainingBase  = fr + 3n + n²    (`Remaining := Base + Nreg`)
+  vals[7] baseBase       = fr + 2n + n²    (`Base := Scores + Nreg`)
+  vals[8] fr + 4n + n²                     (`Free := Remaining + Nreg`)
 
-Three consequences the proof will consume:
+CORRECTION (disclosed, 2026-11-10): the first STATED form of this table
+placed `baseBase` at `fr + n + n²` and `remainingBase` at `fr + 2n + n²`,
+i.e. one buffer early — it counted the scores region as if `Base` followed
+`Rows`. `Base := Scores + Nreg` and `Remaining := Base + Nreg`, so both
+lie one `n` higher, and the stage's free pointer is `fr + 4n + n²`. The
+def was always right; only this prose was wrong. The proof below consumes
+the corrected values (`univProloguePins`).
+
+THE ENTRY FRAME (disclosed amendment): the first STATED form passed ONE
+`vals` and used it both as the entry frame (`frame vals`) and as the pin
+list. Those cannot coincide: the entry state is the mpTask frame
+`[n, U, a, b, c, fr]` (six registers), while the pins are the nine-value
+stage frame the prologue PRODUCES. The def now takes the entry frame
+separately (`frameVals`); `prologue_runs` supplies the correspondence
+(`hframe`, `hvals`).
+
+Four consequences the proof consumes:
 - the writes land ONLY at `ab` (= `fr`) and `mb`; both are at or above
   `x.c + n*n` (`hbelow`), which is precisely why the product region is
   untouched and `KeptBut … frC x.c (n*n)` holds (with `hfrCle`);
@@ -1298,17 +1317,51 @@ Three consequences the proof will consume:
 - the ROWS region is never written, so the level-0 stage reads are
   satisfiable by taking `rows p i := μ₀ (rb + p*I + i)` — the same
   "the array keeps the instance's own values" device the all-cells clause
-  of `UnivInvAll` uses. -/
+  of `UnivInvAll` uses;
+- the two passes write ONLY at `ab` and `mb` (then a stride of `n`), and
+  every op value is dominated by the buffer stack's top, so the stack's
+  WORD FIT (`fr + 4n + n² ≤ space ≤ word`) is the only resource premise. -/
 def PrologueTarget
     {lim : Limits} {d : ℕ} {P k I h : ℕ} {active : ℕ → Bool}
     {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr frC : ℕ}
     (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
     (R : Light.Program) (Tt : ℕ → ℕ)
     (x : MatInst) (W : ℕ) (tests : ℕ → Bool × Bool)
-    (vals : List ℤ) (μ₀ : ℕ → ℤ) : Prop :=
+    (vals frameVals : List ℤ) (μ₀ : ℕ → ℤ) : Prop :=
   Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d univPrologue
-    ⟨frame vals, μ₀⟩ (univProB x.n)
+    ⟨frame frameVals, μ₀⟩ (univProB x.n)
     (UnivInvAll lim vals x W P I active rows ab rb mb μ₀ tests frC 0)
+
+/-- The prologue's output pins: the nine-value stage frame, each entry
+traced to the `.set` that produces it (`argsOf`'s slot order — the stage's
+free pointer last). -/
+def univProloguePins (x : MatInst) (fr : ℕ) : List ℤ :=
+  [(x.n : ℤ), (x.n : ℤ), (x.U : ℤ), (fr : ℤ),
+   (fr : ℤ) + (x.n : ℤ),
+   (fr : ℤ) + (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ),
+   (fr : ℤ) + 3 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ),
+   (fr : ℤ) + 2 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ),
+   (fr : ℤ) + 4 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ)]
+
+/-- The prologue's locals after the eleven frame `.set`s: the nine pins
+plus the computed registers the sets write (`Out`, `Nreg`, `U2`). The two
+passes then write `J`; the counters close the list. -/
+def univPrologueMid (x : MatInst) (fr : ℕ) : List ℤ :=
+  univProloguePins x fr ++ [0, 0, (x.c : ℤ), (x.n : ℤ), 2 * (x.U : ℤ)]
+
+/-- The prologue's locals at the end: the pins, then `Out`, `Nreg`, `U2`,
+the two counters, the zeroed scratch and the pass counter `J`. -/
+def univPrologueLocals (x : MatInst) (fr : ℕ) : List ℤ :=
+  univProloguePins x fr ++
+    [0, 0, (x.c : ℤ), (x.n : ℤ), 2 * (x.U : ℤ), 1, 0, 0, 0, (x.n : ℤ)]
+
+/-- The two passes' and the two counters' writes, in `setLocal` form:
+the end-of-prologue locals are the mid locals with `J` twice, `Lvl` and
+`Rt` written. -/
+theorem univPrologueLocals_eq (x : MatInst) (fr : ℕ) :
+    setLocal (setLocal (setLocal (setLocal (univPrologueMid x fr) J (x.n : ℤ))
+        J (x.n : ℤ)) Lvl 1) Rt 0 = univPrologueLocals x fr := by
+  simp [univPrologueLocals, univPrologueMid, univProloguePins, J, Lvl, Rt, setLocal]
 
 /-- THE LEVEL BODY'S RUN: from the strengthened invariant at level `ell`,
 the level body — two certified rounds (rounds `2·ell`, `2·ell+1`, the
@@ -1813,5 +1866,259 @@ theorem wireUnivTarget_of
 #print axioms wireUnivTarget_of
 
 #print axioms UnivPins_set
+
+/-! ## The entry assembly's run: the prologue -/
+
+/-- The mid-frame's row-length register holds `n` (the first pass's length). -/
+theorem univPrologueMid_nreg (x : MatInst) (fr : ℕ) :
+    frame (univPrologueMid x fr) Nreg = (x.n : ℤ) := by
+  simp [univPrologueMid, univProloguePins, Nreg, frame]
+
+/-- The mid-frame's active base holds `fr` (the first pass's destination). -/
+theorem univPrologueMid_active (x : MatInst) (fr : ℕ) :
+    frame (univPrologueMid x fr) Active = (fr : ℤ) := by
+  simp [univPrologueMid, univProloguePins, Active, frame]
+
+/-- The mid-frame's row-length register survives the first pass's counter
+write (the counter is `J`, not `Nreg`). -/
+theorem univPrologueMid_nreg' {x : MatInst} {fr : ℕ} :
+    frame (setLocal (univPrologueMid x fr) J (x.n : ℤ)) Nreg = (x.n : ℤ) := by
+  rw [frame_setLocal]
+  simp [Nreg, J, univPrologueMid, univProloguePins, frame]
+
+/-- The mid-frame's remaining base holds `fr + 3n + n²` — the second
+pass's destination — and survives the first pass's counter write. -/
+theorem univPrologueMid_remaining {x : MatInst} {fr : ℕ} :
+    frame (setLocal (univPrologueMid x fr) J (x.n : ℤ)) Remaining
+      = ((fr + 3 * x.n + x.n * x.n : ℕ) : ℤ) := by
+  rw [frame_setLocal]
+  simp [Remaining, J, univPrologueMid, univProloguePins, frame] <;> push_cast <;> ring
+
+/-- THE ENTRY ASSEMBLY'S RUN: `univPrologue`, started in the `mpTask`
+frame `[n, U, a, b, c, fr]` over the instance memory `μ₀`, ends within
+`univProB x.n` in the level loop's ZERO invariant — the sole missing
+premise of `wireUnivTarget_of`.
+
+The budget is charged exactly: the thirteen `.set`s (forty steps), the
+two all-ones passes (`13n + 6` each), and the two counter sets are all in
+that forty — `40 + 2·(13n+6) = 26n + 52 ≤ 27n + 64 = univProB n`.
+
+The hypothesis list is the frame correspondence (`hframe`, `hvals`) plus
+the instance's own lay-out facts: the product region below the buffers
+(`hbelow`), the buffer stack's fit (`hfit`), `space ≤ word`, the `2·U`
+word bound, the schedule fitting a row (`hregion`), the active mask's
+truth (`hactive`), and the rows table's memory image (`hrows`) — the
+level-0 stage reads' "the array keeps the instance's own values" device. -/
+theorem prologue_runs
+    {lim : Limits} {d : ℕ} {P k I h : ℕ} {active : ℕ → Bool}
+    {rows : ℕ → ℕ → ℕ} {ab rb sb mb bb fr frC : ℕ}
+    (stage : ℕ) (cacheProg restoreProg : Light.Program) (cs : Inst)
+    (R : Light.Program) (Tt : ℕ → ℕ)
+    (x : MatInst) (W : ℕ) (tests : ℕ → Bool × Bool)
+    (vals frameVals : List ℤ) (μ₀ : ℕ → ℤ)
+    (hxn : 1 ≤ x.n)
+    (hframe : frameVals = [(x.n : ℤ), (x.U : ℤ), (x.a : ℤ), (x.b : ℤ),
+      (x.c : ℤ), (fr : ℤ)])
+    (hvals : vals = univProloguePins x fr)
+    (hI : I = x.n) (hP : P = x.n)
+    (hab : ab = fr) (hrb : rb = fr + x.n) (hsb : sb = fr + x.n + x.n * x.n)
+    (hbb : bb = fr + 2 * x.n + x.n * x.n) (hmb : mb = fr + 3 * x.n + x.n * x.n)
+    (hfrC : frC ≤ ab)
+    (hbelow : x.c + x.n * x.n ≤ ab)
+    (hfit : fr + 4 * x.n + x.n * x.n ≤ lim.space)
+    (hspace : (lim.space : ℤ) ≤ lim.word)
+    (hwordU2 : |2 * (x.U : ℤ)| ≤ lim.word)
+    (hword1 : (1 : ℤ) ≤ lim.word)
+    (hregion : mpRounds W ≤ x.n)
+    (hactive : ∀ i < I, active i = true)
+    (hrows : ∀ p < P, ∀ i < I, rows p i = μ₀ (rb + p * I + i)) :
+    PrologueTarget (lim := lim) (d := d) (P := P) (k := k) (I := I) (h := h)
+      (active := active) (rows := rows) (ab := ab) (rb := rb) (sb := sb)
+      (mb := mb) (bb := bb) (fr := fr) (frC := frC)
+      stage cacheProg restoreProg cs R Tt x W tests vals frameVals μ₀ := by
+  unfold PrologueTarget
+  subst hvals
+  subst hframe
+  subst hI
+  subst hP
+  subst ab
+  subst hrb
+  subst hsb
+  subst hbb
+  subst hmb
+  -- the numeric context: the buffer stack's fit, and the word's positivity
+  have hw0 : (0 : ℤ) ≤ lim.word := by
+    have h1 : (0 : ℤ) ≤ (lim.space : ℤ) := by exact_mod_cast Nat.zero_le lim.space
+    linarith
+  have hZ : (fr : ℤ) + 4 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ) ≤ lim.word := by
+    have h1 : ((fr + 4 * x.n + x.n * x.n : ℕ) : ℤ) ≤ (lim.space : ℤ) := by
+      exact_mod_cast hfit
+    have h2 : (lim.space : ℤ) ≤ lim.word := hspace
+    have h3 := le_trans h1 h2
+    push_cast at h3
+    linarith
+  have hU2le : 2 * (x.U : ℤ) ≤ lim.word := (abs_le.mp hwordU2).2
+  have hU2ge : -(lim.word) ≤ 2 * (x.U : ℤ) := (abs_le.mp hwordU2).1
+  have hfr_space : fr + x.n ≤ lim.space := by
+    have h1 : fr + x.n ≤ fr + 4 * x.n + x.n * x.n := by omega
+    omega
+  have hmb_space : fr + 3 * x.n + x.n * x.n + x.n ≤ lim.space := by
+    omega
+  have hn2_word : ((x.n * x.n : ℕ) : ℤ) ≤ lim.word := by
+    have h1 : ((x.n * x.n : ℕ) : ℤ) ≤ ((fr + 4 * x.n + x.n * x.n : ℕ) : ℤ) := by
+      exact_mod_cast (by omega : x.n * x.n ≤ fr + 4 * x.n + x.n * x.n)
+    exact le_trans h1 (le_trans (by exact_mod_cast hfit) hspace)
+  -- the two passes' writes, named
+  let μ₁ : ℕ → ℤ := wrote μ₀ fr (fun _ => 1) x.n
+  let μ₂ : ℕ → ℤ := wrote μ₁ (fr + 3 * x.n + x.n * x.n) (fun _ => 1) x.n
+  -- the run
+  have hcore : Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d
+      univPrologue
+      ⟨frame [(x.n : ℤ), (x.U : ℤ), (x.a : ℤ), (x.b : ℤ), (x.c : ℤ), (fr : ℤ)],
+        μ₀⟩ (26 * x.n + 52)
+      (fun σ' => σ' = ⟨frame (univPrologueLocals x fr), μ₂⟩) := by
+    unfold univPrologue
+    -- the eleven frame sets
+    refine Ends.setToThen ((x.U : ℤ)) ?_
+    refine Ends.setToThen (2 * (x.U : ℤ)) ?_
+    refine Ends.setToThen ((x.c : ℤ)) ?_
+    refine Ends.setToThen ((x.n : ℤ)) ?_
+    refine Ends.setToThen ((x.n : ℤ)) ?_
+    refine Ends.setToThen ((fr : ℤ)) ?_
+    refine Ends.setToThen ((fr : ℤ) + (x.n : ℤ)) ?_
+    refine Ends.setToThen ((fr : ℤ) + (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ)) ?_
+    refine Ends.setToThen ((fr : ℤ) + 2 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ)) ?_
+    refine Ends.setToThen ((fr : ℤ) + 3 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ)) ?_
+    refine Ends.setToThen ((fr : ℤ) + 4 * (x.n : ℤ) + (x.n : ℤ) * (x.n : ℤ)) ?_
+    -- the two initialization passes
+    have hpass1 : Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d
+        (Light.pass J (v Nreg) (v Active) (Light.k 1))
+        ⟨frame (univPrologueMid x fr), μ₀⟩ (13 * x.n + 6)
+        (fun σ' => σ' = ⟨frame (setLocal (univPrologueMid x fr) J (x.n : ℤ)), μ₁⟩) := by
+      refine Ends.pass (n := x.n) (dst := fr) (fun _ => 1) ?_ ?_ hspace ?_ ?_ ?_ (by decide) (by decide) ?_
+      · intro j hj
+        exact ⟨hword1, rfl⟩
+      · simp [update_frame_setLocal, μ₁]
+      · exact hfr_space
+      · exact univPrologueMid_nreg x fr
+      · exact univPrologueMid_active x fr
+      · simp only [Expr.cost]
+        omega
+    have hpass2 : Ends lim (callerProgramUniv stage cacheProg restoreProg cs ++ R) d
+        (Light.pass J (v Nreg) (v Remaining) (Light.k 1))
+        ⟨frame (setLocal (univPrologueMid x fr) J (x.n : ℤ)), μ₁⟩ (13 * x.n + 6)
+        (fun σ' => σ' = ⟨frame (setLocal (setLocal (univPrologueMid x fr) J (x.n : ℤ))
+          J (x.n : ℤ)), μ₂⟩) := by
+      refine Ends.pass (n := x.n) (dst := fr + 3 * x.n + x.n * x.n) (fun _ => 1) ?_ ?_ hspace ?_ ?_ ?_ (by decide) (by decide) ?_
+      · intro j hj
+        exact ⟨hword1, rfl⟩
+      · simp [update_frame_setLocal, μ₂]
+      · exact hmb_space
+      · exact univPrologueMid_nreg'
+      · exact univPrologueMid_remaining
+      · simp only [Expr.cost]
+        omega
+    refine Ends.pieceThen hpass1 ?_ (by light_time)
+    intro σ' hσ'
+    rw [hσ']
+    refine Ends.pieceThen hpass2 ?_ (by light_time)
+    intro σ'' hσ''
+    rw [hσ'']
+    -- the two counter sets
+    refine Ends.setToThen (1 : ℤ) ?_ (by exact ⟨hword1, rfl⟩) (by simp only [Expr.cost]; omega)
+    refine Ends.setTo (0 : ℤ) ?_ (by exact ⟨hw0, rfl⟩) (by simp only [Expr.cost]; omega)
+    rw [univPrologueLocals_eq]
+  -- the invariant at level zero
+  refine hcore.mono (T' := univProB x.n) (by unfold univProB; omega) ?_
+  intro σ' hσ'
+  subst hσ'
+  try dsimp only [State.mem, State.loc]
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · -- UnivInv: pins, the two counters, the reads, the product cell
+    refine ⟨?_, ?_, ?_, ?_, ?_⟩
+    · -- the nine frame pins
+      refine ⟨?_, ?_, ?_, ?_, ?_⟩
+      · intro k' hk'
+        interval_cases k' <;>
+          simp [univPrologueLocals, univProloguePins, frame] <;> try ring
+      · simp [univPrologueLocals, univProloguePins, Out, frame]
+      · simp [univPrologueLocals, univProloguePins, Nreg, frame]
+      · simp [univPrologueLocals, univProloguePins, U2, frame] <;> push_cast <;> ring
+      · -- the address bookkeeping, from the stack's fit
+        intro t ht
+        have htle : t < x.n := lt_of_lt_of_le ht hregion
+        constructor
+        · have h1 : x.c + t * x.n + x.n ≤ x.c + x.n * x.n := by nlinarith
+          omega
+        · have h2 : ((t * x.n : ℕ) : ℤ) ≤ lim.word := by
+            have h3 : ((t * x.n : ℕ) : ℤ) ≤ ((x.n * x.n : ℕ) : ℤ) := by
+              exact_mod_cast (by nlinarith : t * x.n ≤ x.n * x.n)
+            omega
+          rw [abs_of_nonneg (by positivity)]
+          exact h2
+    · -- the level counter
+      simp only [univPrologueLocals, univProloguePins, Lvl, frame]
+      norm_num
+    · -- the round counter
+      simp only [univPrologueLocals, univProloguePins, Rt, frame]
+      norm_num
+    · -- the level-0 stage reads: the arrays keep the instance's own values
+      refine ⟨fun _ => true, ?_, ?_, ?_⟩
+      · intro i hi
+        show μ₂ (fr + i) = DenseScorePass.bit (active i)
+        have hai : active i = true := hactive i hi
+        have hout : Outside (fr + 3 * x.n + x.n * x.n) x.n (fr + i) := Or.inl (by omega)
+        have hwr : μ₂ (fr + i) = μ₁ (fr + i) :=
+          wrote_rest (μ := μ₁) (f := fun _ => 1) hout
+        have hdone : μ₁ (fr + i) = 1 :=
+          wrote_done (μ := μ₀) (dst := fr) (f := fun _ => 1) (i := i) (j := x.n) hi
+        rw [hwr, hdone, hai]
+        simp [DenseScorePass.bit]
+      · intro p hp i hi
+        show μ₂ (fr + x.n + p * x.n + i) = ((rows p i : ℕ) : ℤ)
+        have hout : Outside (fr + 3 * x.n + x.n * x.n) x.n (fr + x.n + p * x.n + i) :=
+          Or.inl (by nlinarith)
+        have hwr : μ₂ (fr + x.n + p * x.n + i) = μ₁ (fr + x.n + p * x.n + i) :=
+          wrote_rest (μ := μ₁) (f := fun _ => 1) hout
+        have hwr2 : μ₁ (fr + x.n + p * x.n + i) = μ₀ (fr + x.n + p * x.n + i) :=
+          wrote_rest (μ := μ₀) (f := fun _ => 1) (Or.inr (by omega))
+        rw [hwr, hwr2]
+        exact (hrows p hp i hi).symm
+      · intro p hp
+        show μ₂ (fr + 3 * x.n + x.n * x.n + p) = DenseArgminPass.bit ((fun _ => true) p)
+        have hdone : μ₂ (fr + 3 * x.n + x.n * x.n + p) = 1 :=
+          wrote_done (μ := μ₁) (dst := fr + 3 * x.n + x.n * x.n)
+            (f := fun _ => 1) (i := p) (j := x.n) hp
+        rw [hdone]
+        simp [DenseArgminPass.bit]
+    · -- the product cell is untouched at level zero
+      show μ₂ x.c = μ₀ x.c
+      have h1 : μ₂ x.c = μ₁ x.c := wrote_rest (μ := μ₁) (f := fun _ => 1) (Or.inl (by omega))
+      have h2 : μ₁ x.c = μ₀ x.c := wrote_rest (μ := μ₀) (f := fun _ => 1) (Or.inl (by nlinarith))
+      rw [h1, h2]
+  · -- the vacuous early-rows clause at ell = 0
+    intro t u ht
+    omega
+  · -- the untouched product rows
+    intro t u _ ht hu
+    show wrote (wrote μ₀ fr (fun _ => 1) x.n) (fr + 3 * x.n + x.n * x.n) (fun _ => 1) x.n
+      (x.c + t * x.n + u) = μ₀ (x.c + t * x.n + u)
+    have hout : Outside (fr + 3 * x.n + x.n * x.n) x.n (x.c + t * x.n + u) :=
+      Or.inl (by nlinarith)
+    have hout2 : Outside fr x.n (x.c + t * x.n + u) := Or.inl (by nlinarith)
+    rw [wrote_rest (μ := wrote μ₀ fr (fun _ => 1) x.n) (f := fun _ => 1) hout,
+      wrote_rest (μ := μ₀) (f := fun _ => 1) hout2]
+  · -- the kept frame below the caller's free pointer
+    intro b hb
+    obtain ⟨hb1, _⟩ := hb
+    show wrote (wrote μ₀ fr (fun _ => 1) x.n) (fr + 3 * x.n + x.n * x.n) (fun _ => 1) x.n b = μ₀ b
+    have hout : Outside (fr + 3 * x.n + x.n * x.n) x.n b := Or.inl (by omega)
+    have hout2 : Outside fr x.n b := Or.inl (by omega)
+    rw [wrote_rest (μ := wrote μ₀ fr (fun _ => 1) x.n) (f := fun _ => 1) hout,
+      wrote_rest (μ := μ₀) (f := fun _ => 1) hout2]
+
+#print axioms univPrologueLocals_eq
+
+#print axioms prologue_runs
 
 end ThinMatrix.CallerUniversalBody
